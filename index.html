@@ -598,7 +598,7 @@ let aimTouchId = null; // separate tracking for aim joystick
 const TOUCH_ZONES = {
   left:  { x: 0,   y: H - 180, w: 140, h: 180 },
   right: { x: 140, y: H - 180, w: 140, h: 180 },
-  jump:  { x: 0,   y: H - 320, w: 280, h: 140 }
+  up:    { x: 0,   y: H - 320, w: 280, h: 140 }
 };
 
 // Right side of screen = aim joystick zone
@@ -647,7 +647,7 @@ canvas.addEventListener('touchstart', e => {
     if (state === 'menu') {
       if (menuState === 'main') {
         const menuY = H * 0.35;
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 6; i++) {
           const y = menuY + i * 45;
           if (cx > W/2 - 160 && cx < W/2 + 160 && cy > y - 22 && cy < y + 22) {
             menuSelection = i;
@@ -656,6 +656,7 @@ canvas.addEventListener('touchstart', e => {
             else if (i === 2) { menuState = 'settings'; menuSelection = 0; }
             else if (i === 3) { menuState = 'controls'; menuSelection = 0; }
             else if (i === 4) { menuState = 'credits'; menuSelection = 0; }
+            else if (i === 5) { menuState = 'cheats'; cheatSelection = 0; }
             return;
           }
         }
@@ -2369,6 +2370,8 @@ function update() {
     if (!hit && miniBosses.length > 0) {
       for (const mb of miniBosses) {
         if (mb.dead) continue;
+        // Skip all collision with Hawking during his death scene
+        if (mb.name === 'HAWKING' && state === 'hawkingDeath') continue;
         if (rectsOverlap(proj, mb)) {
           // Hawking is invulnerable until other 4 are dead
           const othersAlive = miniBosses.filter(m => !m.dead && m.name !== 'HAWKING').length;
@@ -7950,17 +7953,8 @@ function draw() {
           ctx.fillRect(0, 0, W, H);
         }
         
-        // === INDIVIDUAL CHARACTER REVEALS ===
-        // Each character gets a dramatic spotlight moment
-        const reveals = [
-          { start: 0.04, dur: 0.08, idx: 0, fromDir: 'left' },   // Trump
-          { start: 0.12, dur: 0.08, idx: 1, fromDir: 'right' },  // Epstein
-          { start: 0.20, dur: 0.08, idx: 2, fromDir: 'left' },   // Musk
-          { start: 0.28, dur: 0.08, idx: 3, fromDir: 'right' },  // Clinton
-          { start: 0.38, dur: 0.12, idx: 4, fromDir: 'bottom' }, // Hawking (longer, more dramatic)
-        ];
-        
-        // Assembly positions (where they end up)
+        // === CHARACTER REVEALS (sequential fade-in at assembly positions) ===
+        const revealTimes = [0.04, 0.12, 0.20, 0.28, 0.38];
         const assemblyPos = [
           { x: 0.12, y: 0.35, s: 0.85 },    // Trump far left
           { x: 0.30, y: 0.35, s: 0.9 },      // Epstein inner left
@@ -7969,93 +7963,33 @@ function draw() {
           { x: 0.50, y: 0.18, s: 1.7 },      // Hawking CENTER, BIGGEST
         ];
         
-        for (const rev of reveals) {
-          const revProg = Math.max(0, Math.min(1, (sp - rev.start) / rev.dur));
-          if (revProg <= 0) continue;
-          
-          const i = rev.idx;
+        for (let i = 0; i < 5; i++) {
+          if (sp < revealTimes[i]) continue;
           const isHawking = i === 4;
+          const fadeProg = Math.min(1, (sp - revealTimes[i]) / 0.06);
+          const fadeEase = 1 - Math.pow(1 - fadeProg, 3);
           
-          // During individual reveal phase (before assembly)
-          const inSpotlight = sp < 0.50;
-          // Assembly phase transition
-          const assemblyProg = Math.max(0, Math.min(1, (sp - 0.50) / 0.15));
-          const assemblyEase = 1 - Math.pow(1 - assemblyProg, 3);
-          
-          // Calculate position — during spotlight, character is centered; during assembly, moves to position
-          let px, py, pSize;
+          const aPos = assemblyPos[i];
           const baseSize = Math.min(W * 0.11, 75);
-          
-          if (inSpotlight || assemblyProg < 1) {
-            // Spotlight position (centered, large)
-            const spotX = W / 2;
-            const spotY = H * 0.30;
-            const spotSize = baseSize * (isHawking ? 2.0 : 1.4);
-            
-            // Assembly target
-            const aPos = assemblyPos[i];
-            const assemblyX = W * aPos.x;
-            const assemblyY = H * aPos.y;
-            const assemblySize = baseSize * aPos.s;
-            
-            // Lerp between spotlight and assembly
-            px = spotX + (assemblyX - spotX) * assemblyEase;
-            py = spotY + (assemblyY - spotY) * assemblyEase;
-            pSize = spotSize + (assemblySize - spotSize) * assemblyEase;
-          } else {
-            // Fully in assembly position
-            const aPos = assemblyPos[i];
-            px = W * aPos.x;
-            py = H * aPos.y;
-            pSize = baseSize * aPos.s;
-          }
-          
+          const pSize = baseSize * aPos.s;
+          const px = W * aPos.x;
+          const py = H * aPos.y;
           const pH = imgH(allImgs[i], pSize);
+          const drawX = px - pSize / 2;
+          const drawY = py;
           
-          // Entrance animation
-          const entranceEase = 1 - Math.pow(1 - Math.min(1, revProg * 3), 4);
-          let enterOffsetX = 0, enterOffsetY = 0;
-          if (revProg < 0.33) {
-            const slideAmt = (1 - entranceEase);
-            if (rev.fromDir === 'left') enterOffsetX = -W * 0.5 * slideAmt;
-            else if (rev.fromDir === 'right') enterOffsetX = W * 0.5 * slideAmt;
-            else enterOffsetY = H * 0.7 * slideAmt;
-          }
+          ctx.globalAlpha = fadeEase;
           
-          // Only show this character in spotlight during their reveal window
-          // After their reveal and before assembly, they fade out to wait
-          let charAlpha = 1;
-          if (inSpotlight) {
-            const myEnd = rev.start + rev.dur;
-            const nextStart = reveals[Math.min(4, rev.idx + 1)]?.start || 999;
-            if (sp > myEnd && sp < 0.50) {
-              // Fade out after spotlight, before assembly
-              const fadeOutProg = Math.min(1, (sp - myEnd) / 0.02);
-              charAlpha = Math.max(0, 1 - fadeOutProg);
-            }
-          }
+          // Colored energy pillar behind character
+          const pillarW = isHawking ? 50 : 30;
+          const pillarGrad = ctx.createLinearGradient(px - pillarW, 0, px + pillarW, 0);
+          pillarGrad.addColorStop(0, 'rgba(0,0,0,0)');
+          pillarGrad.addColorStop(0.5, allCols[i] + '15');
+          pillarGrad.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = pillarGrad;
+          ctx.fillRect(px - pillarW, 0, pillarW * 2, H);
           
-          // During assembly, fade back in
-          if (assemblyProg > 0) charAlpha = Math.max(charAlpha, assemblyProg);
-          
-          if (charAlpha <= 0) continue;
-          ctx.globalAlpha = charAlpha * entranceEase;
-          
-          const drawX = px - pSize/2 + enterOffsetX;
-          const drawY = py + enterOffsetY;
-          
-          // BIG colored energy pillar behind (spotlight phase only or assembly)
-          if ((inSpotlight && sp >= rev.start && sp < rev.start + rev.dur) || assemblyProg > 0.5) {
-            const pillarW = inSpotlight ? 80 : 30;
-            const pillarGrad = ctx.createLinearGradient(px - pillarW, 0, px + pillarW, 0);
-            pillarGrad.addColorStop(0, 'rgba(0,0,0,0)');
-            pillarGrad.addColorStop(0.5, allCols[i] + (inSpotlight ? '25' : '10'));
-            pillarGrad.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = pillarGrad;
-            ctx.fillRect(px - pillarW, 0, pillarW * 2, H);
-          }
-          
-          // Massive colored glow behind portrait
+          // Glow behind portrait
           const glowSize = pSize * (isHawking ? 2.5 : 2.0);
           const pGlow = ctx.createRadialGradient(px, drawY + pH*0.5, 5, px, drawY + pH*0.5, glowSize);
           pGlow.addColorStop(0, allCols[i] + (isHawking ? '88' : '55'));
@@ -8067,7 +8001,7 @@ function draw() {
           ctx.arc(px, drawY + pH*0.5, glowSize, 0, Math.PI*2);
           ctx.fill();
           
-          // Ornate border frame with glow
+          // Border frame with glow
           ctx.strokeStyle = allCols[i];
           ctx.lineWidth = isHawking ? 4 : 2;
           ctx.shadowColor = allCols[i];
@@ -8078,11 +8012,10 @@ function draw() {
           // Portrait image
           ctx.drawImage(allImgs[i], drawX, drawY, pSize, pH);
           if (isHawking) {
-            ctx.globalAlpha = charAlpha * entranceEase * 0.3;
+            ctx.globalAlpha = fadeEase * 0.3;
             ctx.drawImage(allImgs[i], drawX - 3, drawY - 3, pSize + 6, pH + 6);
-            ctx.globalAlpha = charAlpha * entranceEase;
+            ctx.globalAlpha = fadeEase;
           }
-          ctx.shadowBlur = 0;
           
           // Corner accent decorations
           const cornerLen = isHawking ? 18 : 12;
@@ -8094,9 +8027,9 @@ function draw() {
           ctx.beginPath(); ctx.moveTo(fx, fy + fh - cornerLen); ctx.lineTo(fx, fy + fh); ctx.lineTo(fx + cornerLen, fy + fh); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(fx + fw - cornerLen, fy + fh); ctx.lineTo(fx + fw, fy + fh); ctx.lineTo(fx + fw, fy + fh - cornerLen); ctx.stroke();
           
-          // IMPACT shockwave when character first appears
-          if (revProg > 0 && revProg < 0.2) {
-            const shockProg = revProg / 0.2;
+          // Impact shockwave on first appearance
+          if (fadeProg < 0.3) {
+            const shockProg = fadeProg / 0.3;
             const shockR = pSize * (1 + shockProg * (isHawking ? 5 : 3));
             ctx.globalAlpha = (1 - shockProg) * 0.7;
             ctx.strokeStyle = allCols[i];
@@ -8104,19 +8037,17 @@ function draw() {
             ctx.beginPath();
             ctx.arc(px, drawY + pH * 0.5, shockR, 0, Math.PI * 2);
             ctx.stroke();
-            // Screen flash on impact
             ctx.fillStyle = allCols[i];
             ctx.globalAlpha = (1 - shockProg) * (isHawking ? 0.25 : 0.12);
             ctx.fillRect(0, 0, W, H);
-            ctx.globalAlpha = charAlpha * entranceEase;
+            ctx.globalAlpha = fadeEase;
           }
           
-          // Name plate — bigger during spotlight
+          // Name plate
           const npY = drawY + pH + 8;
-          const plateScale = inSpotlight && sp >= rev.start && sp < rev.start + rev.dur ? 1.3 : 1;
-          const npH = (isHawking ? 50 : 32) * plateScale;
-          const npW = (pSize + 20) * plateScale;
-          const npX = px - npW/2;
+          const npH = isHawking ? 50 : 32;
+          const npW = pSize + 20;
+          const npX = px - npW / 2;
           const plateGrad = ctx.createLinearGradient(npX, npY, npX, npY + npH);
           plateGrad.addColorStop(0, '#111111ee');
           plateGrad.addColorStop(1, '#000000ee');
@@ -8125,41 +8056,18 @@ function draw() {
           ctx.strokeStyle = allCols[i] + '88';
           ctx.lineWidth = 1;
           ctx.strokeRect(npX, npY, npW, npH);
-          // Name
           ctx.fillStyle = allCols[i];
-          const nameSize = (isHawking ? 20 : 13) * plateScale;
+          const nameSize = isHawking ? 20 : 13;
           ctx.font = `bold ${nameSize}px monospace`;
           ctx.textAlign = 'center';
           ctx.shadowColor = allCols[i];
           ctx.shadowBlur = 12;
           ctx.fillText(allNames[i], px, npY + nameSize + 2);
           ctx.shadowBlur = 0;
-          // Title (during spotlight, show dramatically)
-          const titleSize = (isHawking ? 12 : 9) * plateScale;
+          const titleSize = isHawking ? 12 : 9;
           ctx.fillStyle = isHawking ? '#44ff88' : '#999';
           ctx.font = `${isHawking ? 'bold ' : ''}${titleSize}px monospace`;
           ctx.fillText(allTitles[i], px, npY + nameSize + titleSize + 6);
-          
-          // Character-specific dialogue during their spotlight
-          if (inSpotlight && sp >= rev.start + rev.dur * 0.3 && sp < rev.start + rev.dur) {
-            const dlgProg = (sp - (rev.start + rev.dur * 0.3)) / (rev.dur * 0.7);
-            ctx.globalAlpha = Math.sin(dlgProg * Math.PI) * 0.9;
-            ctx.fillStyle = allCols[i];
-            ctx.shadowColor = allCols[i];
-            ctx.shadowBlur = 8;
-            const dlgSize = Math.min(isHawking ? 22 : 18, W * (isHawking ? 0.03 : 0.025));
-            ctx.font = `italic ${dlgSize}px monospace`;
-            const dialogues = [
-              '"I always come back."',           // Trump
-              '"The shadows remember."',         // Epstein
-              '"Systems online. Ready."',        // Musk
-              '"Power never truly dies."',       // Clinton
-              '"THE UNIVERSE ISN\'T DONE WITH ME."',  // Hawking
-            ];
-            ctx.fillText(dialogues[i], W/2, H * 0.75);
-            ctx.shadowBlur = 0;
-            ctx.globalAlpha = charAlpha * entranceEase;
-          }
         }
         
         // Dramatic pause before Hawking (0.36-0.38): screen flickers, tension builds
