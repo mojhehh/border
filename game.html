@@ -1091,7 +1091,7 @@ function watchCutscene() {
   player.facing = 1;
   
   state = 'splitfight';
-  bossIntroTimer = 1200; // full 20-second cinematic
+  bossIntroTimer = 1800; // full 30-second cinematic
   screenFlash = 40;
   screenFlashColor = '#ffffff';
   shakeTimer = 20;
@@ -2983,7 +2983,7 @@ function update() {
       }
 
       state = 'splitfight';
-      bossIntroTimer = 1200; // epic 20-second cinematic
+      bossIntroTimer = 1800; // epic 30-second cinematic
       // Clear leftover enemies from previous phases
       bossMinions = [];
       bullets = [];
@@ -5488,12 +5488,15 @@ function draw() {
     const shakeX = prog > 0.7 ? (Math.random() - 0.5) * 8 : 0;
     const shakeY = prog > 0.7 ? (Math.random() - 0.5) * 8 : 0;
     
+    // Use same height for both portraits so they match visually
+    const portraitH = portraitSize * 1.3;
+    
     // Trump portrait (coming from left)
     ctx.save();
     ctx.globalAlpha = 0.7 + prog * 0.3;
     ctx.shadowColor = '#ff4400';
     ctx.shadowBlur = 20 + prog * 30;
-    ctx.drawImage(bossImg, W/2 - portraitSize - separation + shakeX, H/2 - portraitSize/2 + shakeY, portraitSize, imgH(bossImg, portraitSize));
+    ctx.drawImage(bossImg, W/2 - portraitSize - separation + shakeX, H/2 - portraitH/2 + shakeY, portraitSize, portraitH);
     ctx.restore();
     
     // Epstein portrait (coming from right)
@@ -5501,7 +5504,7 @@ function draw() {
     ctx.globalAlpha = 0.7 + prog * 0.3;
     ctx.shadowColor = '#8844ff';
     ctx.shadowBlur = 20 + prog * 30;
-    ctx.drawImage(epsteinImg, W/2 + separation + shakeX, H/2 - portraitSize/2 + shakeY, portraitSize, imgH(epsteinImg, portraitSize));
+    ctx.drawImage(epsteinImg, W/2 + separation + shakeX, H/2 - portraitH/2 + shakeY, portraitSize, portraitH);
     ctx.restore();
 
     // Center merge glow (intensifies as they get close)
@@ -5648,7 +5651,7 @@ function draw() {
   if (state === 'splitfight') {
     // === EPIC SPLIT BOSS CINEMATIC ===
     if (bossIntroTimer > 0) {
-      const introT = 1200;
+      const introT = 1800;
       const prog = 1 - bossIntroTimer / introT;
       const t = Date.now() / 1000;
       
@@ -5656,12 +5659,81 @@ function draw() {
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, W, H);
       
+      // === GLOBAL CINEMATIC EFFECTS ===
+      // Dramatic slow zoom that builds throughout entire cinematic
+      const globalZoom = 1 + prog * 0.04;
+      ctx.save();
+      ctx.translate(W/2, H/2);
+      ctx.scale(globalZoom, globalZoom);
+      ctx.translate(-W/2, -H/2);
+      
+      // Chromatic aberration effect during scene transitions
+      const scenes_t = [0.03, 0.055, 0.14, 0.24, 0.34, 0.44, 0.59];
+      let chromatic = 0;
+      for (const st of scenes_t) {
+        const d = Math.abs(prog - st);
+        if (d < 0.01) chromatic = Math.max(chromatic, (0.01 - d) / 0.01);
+      }
+      
+      // Dramatic bass-drop pulse at each transition
+      let bassDrop = 0;
+      for (const st of scenes_t) {
+        const d = prog - st;
+        if (d > 0 && d < 0.015) bassDrop = Math.max(bassDrop, 1 - d / 0.015);
+      }
+      if (bassDrop > 0) {
+        // Radial shockwave from center
+        const shockR = (1 - bassDrop) * Math.max(W, H);
+        ctx.strokeStyle = `rgba(255,255,255,${bassDrop * 0.4})`;
+        ctx.lineWidth = 3 + bassDrop * 8;
+        ctx.beginPath();
+        ctx.arc(W/2, H/2, shockR, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      
       // Cinematic letterbox bars
       const barH = 50;
       
-      // ═══ SCENE 1 (0-0.08): Phone screen UI ═══
-      if (prog < 0.08) {
-        const sp = prog / 0.08;
+      // ═══ COLD OPEN (0-0.03): Dramatic fade from black ═══
+      if (prog < 0.03) {
+        const sp = prog / 0.03;
+        // Pure black with slowly emerging text
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, W, H);
+        
+        // Slow fade-in of ominous location text
+        if (sp > 0.2) {
+          const tAlpha = Math.min(1, (sp - 0.2) / 0.3);
+          ctx.globalAlpha = tAlpha * 0.6;
+          ctx.fillStyle = '#888';
+          ctx.font = `${Math.min(11, W*0.015)}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.fillText('S E C U R E   L I N E   E S T A B L I S H E D', W/2, H/2 - 20);
+          ctx.globalAlpha = 1;
+        }
+        if (sp > 0.5) {
+          const tAlpha2 = Math.min(1, (sp - 0.5) / 0.3);
+          ctx.globalAlpha = tAlpha2 * 0.4;
+          ctx.fillStyle = '#ff4400';
+          ctx.font = `bold ${Math.min(14, W*0.02)}px monospace`;
+          ctx.fillText('C L A S S I F I E D', W/2, H/2 + 10);
+          ctx.globalAlpha = 1;
+          // Scanline over text
+          const scanY = H/2 - 30 + ((t * 60) % 60);
+          ctx.fillStyle = 'rgba(255,68,0,0.03)';
+          ctx.fillRect(0, scanY, W, 2);
+        }
+        // Deep pulse
+        if (sp > 0.7) {
+          const pulseA = Math.sin((sp - 0.7) / 0.3 * Math.PI) * 0.08;
+          ctx.fillStyle = `rgba(255,0,0,${pulseA})`;
+          ctx.fillRect(0, 0, W, H);
+        }
+      }
+      
+      // ═══ SCENE 1 (0.03-0.055): Phone screen UI ═══
+      if (prog >= 0.03 && prog < 0.055) {
+        const sp = (prog - 0.03) / 0.025;
         // Dark table surface background
         const tableGrad = ctx.createRadialGradient(W/2, H/2, 50, W/2, H/2, H);
         tableGrad.addColorStop(0, '#0a0612');
@@ -5817,9 +5889,9 @@ function draw() {
         }
       }
       
-      // ═══ SCENE 2 (0.08-0.2): Epstein initiating the call ═══
-      if (prog >= 0.08 && prog < 0.2) {
-        const sp = (prog - 0.08) / 0.12;
+      // ═══ SCENE 2 (0.055-0.14): Epstein initiating the call ═══
+      if (prog >= 0.055 && prog < 0.14) {
+        const sp = (prog - 0.055) / 0.085;
         ctx.save();
         // Dark room with purple ambient
         const ambGrad = ctx.createRadialGradient(W/2, H*0.45, 50, W/2, H*0.45, H);
@@ -5981,9 +6053,9 @@ function draw() {
         ctx.restore();
       }
       
-      // ═══ SCENE 3 (0.2-0.35): Trump at his golden tower ═══
-      if (prog >= 0.2 && prog < 0.35) {
-        const sp = (prog - 0.2) / 0.15;
+      // ═══ SCENE 3 (0.14-0.24): Trump at his golden tower ═══
+      if (prog >= 0.14 && prog < 0.24) {
+        const sp = (prog - 0.14) / 0.1;
         ctx.save();
         // Gold background — Trump tower penthouse
         const goldGrad = ctx.createLinearGradient(0, 0, W, H);
@@ -6207,9 +6279,9 @@ function draw() {
         ctx.restore();
       }
       
-      // ═══ SCENE 4 (0.35-0.5): Musk at SpaceX lab ═══
-      if (prog >= 0.35 && prog < 0.5) {
-        const sp = (prog - 0.35) / 0.15;
+      // ═══ SCENE 4 (0.24-0.34): Musk at SpaceX lab ═══
+      if (prog >= 0.24 && prog < 0.34) {
+        const sp = (prog - 0.24) / 0.1;
         ctx.save();
         // Tech lab background — blue-tinted
         const techGrad = ctx.createLinearGradient(0, 0, W, H);
@@ -6433,9 +6505,9 @@ function draw() {
         ctx.restore();
       }
       
-      // ═══ SCENE 5 (0.5-0.65): Clinton in political office ═══
-      if (prog >= 0.5 && prog < 0.65) {
-        const sp = (prog - 0.5) / 0.15;
+      // ═══ SCENE 5 (0.34-0.44): Clinton in political office ═══
+      if (prog >= 0.34 && prog < 0.44) {
+        const sp = (prog - 0.34) / 0.1;
         ctx.save();
         // Dark red office — richer gradient
         const offGrad = ctx.createRadialGradient(W*0.4, H*0.4, 100, W*0.4, H*0.4, H);
@@ -6663,9 +6735,9 @@ function draw() {
         ctx.restore();
       }
       
-      // ═══ SCENE 6 (0.65-0.88): HAWKING — THE GRAVE ═══
-      if (prog >= 0.65 && prog < 0.88) {
-        const sp = (prog - 0.65) / 0.23;
+      // ═══ SCENE 6 (0.44-0.59): HAWKING — THE GRAVE ═══
+      if (prog >= 0.44 && prog < 0.59) {
+        const sp = (prog - 0.44) / 0.15;
         ctx.save();
         
         // Dark, cold graveyard atmosphere
@@ -7173,9 +7245,9 @@ function draw() {
         ctx.restore();
       }
       
-      // ═══ SCENE 7 (0.88-1.0): THE CABAL ASSEMBLED ═══
-      if (prog >= 0.88) {
-        const sp = (prog - 0.88) / 0.12;
+      // ═══ SCENE 7 (0.59-1.0): THE CABAL ASSEMBLED ═══
+      if (prog >= 0.59) {
+        const sp = (prog - 0.59) / 0.41;
         ctx.save();
         
         // Epic dark void background with nebula gradient
@@ -7187,17 +7259,35 @@ function draw() {
         ctx.fillStyle = voidGrad;
         ctx.fillRect(0, 0, W, H);
         
-        // Distant stars in void
-        for (let vs = 0; vs < 50; vs++) {
+        // Distant stars in void — twinkling
+        for (let vs = 0; vs < 80; vs++) {
           const vsx = (vs * 83.7) % W;
           const vsy = (vs * 47.3) % H;
-          ctx.fillStyle = `rgba(200,180,255,${0.1 + Math.sin(t + vs*2)*0.08})`;
-          ctx.fillRect(vsx, vsy, 1, 1);
+          const twinkle = 0.1 + Math.sin(t * 2 + vs*2)*0.08 + Math.sin(t*3.7+vs*5)*0.05;
+          ctx.fillStyle = `rgba(200,180,255,${twinkle})`;
+          const starSize = vs % 7 === 0 ? 2 : 1;
+          ctx.fillRect(vsx, vsy, starSize, starSize);
         }
         
-        // Rotating energy vortex — denser, more dynamic
+        // Phase definitions for Scene 7:
+        // 0.00-0.04: Darkness builds, energy gathers
+        // 0.04-0.12: Trump spotlight reveal
+        // 0.12-0.20: Epstein spotlight reveal
+        // 0.20-0.28: Musk spotlight reveal
+        // 0.28-0.36: Clinton spotlight reveal
+        // 0.36-0.50: Dramatic pause → Hawking MASSIVE reveal
+        // 0.50-0.65: All 5 assembled, energy connecting
+        // 0.65-0.80: "THE FINAL STAND" title card
+        // 0.80-1.00: Final dramatic build + info + fade
+        
         const allCols = ['#ff4400','#8844ff','#4488ff','#cc2222','#44ff88'];
-        ctx.globalAlpha = 0.1;
+        const allImgs = [bossImg, epsteinImg, muskImg, clintonImg, hawkingImg];
+        const allNames = ['TRUMP','EPSTEIN','MUSK','CLINTON','HAWKING'];
+        const allTitles = ['The Tyrant','The Shadow','The Architect','The Schemer','THE MASTERMIND'];
+        
+        // Rotating energy vortex — builds with each reveal
+        const vortexIntensity = Math.min(1, sp * 2);
+        ctx.globalAlpha = 0.06 * vortexIntensity;
         for (let ring = 0; ring < 18; ring++) {
           const rAngle = t * (0.3 + ring * 0.08) + ring * 0.35;
           const rDist = 50 + ring * 28;
@@ -7209,148 +7299,219 @@ function draw() {
         }
         ctx.globalAlpha = 1;
         
-        // Energy rays from center — more, color-coded
-        for (let c = 0; c < 15; c++) {
-          const ray = t * 1.2 + c * (Math.PI*2/15);
-          ctx.strokeStyle = allCols[c % 5] + '14';
-          ctx.lineWidth = 2 + Math.sin(t*2 + c) * 1.5;
-          ctx.beginPath();
-          ctx.moveTo(W/2, H*0.38);
-          ctx.lineTo(W/2 + Math.cos(ray) * W, H*0.38 + Math.sin(ray) * H);
-          ctx.stroke();
+        // Energy rays from center — color-coded, build with reveals
+        if (sp > 0.04) {
+          const rayAlpha = Math.min(0.08, (sp - 0.04) * 0.2);
+          for (let c = 0; c < 15; c++) {
+            const ray = t * 1.2 + c * (Math.PI*2/15);
+            ctx.strokeStyle = allCols[c % 5];
+            ctx.globalAlpha = rayAlpha;
+            ctx.lineWidth = 2 + Math.sin(t*2 + c) * 1.5;
+            ctx.beginPath();
+            ctx.moveTo(W/2, H*0.38);
+            ctx.lineTo(W/2 + Math.cos(ray) * W, H*0.38 + Math.sin(ray) * H);
+            ctx.stroke();
+          }
+          ctx.globalAlpha = 1;
         }
         
-        // Pentagram pattern connecting 5 points (subtle)
-        ctx.globalAlpha = 0.04 + Math.sin(t*1.5)*0.02;
-        ctx.strokeStyle = '#ffdd44';
-        ctx.lineWidth = 1;
-        const pentR = 250;
-        const pentPoints = [];
-        for (let pp2 = 0; pp2 < 5; pp2++) {
-          const pAngle = (pp2 / 5) * Math.PI * 2 - Math.PI/2 + t * 0.1;
-          pentPoints.push({ x: W/2 + Math.cos(pAngle) * pentR, y: H*0.38 + Math.sin(pAngle) * pentR * 0.7 });
-        }
-        ctx.beginPath();
-        ctx.moveTo(pentPoints[0].x, pentPoints[0].y);
-        ctx.lineTo(pentPoints[2].x, pentPoints[2].y);
-        ctx.lineTo(pentPoints[4].x, pentPoints[4].y);
-        ctx.lineTo(pentPoints[1].x, pentPoints[1].y);
-        ctx.lineTo(pentPoints[3].x, pentPoints[3].y);
-        ctx.closePath();
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-        
-        // Particle storm — more particles
-        for (let pp = 0; pp < 50; pp++) {
+        // Particle storm — builds up
+        const pCount = Math.floor(Math.min(60, sp * 100));
+        for (let pp = 0; pp < pCount; pp++) {
           const ppx = (pp * 47.3 + t * (30 + pp%3 * 10)) % W;
           const ppy = (pp * 31.7 + t * (50 + pp%4 * 8)) % H;
           ctx.fillStyle = allCols[pp % 5];
-          ctx.globalAlpha = 0.2 + Math.sin(t*3 + pp) * 0.15;
+          ctx.globalAlpha = 0.15 + Math.sin(t*3 + pp) * 0.1;
           const ppSize = pp % 5 === 0 ? 3 : (pp % 3 === 0 ? 2 : 1);
           ctx.fillRect(ppx, ppy, ppSize, ppSize);
         }
         ctx.globalAlpha = 1;
         
-        // All 5 together — Hawking in center, BIGGEST
-        const allImgs = [bossImg, epsteinImg, muskImg, clintonImg, hawkingImg];
-        const allNames = ['TRUMP','EPSTEIN','MUSK','CLINTON','HAWKING'];
-        const allTitles = ['The Tyrant','The Shadow','The Architect','The Schemer','THE MASTERMIND'];
-        const positions = [
-          { x: 0.12, s: 0.8, fromY: -250 },
-          { x: 0.28, s: 0.85, fromY: 350 },
-          { x: 0.72, s: 0.85, fromY: 350 },
-          { x: 0.88, s: 0.8, fromY: -250 },
-          { x: 0.5, s: 1.6, fromY: 450 },
+        // Phase 0 (0-0.04): Dark energy gathering
+        if (sp < 0.04) {
+          const gatherProg = sp / 0.04;
+          // Ominous text
+          ctx.globalAlpha = Math.sin(gatherProg * Math.PI);
+          ctx.fillStyle = '#666';
+          ctx.font = `${Math.min(14, W*0.02)}px monospace`;
+          ctx.textAlign = 'center';
+          const txt = 'T H E Y   A R E   C O M I N G';
+          const charCount = Math.floor(txt.length * gatherProg);
+          ctx.fillText(txt.substring(0, charCount), W/2, H/2);
+          ctx.globalAlpha = 1;
+          // Low rumble pulse
+          const rumble = Math.sin(t * 8) * gatherProg * 0.05;
+          ctx.fillStyle = `rgba(100,0,0,${rumble})`;
+          ctx.fillRect(0, 0, W, H);
+        }
+        
+        // === INDIVIDUAL CHARACTER REVEALS ===
+        // Each character gets a dramatic spotlight moment
+        const reveals = [
+          { start: 0.04, dur: 0.08, idx: 0, fromDir: 'left' },   // Trump
+          { start: 0.12, dur: 0.08, idx: 1, fromDir: 'right' },  // Epstein
+          { start: 0.20, dur: 0.08, idx: 2, fromDir: 'left' },   // Musk
+          { start: 0.28, dur: 0.08, idx: 3, fromDir: 'right' },  // Clinton
+          { start: 0.38, dur: 0.12, idx: 4, fromDir: 'bottom' }, // Hawking (longer, more dramatic)
         ];
         
-        for (let i = 0; i < 5; i++) {
-          const revealDelay = i === 4 ? 0.35 : i * 0.06;
-          const iProg = Math.max(0, Math.min(1, (sp - revealDelay) / 0.18));
-          if (iProg <= 0) continue;
+        // Assembly positions (where they end up)
+        const assemblyPos = [
+          { x: 0.12, y: 0.14, s: 0.85 },    // Trump far left
+          { x: 0.30, y: 0.14, s: 0.9 },      // Epstein inner left
+          { x: 0.70, y: 0.14, s: 0.9 },      // Musk inner right
+          { x: 0.88, y: 0.14, s: 0.85 },     // Clinton far right
+          { x: 0.50, y: 0.02, s: 1.7 },      // Hawking CENTER, BIGGEST
+        ];
+        
+        for (const rev of reveals) {
+          const revProg = Math.max(0, Math.min(1, (sp - rev.start) / rev.dur));
+          if (revProg <= 0) continue;
           
-          const ps = positions[i];
-          const iEase = 1 - Math.pow(1 - iProg, 4);
-          const pSize = Math.min(W * 0.11, 75) * ps.s;
-          const pH = imgH(allImgs[i], pSize);
-          const px = W * ps.x;
-          const targetY = i === 4 ? H * 0.04 : H * 0.14;
-          const py = targetY + (1 - iEase) * ps.fromY;
+          const i = rev.idx;
+          const isHawking = i === 4;
           
-          ctx.globalAlpha = iEase;
+          // During individual reveal phase (before assembly)
+          const inSpotlight = sp < 0.50;
+          // Assembly phase transition
+          const assemblyProg = Math.max(0, Math.min(1, (sp - 0.50) / 0.15));
+          const assemblyEase = 1 - Math.pow(1 - assemblyProg, 3);
           
-          // Colored energy pillar behind each portrait
-          if (iEase > 0.5) {
-            const pillarGrad = ctx.createLinearGradient(px - 5, 0, px + 5, 0);
-            pillarGrad.addColorStop(0, 'rgba(0,0,0,0)');
-            pillarGrad.addColorStop(0.5, allCols[i] + '10');
-            pillarGrad.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = pillarGrad;
-            ctx.fillRect(px - 25, 0, 50, H);
+          // Calculate position — during spotlight, character is centered; during assembly, moves to position
+          let px, py, pSize;
+          const baseSize = Math.min(W * 0.11, 75);
+          
+          if (inSpotlight || assemblyProg < 1) {
+            // Spotlight position (centered, large)
+            const spotX = W / 2;
+            const spotY = H * 0.08;
+            const spotSize = baseSize * (isHawking ? 2.0 : 1.4);
+            
+            // Assembly target
+            const aPos = assemblyPos[i];
+            const assemblyX = W * aPos.x;
+            const assemblyY = H * aPos.y;
+            const assemblySize = baseSize * aPos.s;
+            
+            // Lerp between spotlight and assembly
+            px = spotX + (assemblyX - spotX) * assemblyEase;
+            py = spotY + (assemblyY - spotY) * assemblyEase;
+            pSize = spotSize + (assemblySize - spotSize) * assemblyEase;
+          } else {
+            // Fully in assembly position
+            const aPos = assemblyPos[i];
+            px = W * aPos.x;
+            py = H * aPos.y;
+            pSize = baseSize * aPos.s;
           }
           
-          // Larger colored glow behind portrait
-          const pGlow = ctx.createRadialGradient(px, py + pSize*0.65, 5, px, py + pSize*0.65, pSize * 1.8);
-          pGlow.addColorStop(0, allCols[i] + (i === 4 ? '66' : '44'));
-          pGlow.addColorStop(0.5, allCols[i] + '15');
+          const pH = imgH(allImgs[i], pSize);
+          
+          // Entrance animation
+          const entranceEase = 1 - Math.pow(1 - Math.min(1, revProg * 3), 4);
+          let enterOffsetX = 0, enterOffsetY = 0;
+          if (revProg < 0.33) {
+            const slideAmt = (1 - entranceEase);
+            if (rev.fromDir === 'left') enterOffsetX = -W * 0.5 * slideAmt;
+            else if (rev.fromDir === 'right') enterOffsetX = W * 0.5 * slideAmt;
+            else enterOffsetY = H * 0.7 * slideAmt;
+          }
+          
+          // Only show this character in spotlight during their reveal window
+          // After their reveal and before assembly, they fade out to wait
+          let charAlpha = 1;
+          if (inSpotlight) {
+            const myEnd = rev.start + rev.dur;
+            const nextStart = reveals[Math.min(4, rev.idx + 1)]?.start || 999;
+            if (sp > myEnd && sp < 0.50) {
+              // Fade out after spotlight, before assembly
+              const fadeOutProg = Math.min(1, (sp - myEnd) / 0.02);
+              charAlpha = Math.max(0, 1 - fadeOutProg);
+            }
+          }
+          
+          // During assembly, fade back in
+          if (assemblyProg > 0) charAlpha = Math.max(charAlpha, assemblyProg);
+          
+          if (charAlpha <= 0) continue;
+          ctx.globalAlpha = charAlpha * entranceEase;
+          
+          const drawX = px - pSize/2 + enterOffsetX;
+          const drawY = py + enterOffsetY;
+          
+          // BIG colored energy pillar behind (spotlight phase only or assembly)
+          if ((inSpotlight && sp >= rev.start && sp < rev.start + rev.dur) || assemblyProg > 0.5) {
+            const pillarW = inSpotlight ? 80 : 30;
+            const pillarGrad = ctx.createLinearGradient(px - pillarW, 0, px + pillarW, 0);
+            pillarGrad.addColorStop(0, 'rgba(0,0,0,0)');
+            pillarGrad.addColorStop(0.5, allCols[i] + (inSpotlight ? '25' : '10'));
+            pillarGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = pillarGrad;
+            ctx.fillRect(px - pillarW, 0, pillarW * 2, H);
+          }
+          
+          // Massive colored glow behind portrait
+          const glowSize = pSize * (isHawking ? 2.5 : 2.0);
+          const pGlow = ctx.createRadialGradient(px, drawY + pH*0.5, 5, px, drawY + pH*0.5, glowSize);
+          pGlow.addColorStop(0, allCols[i] + (isHawking ? '88' : '55'));
+          pGlow.addColorStop(0.3, allCols[i] + '25');
+          pGlow.addColorStop(0.7, allCols[i] + '08');
           pGlow.addColorStop(1, 'rgba(0,0,0,0)');
           ctx.fillStyle = pGlow;
           ctx.beginPath();
-          ctx.arc(px, py + pSize*0.65, pSize * 1.8, 0, Math.PI*2);
+          ctx.arc(px, drawY + pH*0.5, glowSize, 0, Math.PI*2);
           ctx.fill();
           
-          // Ornate border frame with corner accents
+          // Ornate border frame with glow
           ctx.strokeStyle = allCols[i];
-          ctx.lineWidth = i === 4 ? 3 : 2;
+          ctx.lineWidth = isHawking ? 4 : 2;
           ctx.shadowColor = allCols[i];
-          ctx.shadowBlur = i === 4 ? 50 : 20;
-          ctx.strokeRect(px - pSize/2 - 5, py - 5, pSize + 10, pH + 10);
+          ctx.shadowBlur = isHawking ? 60 : 25;
+          ctx.strokeRect(drawX - 6, drawY - 6, pSize + 12, pH + 12);
           ctx.shadowBlur = 0;
           
-          // Portrait image with double-draw for Hawking
-          ctx.drawImage(allImgs[i], px - pSize/2, py, pSize, pH);
-          if (i === 4) {
-            ctx.globalAlpha = iEase * 0.3;
-            ctx.drawImage(allImgs[i], px - pSize/2 - 2, py - 2, pSize + 4, pH + 4);
-            ctx.globalAlpha = iEase;
+          // Portrait image
+          ctx.drawImage(allImgs[i], drawX, drawY, pSize, pH);
+          if (isHawking) {
+            ctx.globalAlpha = charAlpha * entranceEase * 0.3;
+            ctx.drawImage(allImgs[i], drawX - 3, drawY - 3, pSize + 6, pH + 6);
+            ctx.globalAlpha = charAlpha * entranceEase;
           }
           ctx.shadowBlur = 0;
           
-          // Corner accent decorations on frame
-          const cornerLen = 12;
+          // Corner accent decorations
+          const cornerLen = isHawking ? 18 : 12;
           ctx.strokeStyle = allCols[i];
-          ctx.lineWidth = 2;
-          const fx = px - pSize/2 - 5, fy = py - 5, fw = pSize + 10, fh = pH + 10;
-          // Top-left
+          ctx.lineWidth = isHawking ? 3 : 2;
+          const fx = drawX - 6, fy = drawY - 6, fw = pSize + 12, fh = pH + 12;
           ctx.beginPath(); ctx.moveTo(fx, fy + cornerLen); ctx.lineTo(fx, fy); ctx.lineTo(fx + cornerLen, fy); ctx.stroke();
-          // Top-right
           ctx.beginPath(); ctx.moveTo(fx + fw - cornerLen, fy); ctx.lineTo(fx + fw, fy); ctx.lineTo(fx + fw, fy + cornerLen); ctx.stroke();
-          // Bottom-left
           ctx.beginPath(); ctx.moveTo(fx, fy + fh - cornerLen); ctx.lineTo(fx, fy + fh); ctx.lineTo(fx + cornerLen, fy + fh); ctx.stroke();
-          // Bottom-right
           ctx.beginPath(); ctx.moveTo(fx + fw - cornerLen, fy + fh); ctx.lineTo(fx + fw, fy + fh); ctx.lineTo(fx + fw, fy + fh - cornerLen); ctx.stroke();
           
-          // Shockwave ring on impact
-          if (iProg > 0 && iProg < 0.15) {
-            const shockProg = iProg / 0.15;
-            const shockR = pSize * (1 + shockProg * 3);
-            ctx.globalAlpha = (1 - shockProg) * 0.6;
+          // IMPACT shockwave when character first appears
+          if (revProg > 0 && revProg < 0.2) {
+            const shockProg = revProg / 0.2;
+            const shockR = pSize * (1 + shockProg * (isHawking ? 5 : 3));
+            ctx.globalAlpha = (1 - shockProg) * 0.7;
             ctx.strokeStyle = allCols[i];
-            ctx.lineWidth = 3 * (1 - shockProg);
+            ctx.lineWidth = (isHawking ? 5 : 3) * (1 - shockProg);
             ctx.beginPath();
-            ctx.arc(px, py + pSize * 0.65, shockR, 0, Math.PI * 2);
+            ctx.arc(px, drawY + pH * 0.5, shockR, 0, Math.PI * 2);
             ctx.stroke();
-            // Screen flash
-            ctx.fillStyle = allCols[i] + '22';
+            // Screen flash on impact
+            ctx.fillStyle = allCols[i];
+            ctx.globalAlpha = (1 - shockProg) * (isHawking ? 0.25 : 0.12);
             ctx.fillRect(0, 0, W, H);
-            ctx.globalAlpha = iEase;
+            ctx.globalAlpha = charAlpha * entranceEase;
           }
           
-          // Enhanced name plate with stroke border
-          const npY = py + pH + 6;
-          const npH = i === 4 ? 38 : 28;
-          const npW = pSize + 16;
+          // Name plate — bigger during spotlight
+          const npY = drawY + pH + 8;
+          const plateScale = inSpotlight && sp >= rev.start && sp < rev.start + rev.dur ? 1.3 : 1;
+          const npH = (isHawking ? 50 : 32) * plateScale;
+          const npW = (pSize + 20) * plateScale;
           const npX = px - npW/2;
-          // Plate background with gradient
           const plateGrad = ctx.createLinearGradient(npX, npY, npX, npY + npH);
           plateGrad.addColorStop(0, '#111111ee');
           plateGrad.addColorStop(1, '#000000ee');
@@ -7359,169 +7520,403 @@ function draw() {
           ctx.strokeStyle = allCols[i] + '88';
           ctx.lineWidth = 1;
           ctx.strokeRect(npX, npY, npW, npH);
-          // Name text
+          // Name
           ctx.fillStyle = allCols[i];
-          ctx.font = `bold ${i === 4 ? 16 : 11}px monospace`;
+          const nameSize = (isHawking ? 20 : 13) * plateScale;
+          ctx.font = `bold ${nameSize}px monospace`;
           ctx.textAlign = 'center';
           ctx.shadowColor = allCols[i];
-          ctx.shadowBlur = 8;
-          ctx.fillText(allNames[i], px, npY + (i === 4 ? 18 : 16));
+          ctx.shadowBlur = 12;
+          ctx.fillText(allNames[i], px, npY + nameSize + 2);
           ctx.shadowBlur = 0;
-          // Title
-          if (i === 4) {
-            ctx.fillStyle = '#44ff88';
-            ctx.font = 'bold 10px monospace';
-            ctx.fillText(allTitles[i], px, npY + 32);
-          } else {
-            ctx.fillStyle = '#999';
-            ctx.font = '8px monospace';
-            ctx.fillText(allTitles[i], px, npY + 24);
+          // Title (during spotlight, show dramatically)
+          const titleSize = (isHawking ? 12 : 9) * plateScale;
+          ctx.fillStyle = isHawking ? '#44ff88' : '#999';
+          ctx.font = `${isHawking ? 'bold ' : ''}${titleSize}px monospace`;
+          ctx.fillText(allTitles[i], px, npY + nameSize + titleSize + 6);
+          
+          // Character-specific dialogue during their spotlight
+          if (inSpotlight && sp >= rev.start + rev.dur * 0.3 && sp < rev.start + rev.dur) {
+            const dlgProg = (sp - (rev.start + rev.dur * 0.3)) / (rev.dur * 0.7);
+            ctx.globalAlpha = Math.sin(dlgProg * Math.PI) * 0.9;
+            ctx.fillStyle = allCols[i];
+            ctx.shadowColor = allCols[i];
+            ctx.shadowBlur = 8;
+            const dlgSize = Math.min(isHawking ? 22 : 18, W * (isHawking ? 0.03 : 0.025));
+            ctx.font = `italic ${dlgSize}px monospace`;
+            const dialogues = [
+              '"I always come back."',           // Trump
+              '"The shadows remember."',         // Epstein
+              '"Systems online. Ready."',        // Musk
+              '"Power never truly dies."',       // Clinton
+              '"THE UNIVERSE ISN\'T DONE WITH ME."',  // Hawking
+            ];
+            ctx.fillText(dialogues[i], W/2, H * 0.75);
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = charAlpha * entranceEase;
           }
         }
         
-        // Energy connection lines between all revealed bosses
-        if (sp > 0.5) {
-          ctx.globalAlpha = Math.min(1, (sp - 0.5) / 0.15) * 0.25;
+        // Dramatic pause before Hawking (0.36-0.38): screen flickers, tension builds
+        if (sp > 0.34 && sp < 0.38) {
+          const tensionProg = (sp - 0.34) / 0.04;
+          // Rapid flicker
+          const flicker = Math.sin(t * 30) * Math.sin(t * 17) * Math.sin(t * 43);
+          if (flicker > 0.3) {
+            ctx.fillStyle = `rgba(68,255,136,${tensionProg * 0.15})`;
+            ctx.fillRect(0, 0, W, H);
+          }
+          // "?" text building
+          ctx.fillStyle = `rgba(68,255,136,${tensionProg * 0.5})`;
+          ctx.font = `bold ${60 + Math.sin(t*8)*10}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.shadowColor = '#44ff88';
+          ctx.shadowBlur = 40;
+          ctx.fillText('?', W/2, H/2 + 20);
+          ctx.shadowBlur = 0;
+        }
+        
+        // Pentagram pattern connecting 5 points (appears during assembly)
+        if (sp > 0.52) {
+          const pentAlpha = Math.min(0.06, (sp - 0.52) * 0.2);
+          ctx.globalAlpha = pentAlpha + Math.sin(t*1.5)*0.02;
+          ctx.strokeStyle = '#ffdd44';
+          ctx.lineWidth = 1;
+          const pentR = 250;
+          const pentPoints = [];
+          for (let pp2 = 0; pp2 < 5; pp2++) {
+            const pAngle = (pp2 / 5) * Math.PI * 2 - Math.PI/2 + t * 0.1;
+            pentPoints.push({ x: W/2 + Math.cos(pAngle) * pentR, y: H*0.38 + Math.sin(pAngle) * pentR * 0.7 });
+          }
+          ctx.beginPath();
+          ctx.moveTo(pentPoints[0].x, pentPoints[0].y);
+          ctx.lineTo(pentPoints[2].x, pentPoints[2].y);
+          ctx.lineTo(pentPoints[4].x, pentPoints[4].y);
+          ctx.lineTo(pentPoints[1].x, pentPoints[1].y);
+          ctx.lineTo(pentPoints[3].x, pentPoints[3].y);
+          ctx.closePath();
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+        
+        // Energy connection lines between assembled bosses
+        if (sp > 0.55) {
+          const connAlpha = Math.min(0.3, (sp - 0.55) * 0.6);
+          ctx.globalAlpha = connAlpha;
           for (let a = 0; a < 5; a++) {
-            const aP = Math.min(1, Math.max(0, (sp - (a === 4 ? 0.35 : a * 0.06)) / 0.06));
-            if (aP < 1) continue;
             for (let b = a + 1; b < 5; b++) {
-              const bP = Math.min(1, Math.max(0, (sp - (b === 4 ? 0.35 : b * 0.06)) / 0.06));
-              if (bP < 1) continue;
-              const ax = W * positions[a].x, ay = (a === 4 ? H*0.04 : H*0.14) + 50;
-              const bx = W * positions[b].x, by = (b === 4 ? H*0.04 : H*0.14) + 50;
-              ctx.strokeStyle = '#ff440033';
+              const ax = W * assemblyPos[a].x, ay = H * assemblyPos[a].y + 50;
+              const bx = W * assemblyPos[b].x, by = H * assemblyPos[b].y + 50;
+              // Animated energy flow along connection
+              ctx.strokeStyle = allCols[a];
               ctx.lineWidth = 1;
               ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+              // Moving energy dot along line
+              const dotProg = (t * 0.5 + a * 0.3 + b * 0.7) % 1;
+              const dotX = ax + (bx - ax) * dotProg;
+              const dotY = ay + (by - ay) * dotProg;
+              ctx.fillStyle = allCols[a];
+              ctx.globalAlpha = connAlpha * 0.8;
+              ctx.beginPath(); ctx.arc(dotX, dotY, 3, 0, Math.PI*2); ctx.fill();
+              ctx.globalAlpha = connAlpha;
             }
           }
+          ctx.globalAlpha = 1;
         }
         
-        // Final title text — with dramatic zoom
-        if (sp > 0.55) {
-          const titleProg = Math.min(1, (sp - 0.55) / 0.2);
+        // === "VS" SCREEN (0.60-0.65) - "YOU vs THE CABAL" ===
+        if (sp > 0.60 && sp < 0.70) {
+          const vsProg = (sp - 0.60) / 0.10;
+          const vsEase = 1 - Math.pow(1 - Math.min(1, vsProg * 2), 3);
+          ctx.globalAlpha = vsEase * (vsProg > 0.7 ? Math.max(0, 1 - (vsProg - 0.7) / 0.3) : 1);
+          
+          // Dramatic diagonal split line
+          ctx.strokeStyle = '#ffdd44';
+          ctx.lineWidth = 4;
+          ctx.shadowColor = '#ffdd44';
+          ctx.shadowBlur = 30;
+          ctx.beginPath();
+          ctx.moveTo(W * 0.45, 0);
+          ctx.lineTo(W * 0.55, H);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+          
+          // "VS" text with massive glow
+          const vsSize = Math.min(80, W * 0.1) * (1 + Math.sin(t * 4) * 0.05);
+          ctx.fillStyle = '#ffdd44';
+          ctx.font = `bold ${vsSize}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.shadowColor = '#ff4400';
+          ctx.shadowBlur = 80;
+          ctx.fillText('VS', W/2, H/2 + vsSize * 0.3);
+          ctx.shadowColor = '#ffdd44';
+          ctx.shadowBlur = 40;
+          ctx.fillText('VS', W/2, H/2 + vsSize * 0.3);
+          ctx.shadowBlur = 0;
+          
+          // "YOU" on left
+          ctx.fillStyle = '#4488ff';
+          ctx.font = `bold ${Math.min(30, W*0.04)}px monospace`;
+          ctx.shadowColor = '#4488ff';
+          ctx.shadowBlur = 20;
+          ctx.fillText('Y O U', W * 0.25, H/2 + 10);
+          ctx.shadowBlur = 0;
+          
+          // "THE CABAL" on right  
+          ctx.fillStyle = '#ff4400';
+          ctx.font = `bold ${Math.min(26, W*0.035)}px monospace`;
+          ctx.shadowColor = '#ff4400';
+          ctx.shadowBlur = 20;
+          ctx.fillText('T H E  C A B A L', W * 0.75, H/2 + 10);
+          ctx.shadowBlur = 0;
+          
+          ctx.globalAlpha = 1;
+        }
+        
+        // === THE FINAL STAND TITLE CARD (0.70-0.95) ===
+        if (sp > 0.65) {
+          const titleProg = Math.min(1, (sp - 0.65) / 0.15);
           const titleEase = 1 - Math.pow(1 - titleProg, 3);
           ctx.globalAlpha = titleEase;
           
-          // Gradient title bar
-          const barGrad = ctx.createLinearGradient(0, H * 0.70, 0, H * 0.95);
+          // Gradient title bar — wider, more dramatic
+          const barGrad = ctx.createLinearGradient(0, H * 0.62, 0, H * 0.98);
           barGrad.addColorStop(0, 'rgba(0,0,0,0)');
-          barGrad.addColorStop(0.15, 'rgba(0,0,0,0.85)');
-          barGrad.addColorStop(0.85, 'rgba(0,0,0,0.85)');
+          barGrad.addColorStop(0.08, 'rgba(0,0,0,0.9)');
+          barGrad.addColorStop(0.92, 'rgba(0,0,0,0.9)');
           barGrad.addColorStop(1, 'rgba(0,0,0,0)');
           ctx.fillStyle = barGrad;
-          ctx.fillRect(0, H * 0.70, W, H * 0.25);
+          ctx.fillRect(0, H * 0.62, W, H * 0.36);
           
-          // Gold border lines
+          // Gold border lines — animated expansion
+          const lineExpand = Math.min(1, titleProg * 2);
+          const lineHalf = W * 0.4 * lineExpand;
           ctx.strokeStyle = '#ffdd44';
           ctx.lineWidth = 2;
-          ctx.globalAlpha = titleEase * 0.6;
-          ctx.beginPath(); ctx.moveTo(W * 0.1, H * 0.73); ctx.lineTo(W * 0.9, H * 0.73); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(W * 0.1, H * 0.92); ctx.lineTo(W * 0.9, H * 0.92); ctx.stroke();
+          ctx.globalAlpha = titleEase * 0.7;
+          ctx.beginPath(); ctx.moveTo(W/2 - lineHalf, H * 0.66); ctx.lineTo(W/2 + lineHalf, H * 0.66); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(W/2 - lineHalf, H * 0.95); ctx.lineTo(W/2 + lineHalf, H * 0.95); ctx.stroke();
+          // Decorative diamonds on line ends
+          const diaPos = [[W/2 - lineHalf, H*0.66], [W/2 + lineHalf, H*0.66], [W/2 - lineHalf, H*0.95], [W/2 + lineHalf, H*0.95]];
+          for (const dp of diaPos) {
+            if (lineExpand > 0.5) {
+              ctx.save();
+              ctx.translate(dp[0], dp[1]);
+              ctx.rotate(Math.PI/4);
+              ctx.fillStyle = '#ffdd44';
+              ctx.fillRect(-3, -3, 6, 6);
+              ctx.restore();
+            }
+          }
           ctx.globalAlpha = titleEase;
           
-          // Main title with multi-glow — larger
+          // Main title — MASSIVE with triple glow
           ctx.fillStyle = '#ffdd44';
-          const titleSize = Math.min(48, W * 0.06) * (1 + (1-titleEase)*0.5);
+          const titleSize = Math.min(56, W * 0.07) * (1 + (1-titleEase)*0.5);
           ctx.font = `bold ${titleSize}px monospace`;
           ctx.textAlign = 'center';
+          // Layer 1: red outer glow
           ctx.shadowColor = '#ff4400';
-          ctx.shadowBlur = 60;
-          ctx.fillText('\u2605 THE FINAL STAND \u2605', W/2, H * 0.78);
-          ctx.fillText('\u2605 THE FINAL STAND \u2605', W/2, H * 0.78);
+          ctx.shadowBlur = 80;
+          ctx.fillText('\u2605 THE FINAL STAND \u2605', W/2, H * 0.74);
+          // Layer 2: orange mid glow
+          ctx.shadowColor = '#ff8844';
+          ctx.shadowBlur = 50;
+          ctx.fillText('\u2605 THE FINAL STAND \u2605', W/2, H * 0.74);
+          // Layer 3: gold inner glow
           ctx.shadowColor = '#ffdd44';
-          ctx.shadowBlur = 30;
-          ctx.fillText('\u2605 THE FINAL STAND \u2605', W/2, H * 0.78);
+          ctx.shadowBlur = 25;
+          ctx.fillText('\u2605 THE FINAL STAND \u2605', W/2, H * 0.74);
           ctx.shadowBlur = 0;
           
-          // Sub text
-          if (sp > 0.7) {
-            const subProg = Math.min(1, (sp - 0.7) / 0.1);
+          // Subtitle — typewriter effect
+          if (sp > 0.72) {
+            const subProg = Math.min(1, (sp - 0.72) / 0.08);
             ctx.globalAlpha = subProg;
             ctx.fillStyle = '#ff8844';
-            ctx.font = `bold ${Math.min(20, W*0.028)}px monospace`;
-            ctx.fillText('DEFEAT THEM ALL. HAWKING IS LAST.', W/2, H * 0.84);
-            
-            // Shield warning
-            ctx.fillStyle = '#44aaff';
-            ctx.font = `bold ${Math.min(14, W*0.018)}px monospace`;
-            ctx.fillText('\u26a1 HAWKING IS SHIELDED UNTIL OTHERS FALL \u26a1', W/2, H * 0.875);
-            
+            ctx.font = `bold ${Math.min(22, W*0.03)}px monospace`;
+            const subText = 'DEFEAT THEM ALL.  HAWKING IS LAST.';
+            const subChars = Math.floor(subText.length * subProg);
+            ctx.fillText(subText.substring(0, subChars), W/2, H * 0.80);
+          }
+          
+          // Shield warning with pulse
+          if (sp > 0.78) {
+            const warnProg = Math.min(1, (sp - 0.78) / 0.06);
+            ctx.globalAlpha = warnProg;
+            const warnPulse = 0.7 + Math.sin(t * 4) * 0.3;
+            ctx.fillStyle = `rgba(68,170,255,${warnPulse})`;
+            ctx.font = `bold ${Math.min(15, W*0.02)}px monospace`;
+            ctx.shadowColor = '#44aaff';
+            ctx.shadowBlur = 15;
+            ctx.fillText('\u26a1 HAWKING IS SHIELDED UNTIL OTHERS FALL \u26a1', W/2, H * 0.86);
+            ctx.shadowBlur = 0;
+          }
+          
+          // HP indicator
+          if (sp > 0.82) {
+            const hpProg = Math.min(1, (sp - 0.82) / 0.05);
+            ctx.globalAlpha = hpProg;
             ctx.fillStyle = '#44ff88';
-            ctx.font = `bold ${Math.min(16, W*0.022)}px monospace`;
-            ctx.fillText('\u2764 HP: 50 / 50', W/2, H * 0.91);
+            ctx.font = `bold ${Math.min(18, W*0.024)}px monospace`;
+            ctx.shadowColor = '#44ff88';
+            ctx.shadowBlur = 10;
+            ctx.fillText('\u2764 HP: 50 / 50', W/2, H * 0.92);
+            ctx.shadowBlur = 0;
+          }
+          
+          // "GET READY" flashing text at the very end
+          if (sp > 0.90) {
+            const readyProg = (sp - 0.90) / 0.10;
+            const readyFlash = Math.sin(t * 6) > 0 ? 1 : 0.3;
+            ctx.globalAlpha = readyProg * readyFlash;
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${Math.min(28, W*0.038)}px monospace`;
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 20;
+            ctx.fillText('G E T   R E A D Y', W/2, H * 0.58);
+            ctx.shadowBlur = 0;
           }
         }
         ctx.globalAlpha = 1;
         ctx.restore();
       }
       
-      // Scene transition — glitch/static effect
-      const scenes = [0.08, 0.2, 0.35, 0.5, 0.65, 0.88];
+      // Scene transition — glitch/static effect (ENHANCED with smash cuts)
+      const scenes = [0.03, 0.055, 0.14, 0.24, 0.34, 0.44, 0.59];
       for (const s of scenes) {
         const dist = Math.abs(prog - s);
-        if (dist < 0.015) {
-          const glitchIntensity = 1 - dist / 0.015;
-          // White flash
-          ctx.fillStyle = `rgba(255,255,255,${glitchIntensity * 0.5})`;
+        if (dist < 0.02) {
+          const glitchIntensity = 1 - dist / 0.02;
+          // Hard white flash — SMASH CUT
+          ctx.fillStyle = `rgba(255,255,255,${glitchIntensity * 0.7})`;
           ctx.fillRect(0, 0, W, H);
-          // Glitch bars
-          for (let gb = 0; gb < 6; gb++) {
+          // Glitch bars — more and wider
+          for (let gb = 0; gb < 12; gb++) {
             const gy = Math.random() * H;
-            const gHt = 2 + Math.random() * 8;
-            ctx.fillStyle = `rgba(${Math.random()>0.5?255:0},${Math.random()>0.5?255:0},${Math.random()>0.5?255:0},${glitchIntensity * 0.3})`;
+            const gHt = 2 + Math.random() * 15;
+            ctx.fillStyle = `rgba(${Math.random()>0.5?255:0},${Math.random()>0.5?255:0},${Math.random()>0.5?255:0},${glitchIntensity * 0.4})`;
             ctx.fillRect(0, gy, W, gHt);
           }
-          // Horizontal shift
-          if (glitchIntensity > 0.5) {
-            const slice = Math.floor(Math.random() * H);
-            const sliceH = 10 + Math.random() * 30;
-            ctx.drawImage(canvas, 0, slice, W, sliceH, (Math.random()-0.5)*20, slice, W, sliceH);
+          // Horizontal shift — more dramatic
+          if (glitchIntensity > 0.3) {
+            for (let sl = 0; sl < 3; sl++) {
+              const slice = Math.floor(Math.random() * H);
+              const sliceH = 10 + Math.random() * 40;
+              ctx.drawImage(canvas, 0, slice, W, sliceH, (Math.random()-0.5)*40 * glitchIntensity, slice, W, sliceH);
+            }
           }
+          // RGB split / chromatic aberration
+          if (glitchIntensity > 0.5) {
+            ctx.globalCompositeOperation = 'screen';
+            ctx.fillStyle = `rgba(255,0,0,${glitchIntensity * 0.08})`;
+            ctx.fillRect(-3, 0, W, H);
+            ctx.fillStyle = `rgba(0,0,255,${glitchIntensity * 0.08})`;
+            ctx.fillRect(3, 0, W, H);
+            ctx.globalCompositeOperation = 'source-over';
+          }
+          // Noise burst
+          ctx.globalAlpha = glitchIntensity * 0.15;
+          for (let n = 0; n < 80; n++) {
+            ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#000';
+            ctx.fillRect(Math.random() * W, Math.random() * H, Math.random() * 4 + 1, Math.random() * 2 + 1);
+          }
+          ctx.globalAlpha = 1;
         }
       }
       
-      // Heartbeat pulse overlay (subtle)
-      const heartbeat = Math.pow(Math.sin(t * 3.5), 20);
+      // Heartbeat pulse overlay — intensifies near end
+      const heartRate = prog > 0.5 ? 5.0 : 3.5;
+      const heartbeat = Math.pow(Math.sin(t * heartRate), 20);
       if (heartbeat > 0.1) {
-        ctx.fillStyle = `rgba(100,0,0,${heartbeat * 0.08})`;
+        const hbIntensity = prog > 0.5 ? 0.15 : 0.08;
+        ctx.fillStyle = `rgba(100,0,0,${heartbeat * hbIntensity})`;
         ctx.fillRect(0, 0, W, H);
       }
       
-      // Letterbox bars throughout — animated slide in
-      const barSlide = Math.min(1, prog * 12);
-      const actualBarH = barH * barSlide;
+      // Close global zoom transform
+      ctx.restore();
+      
+      // Vignette overlay — gets darker toward edges as tension builds
+      const vigIntensity = 0.3 + prog * 0.4;
+      const vigGrad = ctx.createRadialGradient(W/2, H/2, W*0.25, W/2, H/2, W*0.75);
+      vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      vigGrad.addColorStop(0.6, `rgba(0,0,0,${vigIntensity * 0.3})`);
+      vigGrad.addColorStop(1, `rgba(0,0,0,${vigIntensity})`);
+      ctx.fillStyle = vigGrad;
+      ctx.fillRect(0, 0, W, H);
+      
+      // Letterbox bars throughout — animated slide in, THICKER for cinematic feel
+      const barSlide = Math.min(1, prog * 8);
+      const actualBarH = (barH + 15) * barSlide;
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, W, actualBarH);
       ctx.fillRect(0, H - actualBarH, W, actualBarH);
-      // Gold trim with glow
+      // Gold trim with glow — double lines
       if (actualBarH > 2) {
+        ctx.fillStyle = '#ffdd4422';
+        ctx.fillRect(0, actualBarH - 2, W, 2);
+        ctx.fillRect(0, H - actualBarH, W, 2);
+        ctx.fillStyle = '#ffdd4411';
+        ctx.fillRect(0, actualBarH - 4, W, 1);
+        ctx.fillRect(0, H - actualBarH + 2, W, 1);
+        // Moving gold accent — TWO accents moving opposite directions
+        const accentX = (t * 80) % W;
+        const accentX2 = (W - (t * 120) % W);
+        ctx.fillStyle = '#ffdd4455';
+        ctx.fillRect(accentX, actualBarH - 2, 100, 2);
+        ctx.fillRect(W - accentX - 100, H - actualBarH, 100, 2);
         ctx.fillStyle = '#ffdd4433';
-        ctx.fillRect(0, actualBarH - 1, W, 1);
-        ctx.fillRect(0, H - actualBarH, W, 1);
-        // Moving gold accent
-        const accentX = (t * 100) % W;
-        ctx.fillStyle = '#ffdd4466';
-        ctx.fillRect(accentX, actualBarH - 1, 60, 1);
-        ctx.fillRect(W - accentX - 60, H - actualBarH, 60, 1);
+        ctx.fillRect(accentX2, actualBarH - 2, 50, 2);
+        ctx.fillRect(W - accentX2 - 50, H - actualBarH, 50, 2);
       }
       
-      // Film grain overlay
-      ctx.globalAlpha = 0.03;
-      for (let gg = 0; gg < 200; gg++) {
+      // Scene counter in top letterbox bar
+      const sceneNum = prog < 0.03 ? 0 : prog < 0.055 ? 1 : prog < 0.14 ? 2 : prog < 0.24 ? 3 : prog < 0.34 ? 4 : prog < 0.44 ? 5 : prog < 0.59 ? 6 : 7;
+      if (sceneNum > 0 && sceneNum < 7 && actualBarH > 20) {
+        ctx.fillStyle = '#ffffff22';
+        ctx.font = `${Math.min(9, W*0.012)}px monospace`;
+        ctx.textAlign = 'left';
+        ctx.fillText(`SCENE ${sceneNum} / 7`, 15, actualBarH - 8);
+        // Progress bar in letterbox
+        const scProgress = prog < 0.59 ? prog / 0.59 : 1;
+        ctx.fillStyle = '#ffffff11';
+        ctx.fillRect(W * 0.3, actualBarH - 5, W * 0.4, 2);
+        ctx.fillStyle = '#ffdd4444';
+        ctx.fillRect(W * 0.3, actualBarH - 5, W * 0.4 * scProgress, 2);
+      }
+      
+      // Film grain overlay — more grain
+      ctx.globalAlpha = 0.04;
+      for (let gg = 0; gg < 350; gg++) {
         const gx = Math.random() * W;
         const gy = Math.random() * H;
         ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#000';
-        ctx.fillRect(gx, gy, 1, 1);
+        ctx.fillRect(gx, gy, Math.random() > 0.8 ? 2 : 1, 1);
       }
       ctx.globalAlpha = 1;
       
+      // Scanline effect (subtle CRT feel)
+      ctx.globalAlpha = 0.015;
+      for (let sl = 0; sl < H; sl += 3) {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, sl, W, 1);
+      }
+      ctx.globalAlpha = 1;
+      
+      // Final dramatic fade to white before fight begins (last 3% of cinematic)
+      if (prog > 0.97) {
+        const fadeOut = (prog - 0.97) / 0.03;
+        ctx.fillStyle = `rgba(255,255,255,${fadeOut * fadeOut})`;
+        ctx.fillRect(0, 0, W, H);
+      }
+      
       // Skip hint — fading in
-      if (prog > 0.1) {
-        ctx.fillStyle = `rgba(255,255,255,${Math.min(0.3, (prog-0.1)*0.5)})`;
+      if (prog > 0.05) {
+        ctx.fillStyle = `rgba(255,255,255,${Math.min(0.25, (prog-0.05)*0.4)})`;
         ctx.font = '10px monospace';
         ctx.textAlign = 'right';
-        ctx.fillText('CLICK TO SKIP \u25B6', W - 20, actualBarH - 6);
+        ctx.fillText('CLICK TO SKIP \u25B6', W - 20, actualBarH - 8);
       }
     }
     
