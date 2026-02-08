@@ -218,6 +218,14 @@ function initMenuBg() {
 initMenuBg();
 let touchControls = { left: false, right: false, up: false, throw: false };
 
+// Touch aim joystick state
+let touchAim = { active: false, cx: W - 140, cy: H - 180, dx: 0, dy: 0, angle: 0 };
+const AIM_CENTER_X = W - 140;
+const AIM_CENTER_Y = H - 180;
+const AIM_RADIUS = 70;
+const AIM_DEAD_ZONE = 8;
+let touchFireTimer = 0;
+
 // Shared touch button renderer — called from each game state's HUD
 const _isTouchDev = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 function drawTouchButtons() {
@@ -225,7 +233,7 @@ function drawTouchButtons() {
   ctx.save();
   ctx.globalAlpha = 0.4;
 
-  // Left button — larger for iPad
+  // Left button
   ctx.fillStyle = touchControls.left ? '#88bbff' : '#ffffff';
   ctx.beginPath(); ctx.arc(80, H - 90, 50, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#000'; ctx.font = 'bold 32px monospace'; ctx.textAlign = 'center';
@@ -242,11 +250,41 @@ function drawTouchButtons() {
   ctx.fillStyle = '#000'; ctx.font = 'bold 24px monospace';
   ctx.fillText('JUMP', 140, H - 212);
 
-  // Throw button
-  ctx.fillStyle = touchControls.throw ? '#ffaa88' : '#ffffff';
-  ctx.beginPath(); ctx.arc(W - 100, H - 140, 55, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#000'; ctx.font = 'bold 22px monospace';
-  ctx.fillText('THROW', W - 100, H - 132);
+  // Aim joystick — right side
+  // Outer ring
+  ctx.globalAlpha = 0.25;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(AIM_CENTER_X, AIM_CENTER_Y, AIM_RADIUS, 0, Math.PI * 2); ctx.stroke();
+  // Crosshair lines
+  ctx.globalAlpha = 0.15;
+  ctx.beginPath(); ctx.moveTo(AIM_CENTER_X - AIM_RADIUS, AIM_CENTER_Y); ctx.lineTo(AIM_CENTER_X + AIM_RADIUS, AIM_CENTER_Y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(AIM_CENTER_X, AIM_CENTER_Y - AIM_RADIUS); ctx.lineTo(AIM_CENTER_X, AIM_CENTER_Y + AIM_RADIUS); ctx.stroke();
+
+  if (touchAim.active) {
+    // Aim direction line
+    const len = Math.min(Math.sqrt(touchAim.dx * touchAim.dx + touchAim.dy * touchAim.dy), AIM_RADIUS);
+    const nx = Math.cos(touchAim.angle);
+    const ny = Math.sin(touchAim.angle);
+    ctx.globalAlpha = 0.6;
+    ctx.strokeStyle = '#ffaa44';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(AIM_CENTER_X, AIM_CENTER_Y);
+    ctx.lineTo(AIM_CENTER_X + nx * len, AIM_CENTER_Y + ny * len);
+    ctx.stroke();
+    // Knob
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = '#ffcc66';
+    ctx.beginPath(); ctx.arc(AIM_CENTER_X + nx * len, AIM_CENTER_Y + ny * len, 18, 0, Math.PI * 2); ctx.fill();
+  } else {
+    // Idle knob at center
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(AIM_CENTER_X, AIM_CENTER_Y, 18, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#000'; ctx.font = 'bold 14px monospace';
+    ctx.fillText('AIM', AIM_CENTER_X, AIM_CENTER_Y + 5);
+  }
 
   ctx.restore();
 }
@@ -547,15 +585,18 @@ window.addEventListener('keydown', e => {
 });
 
 // Touch controls — track active touches by ID
-let activeTouches = {}; // touchId -> 'left'|'right'|'up'|'throw'
+let activeTouches = {}; // touchId -> 'left'|'right'|'up'
+let aimTouchId = null; // separate tracking for aim joystick
 
-// Touch button hit zones (canvas coords) — generous areas for iPad
+// Touch button hit zones (canvas coords) — left side only for movement
 const TOUCH_ZONES = {
   left:  { x: 0,   y: H - 180, w: 140, h: 180 },
   right: { x: 140, y: H - 180, w: 140, h: 180 },
-  jump:  { x: 0,   y: H - 320, w: 280, h: 140 },
-  throw: { x: W - 240, y: H - 320, w: 240, h: 320 }
+  jump:  { x: 0,   y: H - 320, w: 280, h: 140 }
 };
+
+// Right side of screen = aim joystick zone
+const AIM_ZONE = { x: W * 0.5, y: 0, w: W * 0.5, h: H };
 
 function hitTestTouchZone(cx, cy) {
   for (const [name, z] of Object.entries(TOUCH_ZONES)) {
@@ -564,16 +605,29 @@ function hitTestTouchZone(cx, cy) {
   return null;
 }
 
+function isInAimZone(cx, cy) {
+  return cx >= AIM_ZONE.x && cy >= AIM_ZONE.y;
+}
+
+function updateAimFromTouch(cx, cy) {
+  touchAim.dx = cx - AIM_CENTER_X;
+  touchAim.dy = cy - AIM_CENTER_Y;
+  const dist = Math.sqrt(touchAim.dx * touchAim.dx + touchAim.dy * touchAim.dy);
+  if (dist > AIM_DEAD_ZONE) {
+    touchAim.angle = Math.atan2(touchAim.dy, touchAim.dx);
+    touchAim.active = true;
+  }
+}
+
 function updateTouchControlsFromActive() {
   touchControls.left = false;
   touchControls.right = false;
   touchControls.up = false;
-  touchControls.throw = false;
+  touchControls.throw = aimTouchId !== null;
   for (const zone of Object.values(activeTouches)) {
     if (zone === 'left') touchControls.left = true;
     else if (zone === 'right') touchControls.right = true;
     else if (zone === 'up') touchControls.up = true;
-    else if (zone === 'throw') touchControls.throw = true;
   }
 }
 
@@ -671,11 +725,19 @@ canvas.addEventListener('touchstart', e => {
 
     // Gameplay touch controls — use canvas-coordinate hit zones
     if (state === 'playing' || state === 'intro' || state === 'bossfight' || state === 'epsteinfight' || state === 'fusionfight' || state === 'splitfight') {
-      const zone = hitTestTouchZone(cx, cy);
-      if (zone) {
-        activeTouches[t.identifier] = zone;
+      // Check aim joystick first (right side)
+      if (isInAimZone(cx, cy)) {
+        aimTouchId = t.identifier;
+        updateAimFromTouch(cx, cy);
         updateTouchControlsFromActive();
-        if (zone === 'throw') throwProjectile();
+        throwProjectile();
+      } else {
+        // Movement buttons (left side)
+        const zone = hitTestTouchZone(cx, cy);
+        if (zone) {
+          activeTouches[t.identifier] = zone;
+          updateTouchControlsFromActive();
+        }
       }
     }
   }
@@ -684,6 +746,12 @@ canvas.addEventListener('touchstart', e => {
 canvas.addEventListener('touchend', e => {
   e.preventDefault();
   for (const t of e.changedTouches) {
+    if (t.identifier === aimTouchId) {
+      aimTouchId = null;
+      touchAim.active = false;
+      touchAim.dx = 0;
+      touchAim.dy = 0;
+    }
     delete activeTouches[t.identifier];
   }
   updateTouchControlsFromActive();
@@ -692,6 +760,12 @@ canvas.addEventListener('touchend', e => {
 canvas.addEventListener('touchcancel', e => {
   e.preventDefault();
   for (const t of e.changedTouches) {
+    if (t.identifier === aimTouchId) {
+      aimTouchId = null;
+      touchAim.active = false;
+      touchAim.dx = 0;
+      touchAim.dy = 0;
+    }
     delete activeTouches[t.identifier];
   }
   updateTouchControlsFromActive();
@@ -699,8 +773,13 @@ canvas.addEventListener('touchcancel', e => {
 
 canvas.addEventListener('touchmove', e => {
   e.preventDefault();
-  // Update zone if finger slides between buttons
   for (const t of e.changedTouches) {
+    // Aim joystick drag
+    if (t.identifier === aimTouchId) {
+      const { x: cx, y: cy } = clientToCanvas(t.clientX, t.clientY);
+      updateAimFromTouch(cx, cy);
+    }
+    // Movement button slide
     if (t.identifier in activeTouches) {
       const { x: cx, y: cy } = clientToCanvas(t.clientX, t.clientY);
       const zone = hitTestTouchZone(cx, cy);
@@ -1137,22 +1216,25 @@ function throwProjectile() {
   const p = player;
   if (p.throwCooldown > 0 && !cheats.noCooldown) return;
   p.throwCooldown = cheats.noCooldown ? 0 : 18;
-  // On PC: aim at mouse cursor. On touch: straight in facing direction
+  // Aim: mouse on PC, joystick on touch, fallback to facing direction
   let vx, vy;
-  if (mouseActive) {
+  const pjSpd = cheats.bigProjectiles ? 20 : 12;
+  if (touchAim.active) {
+    // Touch aim joystick — fire in joystick direction
+    vx = Math.cos(touchAim.angle) * pjSpd;
+    vy = Math.sin(touchAim.angle) * pjSpd;
+    p.facing = vx > 0 ? 1 : -1;
+  } else if (mouseActive) {
     // Aim toward mouse position (in screen coords, adjust for camera)
     const px = p.x + p.w/2 - cameraX;
     const py = p.y + p.h/3 - cameraY;
     const dx = mouseX - px;
     const dy = mouseY - py;
     const dist = Math.sqrt(dx*dx + dy*dy) || 1;
-    const pjSpd = cheats.bigProjectiles ? 20 : 12;
     vx = (dx / dist) * pjSpd;
     vy = (dy / dist) * pjSpd;
-    // Update facing based on aim
     p.facing = vx > 0 ? 1 : -1;
   } else {
-    const pjSpd = cheats.bigProjectiles ? 20 : 12;
     vx = p.facing * pjSpd;
     vy = 0;
   }
@@ -2163,6 +2245,11 @@ function update() {
   // ── Projectiles (player throws) ──
   if (p.throwCooldown > 0) p.throwCooldown--;
   if (p.iFrames > 0) p.iFrames--;
+
+  // Auto-fire while touch aim joystick is active
+  if (touchAim.active && p.throwCooldown <= 0 && p.alive) {
+    throwProjectile();
+  }
 
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const proj = projectiles[i];
