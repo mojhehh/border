@@ -3,24 +3,26 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Cruza La Frontera - Cross the Border!</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body {
-  background: #111;
+  background: #000;
   width: 100%;
   height: 100%;
   font-family: 'Segoe UI', Arial, sans-serif;
   overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 canvas {
   display: block;
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  object-fit: contain;
   background: #000;
   touch-action: none;
 }
@@ -69,13 +71,47 @@ function imgH(img, w) {
   return w * 1.3;
 }
 // ── Dynamic Sizing ──
-// Fixed internal resolution — CSS scales the canvas visually
+// Fixed internal resolution — JS resizes canvas with proper aspect ratio (letterboxing)
 const W = 1280;
 const H = 720;
 let GROUND_Y = H - 80;
 canvas.width = W;
 canvas.height = H;
-// No resize listener needed — CSS handles visual scaling
+
+// Canvas letterbox scaling — maintains 16:9 on any screen
+let canvasScale = 1, canvasOffsetX = 0, canvasOffsetY = 0;
+function resizeCanvas() {
+  const winW = window.innerWidth;
+  const winH = window.innerHeight;
+  const aspect = W / H;
+  let cw, ch;
+  if (winW / winH > aspect) {
+    ch = winH;
+    cw = ch * aspect;
+  } else {
+    cw = winW;
+    ch = cw / aspect;
+  }
+  canvasScale = cw / W;
+  canvasOffsetX = (winW - cw) / 2;
+  canvasOffsetY = (winH - ch) / 2;
+  canvas.style.left = canvasOffsetX + 'px';
+  canvas.style.top = canvasOffsetY + 'px';
+  canvas.style.width = cw + 'px';
+  canvas.style.height = ch + 'px';
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', () => { setTimeout(resizeCanvas, 100); });
+
+// Convert a touch/client coordinate to canvas coordinate
+function clientToCanvas(clientX, clientY) {
+  return {
+    x: (clientX - canvasOffsetX) / canvasScale,
+    y: (clientY - canvasOffsetY) / canvasScale
+  };
+}
+
 const GRAVITY = 0.55;
 const PLAYER_SPEED = 5.0;
 const JUMP_FORCE = -12.5;
@@ -181,6 +217,39 @@ function initMenuBg() {
 }
 initMenuBg();
 let touchControls = { left: false, right: false, up: false, throw: false };
+
+// Shared touch button renderer — called from each game state's HUD
+const _isTouchDev = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+function drawTouchButtons() {
+  if (!_isTouchDev || !settings.touchButtons) return;
+  ctx.save();
+  ctx.globalAlpha = 0.4;
+
+  // Left button — larger for iPad
+  ctx.fillStyle = touchControls.left ? '#88bbff' : '#ffffff';
+  ctx.beginPath(); ctx.arc(80, H - 90, 50, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#000'; ctx.font = 'bold 32px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('\u25c4', 80, H - 80);
+
+  // Right button
+  ctx.fillStyle = touchControls.right ? '#88bbff' : '#ffffff';
+  ctx.beginPath(); ctx.arc(200, H - 90, 50, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#000'; ctx.fillText('\u25ba', 200, H - 80);
+
+  // Jump button
+  ctx.fillStyle = touchControls.up ? '#88ff88' : '#ffffff';
+  ctx.beginPath(); ctx.arc(140, H - 220, 55, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#000'; ctx.font = 'bold 24px monospace';
+  ctx.fillText('JUMP', 140, H - 212);
+
+  // Throw button
+  ctx.fillStyle = touchControls.throw ? '#ffaa88' : '#ffffff';
+  ctx.beginPath(); ctx.arc(W - 100, H - 140, 55, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#000'; ctx.font = 'bold 22px monospace';
+  ctx.fillText('THROW', W - 100, H - 132);
+
+  ctx.restore();
+}
 
 // Cutscene state
 let cutscene = {
@@ -343,9 +412,9 @@ window.addEventListener('keyup', e => keys[e.code] = false);
 
 // Mouse tracking
 canvas.addEventListener('mousemove', e => {
-  const rect = canvas.getBoundingClientRect();
-  mouseX = (e.clientX - rect.left) * (W / rect.width);
-  mouseY = (e.clientY - rect.top) * (H / rect.height);
+  const { x, y } = clientToCanvas(e.clientX, e.clientY);
+  mouseX = x;
+  mouseY = y;
   mouseActive = true;
 });
 
@@ -359,13 +428,11 @@ function toggleFullscreen() {
 }
 // Force a repaint after fullscreen transition
 document.addEventListener('fullscreenchange', () => {
-  setTimeout(() => { canvas.style.width = '100vw'; canvas.style.height = '100vh'; }, 100);
+  setTimeout(resizeCanvas, 100);
 });
 
 canvas.addEventListener('click', e => {
-  const rect = canvas.getBoundingClientRect();
-  const cx = (e.clientX - rect.left) * (W / rect.width);
-  const cy = (e.clientY - rect.top) * (H / rect.height);
+  const { x: cx, y: cy } = clientToCanvas(e.clientX, e.clientY);
   
   // Fullscreen button (top-right corner, always available)
   if (cx > W - 44 && cy < 44) {
@@ -479,16 +546,42 @@ window.addEventListener('keydown', e => {
   if (e.key === 'F11') { e.preventDefault(); toggleFullscreen(); }
 });
 
-// Touch controls
+// Touch controls — track active touches by ID
+let activeTouches = {}; // touchId -> 'left'|'right'|'up'|'throw'
+
+// Touch button hit zones (canvas coords) — generous areas for iPad
+const TOUCH_ZONES = {
+  left:  { x: 0,   y: H - 180, w: 140, h: 180 },
+  right: { x: 140, y: H - 180, w: 140, h: 180 },
+  jump:  { x: 0,   y: H - 320, w: 280, h: 140 },
+  throw: { x: W - 240, y: H - 320, w: 240, h: 320 }
+};
+
+function hitTestTouchZone(cx, cy) {
+  for (const [name, z] of Object.entries(TOUCH_ZONES)) {
+    if (cx >= z.x && cx < z.x + z.w && cy >= z.y && cy < z.y + z.h) return name;
+  }
+  return null;
+}
+
+function updateTouchControlsFromActive() {
+  touchControls.left = false;
+  touchControls.right = false;
+  touchControls.up = false;
+  touchControls.throw = false;
+  for (const zone of Object.values(activeTouches)) {
+    if (zone === 'left') touchControls.left = true;
+    else if (zone === 'right') touchControls.right = true;
+    else if (zone === 'up') touchControls.up = true;
+    else if (zone === 'throw') touchControls.throw = true;
+  }
+}
+
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
-  mouseActive = false; // switch to touch mode
+  mouseActive = false;
   for (const t of e.changedTouches) {
-    const rect = canvas.getBoundingClientRect();
-    const cx = (t.clientX - rect.left) * (W / rect.width);
-    const cy = (t.clientY - rect.top) * (H / rect.height);
-    const tx = t.clientX / window.innerWidth;
-    const ty = t.clientY / window.innerHeight;
+    const { x: cx, y: cy } = clientToCanvas(t.clientX, t.clientY);
 
     // Menu touch support
     if (state === 'menu') {
@@ -539,7 +632,7 @@ canvas.addEventListener('touchstart', e => {
         const totalItems = cheatKeys.length + 3;
         for (let i = 0; i < totalItems; i++) {
           const y = cheatY + i * 38;
-          if (tx > W/2 - 220 && tx < W/2 + 220 && ty > y - 14 && ty < y + 18) {
+          if (cx > W/2 - 220 && cx < W/2 + 220 && cy > y - 14 && cy < y + 18) {
             if (i < cheatKeys.length) cheats[cheatKeys[i]] = !cheats[cheatKeys[i]];
             else if (i === cheatKeys.length) skipToFinalBoss();
             else if (i === cheatKeys.length + 1) watchCutscene();
@@ -576,31 +669,50 @@ canvas.addEventListener('touchstart', e => {
     if (state === 'cutscene' || state === 'bossdialogue') { advanceCutscene(); return; }
     if (state === 'won' || state === 'dead') { if (restartCooldown <= 0) { state = 'menu'; menuState = 'main'; menuSelection = 0; } return; }
 
-    // Gameplay touch controls
+    // Gameplay touch controls — use canvas-coordinate hit zones
     if (state === 'playing' || state === 'intro' || state === 'bossfight' || state === 'epsteinfight' || state === 'fusionfight' || state === 'splitfight') {
-      if (ty > 0.65) {
-        if (tx < 0.2) touchControls.left = true;
-        else if (tx < 0.4) touchControls.right = true;
+      const zone = hitTestTouchZone(cx, cy);
+      if (zone) {
+        activeTouches[t.identifier] = zone;
+        updateTouchControlsFromActive();
+        if (zone === 'throw') throwProjectile();
       }
-      if (ty < 0.65 && tx < 0.5) touchControls.up = true;
-      if (tx > 0.7) { touchControls.throw = true; throwProjectile(); }
     }
   }
 }, { passive: false });
+
 canvas.addEventListener('touchend', e => {
   e.preventDefault();
   for (const t of e.changedTouches) {
-    const tx = t.clientX / window.innerWidth;
-    const ty = t.clientY / window.innerHeight;
-    if (ty > 0.65) {
-      if (tx < 0.2) touchControls.left = false;
-      else if (tx < 0.4) touchControls.right = false;
-    }
-    if (ty < 0.65 && tx < 0.5) touchControls.up = false;
-    if (tx > 0.7) touchControls.throw = false;
+    delete activeTouches[t.identifier];
   }
+  updateTouchControlsFromActive();
 }, { passive: false });
-canvas.addEventListener('touchmove', e => { e.preventDefault(); }, { passive: false });
+
+canvas.addEventListener('touchcancel', e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    delete activeTouches[t.identifier];
+  }
+  updateTouchControlsFromActive();
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  // Update zone if finger slides between buttons
+  for (const t of e.changedTouches) {
+    if (t.identifier in activeTouches) {
+      const { x: cx, y: cy } = clientToCanvas(t.clientX, t.clientY);
+      const zone = hitTestTouchZone(cx, cy);
+      if (zone) {
+        activeTouches[t.identifier] = zone;
+      } else {
+        delete activeTouches[t.identifier];
+      }
+    }
+  }
+  updateTouchControlsFromActive();
+}, { passive: false });
 
 // ── Player ──
 let player = createPlayer();
@@ -5070,48 +5182,7 @@ function draw() {
     }
 
     // ── Touch Controls (on-screen buttons) ──
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    if (isTouchDevice && settings.touchButtons) {
-      ctx.globalAlpha = 0.35;
-
-      // Left button
-      ctx.fillStyle = touchControls.left ? '#88bbff' : '#ffffff';
-      ctx.beginPath();
-      ctx.arc(70, H - 90, 40, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#000';
-      ctx.font = 'bold 28px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('◄', 70, H - 82);
-
-      // Right button
-      ctx.fillStyle = touchControls.right ? '#88bbff' : '#ffffff';
-      ctx.beginPath();
-      ctx.arc(170, H - 90, 40, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#000';
-      ctx.fillText('►', 170, H - 82);
-
-      // Jump button
-      ctx.fillStyle = touchControls.up ? '#88ff88' : '#ffffff';
-      ctx.beginPath();
-      ctx.arc(120, H - 200, 45, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#000';
-      ctx.font = 'bold 22px monospace';
-      ctx.fillText('JUMP', 120, H - 193);
-
-      // Throw button
-      ctx.fillStyle = touchControls.throw ? '#ffaa88' : '#ffffff';
-      ctx.beginPath();
-      ctx.arc(W - 80, H - 120, 45, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#000';
-      ctx.font = 'bold 20px monospace';
-      ctx.fillText('THROW', W - 80, H - 113);
-
-      ctx.globalAlpha = 1;
-    }
+    drawTouchButtons();
   }
 
   // Also show HP bar during bossfight — CINEMATIC HUD
@@ -5196,24 +5267,7 @@ function draw() {
     }
 
     // Touch controls during bossfight
-    const isTouchDevice2 = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    if (isTouchDevice2 && settings.touchButtons) {
-      ctx.globalAlpha = 0.35;
-      ctx.fillStyle = touchControls.left ? '#88bbff' : '#ffffff';
-      ctx.beginPath(); ctx.arc(70, H - 90, 40, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
-      ctx.fillText('\u25c4', 70, H - 82);
-      ctx.fillStyle = touchControls.right ? '#88bbff' : '#ffffff';
-      ctx.beginPath(); ctx.arc(170, H - 90, 40, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.fillText('\u25ba', 170, H - 82);
-      ctx.fillStyle = touchControls.up ? '#88ff88' : '#ffffff';
-      ctx.beginPath(); ctx.arc(120, H - 200, 45, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.font = 'bold 22px monospace'; ctx.fillText('JUMP', 120, H - 193);
-      ctx.fillStyle = touchControls.throw ? '#ffaa88' : '#ffffff';
-      ctx.beginPath(); ctx.arc(W - 80, H - 120, 45, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.font = 'bold 20px monospace'; ctx.fillText('THROW', W - 80, H - 113);
-      ctx.globalAlpha = 1;
-    }
+    drawTouchButtons();
 
     ctx.fillStyle = '#ffffff55';
     ctx.font = '10px monospace';
@@ -5300,24 +5354,7 @@ function draw() {
     }
 
     // Touch controls during epsteinfight
-    const isTouchDevice3 = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    if (isTouchDevice3 && settings.touchButtons) {
-      ctx.globalAlpha = 0.35;
-      ctx.fillStyle = touchControls.left ? '#88bbff' : '#ffffff';
-      ctx.beginPath(); ctx.arc(70, H - 90, 40, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
-      ctx.fillText('\u25c4', 70, H - 82);
-      ctx.fillStyle = touchControls.right ? '#88bbff' : '#ffffff';
-      ctx.beginPath(); ctx.arc(170, H - 90, 40, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.fillText('\u25ba', 170, H - 82);
-      ctx.fillStyle = touchControls.up ? '#88ff88' : '#ffffff';
-      ctx.beginPath(); ctx.arc(120, H - 200, 45, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.font = 'bold 22px monospace'; ctx.fillText('JUMP', 120, H - 193);
-      ctx.fillStyle = touchControls.throw ? '#ffaa88' : '#ffffff';
-      ctx.beginPath(); ctx.arc(W - 80, H - 120, 45, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.font = 'bold 20px monospace'; ctx.fillText('THROW', W - 80, H - 113);
-      ctx.globalAlpha = 1;
-    }
+    drawTouchButtons();
 
     ctx.fillStyle = '#ffffff55';
     ctx.font = '10px monospace';
@@ -5512,24 +5549,7 @@ function draw() {
     }
 
     // Touch controls
-    const isTouchDeviceF = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    if (isTouchDeviceF && settings.touchButtons) {
-      ctx.globalAlpha = 0.35;
-      ctx.fillStyle = touchControls.left ? '#88bbff' : '#ffffff';
-      ctx.beginPath(); ctx.arc(70, H - 90, 40, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
-      ctx.fillText('\u25c4', 70, H - 82);
-      ctx.fillStyle = touchControls.right ? '#88bbff' : '#ffffff';
-      ctx.beginPath(); ctx.arc(170, H - 90, 40, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.fillText('\u25ba', 170, H - 82);
-      ctx.fillStyle = touchControls.up ? '#88ff88' : '#ffffff';
-      ctx.beginPath(); ctx.arc(120, H - 200, 45, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.font = 'bold 22px monospace'; ctx.fillText('JUMP', 120, H - 193);
-      ctx.fillStyle = touchControls.throw ? '#ffaa88' : '#ffffff';
-      ctx.beginPath(); ctx.arc(W - 80, H - 120, 45, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.font = 'bold 20px monospace'; ctx.fillText('THROW', W - 80, H - 113);
-      ctx.globalAlpha = 1;
-    }
+    drawTouchButtons();
 
     ctx.fillStyle = '#ffffff55';
     ctx.font = '10px monospace';
@@ -7477,24 +7497,7 @@ function draw() {
     });
 
     // Touch controls
-    const isTouchDeviceS = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    if (isTouchDeviceS && settings.touchButtons) {
-      ctx.globalAlpha = 0.35;
-      ctx.fillStyle = touchControls.left ? '#88bbff' : '#ffffff';
-      ctx.beginPath(); ctx.arc(70, H - 90, 40, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
-      ctx.fillText('\u25c4', 70, H - 82);
-      ctx.fillStyle = touchControls.right ? '#88bbff' : '#ffffff';
-      ctx.beginPath(); ctx.arc(170, H - 90, 40, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.fillText('\u25ba', 170, H - 82);
-      ctx.fillStyle = touchControls.up ? '#88ff88' : '#ffffff';
-      ctx.beginPath(); ctx.arc(120, H - 200, 45, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.font = 'bold 22px monospace'; ctx.fillText('JUMP', 120, H - 193);
-      ctx.fillStyle = touchControls.throw ? '#ffaa88' : '#ffffff';
-      ctx.beginPath(); ctx.arc(W - 80, H - 120, 45, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.font = 'bold 20px monospace'; ctx.fillText('THROW', W - 80, H - 113);
-      ctx.globalAlpha = 1;
-    }
+    drawTouchButtons();
 
     ctx.fillStyle = '#ffffff55';
     ctx.font = '10px monospace';
