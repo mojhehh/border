@@ -148,6 +148,8 @@ let restartCooldown = 0;
 let hawkingRefusalTimer = 0;
 let hawkingRefusalPhase = 0; // 0=black, 1=heart appears, 2=heart cracks, 3=heart splits, 4=pieces float, 5=BUT IT REFUSED, 6=heart reforms, 7=white flash, 8=return
 let hawkingPhase2 = false; // true after refusal — Hawking is MASSIVE
+let hawkingDeathTimer = 0; // epic death scene timer
+let hawkingDeathPhase = 0; // phase of the death scene
 // Cinematic intro
 let introTimer = 0;
 let introPhase = 0; // 0=black, 1=title drop, 2=subtitle, 3=camera sweep, 4=zoom to player, 5=GO!
@@ -426,6 +428,10 @@ window.addEventListener('keydown', e => {
   }
   if (e.code === 'Escape' && state === 'hawkingRefusal') {
     hawkingRefusalTimer = 669; // skip to just before end
+    return;
+  }
+  if (e.code === 'Escape' && state === 'hawkingDeath') {
+    hawkingDeathTimer = 899; // skip to just before end
     return;
   }
   if (e.code === 'Escape' && state === 'bossdialogue') {
@@ -710,11 +716,12 @@ canvas.addEventListener('touchstart', e => {
     }
 
     // Skip button touch (top-right area)
-    if ((state === 'cutscene' || state === 'phonecall' || state === 'fusioncutscene' || state === 'bossdialogue' || state === 'hawkingRefusal') && cx > W - 140 && cy < 60) {
+    if ((state === 'cutscene' || state === 'phonecall' || state === 'fusioncutscene' || state === 'bossdialogue' || state === 'hawkingRefusal' || state === 'hawkingDeath') && cx > W - 140 && cy < 60) {
       if (state === 'cutscene') { cutscene.phase = 3; cutscene.fadeAlpha = 1; cutscene.timer = 0; }
       else if (state === 'phonecall') { phonecallTimer = 1; }
       else if (state === 'fusioncutscene') { fusionCutsceneTimer = 1; }
       else if (state === 'hawkingRefusal') { hawkingRefusalTimer = 669; }
+      else if (state === 'hawkingDeath') { hawkingDeathTimer = 899; }
       else if (state === 'bossdialogue') { bossDialogue.index = bossDialogue.texts.length; advanceCutscene(); }
       return;
     }
@@ -930,6 +937,8 @@ function skipToFinalBoss() {
   hawkingPhase2 = false;
   hawkingRefusalTimer = 0;
   hawkingRefusalPhase = 0;
+  hawkingDeathTimer = 0;
+  hawkingDeathPhase = 0;
   bossIntroTimer = 0;
   bossDialogue = { active: false, texts: [], index: 0, timer: 0 };
   gameTimer = 0;
@@ -1025,6 +1034,8 @@ function watchCutscene() {
   hawkingPhase2 = false;
   hawkingRefusalTimer = 0;
   hawkingRefusalPhase = 0;
+  hawkingDeathTimer = 0;
+  hawkingDeathPhase = 0;
   bossIntroTimer = 0;
   bossDialogue = { active: false, texts: [], index: 0, timer: 0 };
   gameTimer = 0;
@@ -1120,6 +1131,8 @@ function startGame() {
   hawkingPhase2 = false;
   hawkingRefusalTimer = 0;
   hawkingRefusalPhase = 0;
+  hawkingDeathTimer = 0;
+  hawkingDeathPhase = 0;
   bossIntroTimer = 0;
   bossDialogue = { active: false, texts: [], index: 0, timer: 0 };
   
@@ -1751,7 +1764,7 @@ function update() {
   }
 
   // Walls & platforms (exclude bigWall during bossfight - player is inside bunker)
-  const inArena = state === 'bossfight' || state === 'bossdialogue' || state === 'cutscene' || state === 'epsteinfight' || state === 'phonecall' || state === 'fusioncutscene' || state === 'fusionfight' || state === 'splitfight' || state === 'hawkingRefusal';
+  const inArena = state === 'bossfight' || state === 'bossdialogue' || state === 'cutscene' || state === 'epsteinfight' || state === 'phonecall' || state === 'fusioncutscene' || state === 'fusionfight' || state === 'splitfight' || state === 'hawkingRefusal' || state === 'hawkingDeath';
   const allSolids = [...walls, ...(inArena ? arenaPlats : [bigWall])].filter(Boolean);
   for (const wall of allSolids) {
     if (!rectsOverlap(p, wall)) continue;
@@ -2389,6 +2402,25 @@ function update() {
               hit = true;
               break;
             }
+            // Hawking FINAL death — trigger epic death scene
+            if (mb.name === 'HAWKING' && hawkingPhase2) {
+              mb.hp = 1; // keep alive for cutscene
+              hawkingDeathTimer = 0;
+              hawkingDeathPhase = 0;
+              mb._deathX = mb.x + mb.w/2;
+              mb._deathY = mb.y + mb.h/2;
+              state = 'hawkingDeath';
+              epsteinProjectiles = [];
+              bossMinions = [];
+              bossVfx = [];
+              screenFlash = 60;
+              screenFlashColor = '#44ff88';
+              shakeTimer = 40;
+              spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#44ff88', 60);
+              spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#ffffff', 40);
+              hit = true;
+              break;
+            }
             mb.dead = true;
             spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, mb.color, 25);
             spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#ffffff', 15);
@@ -2469,7 +2501,7 @@ function update() {
   let targetCamX = p.x - W / 3;
   
   // In arena: track between player and active boss so boss stays on screen
-  const inArenaState = state === 'bossfight' || state === 'bossdialogue' || state === 'epsteinfight' || state === 'phonecall' || state === 'cutscene' || state === 'fusioncutscene' || state === 'fusionfight' || state === 'splitfight' || state === 'hawkingRefusal';
+  const inArenaState = state === 'bossfight' || state === 'bossdialogue' || state === 'epsteinfight' || state === 'phonecall' || state === 'cutscene' || state === 'fusioncutscene' || state === 'fusionfight' || state === 'splitfight' || state === 'hawkingRefusal' || state === 'hawkingDeath';
   if (inArenaState && bigWall) {
     const bArenaW = 2400;
     const arenaLeftCam = bigWall.x + bigWall.w/2 - bArenaW/2;
@@ -3438,6 +3470,166 @@ function update() {
       bossVfx.push({ type: 'ring', x: W/2, y: H/2, radius: 10, maxRadius: 800, life: 50, maxLife: 50, color: '#44ff88' });
     }
   }
+
+  // ════════════════════════════════════════════════════════════════
+  // HAWKING DEATH — Epic cinematic death scene
+  // ════════════════════════════════════════════════════════════════
+  if (state === 'hawkingDeath') {
+    hawkingDeathTimer++;
+    const dt = hawkingDeathTimer;
+    const hawk = miniBosses.find(m => m.name === 'HAWKING');
+    const hx = hawk ? hawk._deathX || (hawk.x + hawk.w/2) : W/2;
+    const hy = hawk ? hawk._deathY || (hawk.y + hawk.h/2) : H/2;
+
+    // Phase 1 (0-80): TIME FREEZE — everything stops, glitch distortion
+    if (dt < 80) {
+      // Slow-mo particles dripping from Hawking
+      if (dt % 4 === 0) {
+        spawnParticles(hx + (Math.random()-0.5)*80, hy + (Math.random()-0.5)*80, '#44ff88', 3);
+      }
+      // Screen shake gets worse
+      if (dt > 30) shakeTimer = Math.max(shakeTimer, 3 + Math.floor((dt-30)/10));
+    }
+
+    // Phase 2 (80-200): HAWKING RISES — body levitates, energy pours out
+    if (dt >= 80 && dt < 200) {
+      const riseProg = (dt - 80) / 120;
+      if (hawk) {
+        hawk.y -= 1.5 * (1 - riseProg); // float upward
+      }
+      // Massive energy eruption particles
+      if (dt % 2 === 0) {
+        for (let i = 0; i < 5; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 2 + Math.random() * 6;
+          particles.push({
+            x: hx, y: hy - (dt-80)*1.2,
+            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+            life: 40 + Math.random() * 40,
+            color: ['#44ff88','#88ffcc','#22cc66','#ffffff','#44ffff'][Math.floor(Math.random()*5)],
+            size: 2 + Math.random() * 5,
+          });
+        }
+      }
+      // Growing shockwaves
+      if (dt % 20 === 0) {
+        bossVfx.push({ type: 'ring', x: hx, y: hy - (dt-80)*1.2, radius: 5, maxRadius: 300 + riseProg * 200, life: 35, maxLife: 35, color: '#44ff88' });
+      }
+      shakeTimer = Math.max(shakeTimer, 5 + Math.floor(riseProg * 15));
+      // Screen flashes
+      if (dt % 30 === 0) { screenFlash = 8; screenFlashColor = '#44ff88'; }
+    }
+
+    // Phase 3 (200-400): REALITY CRACKS — space-time tears around Hawking
+    if (dt >= 200 && dt < 400) {
+      const crackProg = (dt - 200) / 200;
+      // Continuous energy outpour
+      if (dt % 3 === 0) {
+        for (let i = 0; i < 4; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 3 + Math.random() * 8;
+          particles.push({
+            x: hx, y: hy - 150,
+            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 2,
+            life: 50 + Math.random() * 60,
+            color: ['#44ff88','#ffffff','#ffdd44','#4488ff','#ff44ff'][Math.floor(Math.random()*5)],
+            size: 3 + Math.random() * 6,
+          });
+        }
+      }
+      // Massive expanding shockwaves
+      if (dt % 25 === 0) {
+        bossVfx.push({ type: 'ring', x: hx, y: hy - 150, radius: 10, maxRadius: 500, life: 40, maxLife: 40, color: '#ffffff' });
+      }
+      shakeTimer = Math.max(shakeTimer, 10 + Math.floor(crackProg * 25));
+      // Periodic screen flashes getting more intense
+      if (dt % 15 === 0 && crackProg > 0.5) { screenFlash = 10; screenFlashColor = '#ffffff'; }
+    }
+
+    // Phase 4 (400-550): DISINTEGRATION — body breaks into stars
+    if (dt >= 400 && dt < 550) {
+      const disProg = (dt - 400) / 150;
+      // Massive star burst
+      if (dt % 2 === 0) {
+        for (let i = 0; i < 8; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 1 + Math.random() * 10 * disProg;
+          particles.push({
+            x: hx + (Math.random()-0.5) * 60 * disProg, y: hy - 150 + (Math.random()-0.5) * 60 * disProg,
+            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 1,
+            life: 80 + Math.random() * 80,
+            color: ['#44ff88','#88ffcc','#ffffff','#ffdd44','#44ffff','#aaffaa'][Math.floor(Math.random()*6)],
+            size: 1 + Math.random() * 4,
+          });
+        }
+      }
+      if (dt === 400) { screenFlash = 40; screenFlashColor = '#44ff88'; shakeTimer = 40; }
+      if (dt === 450) { screenFlash = 30; screenFlashColor = '#ffffff'; }
+      // Hide Hawking sprite progressively (handled in draw)
+    }
+
+    // Phase 5 (550-750): COSMIC MOMENT — stars form equation, dialogue
+    if (dt >= 550 && dt < 750) {
+      // Gentle ambient particles
+      if (dt % 6 === 0) {
+        particles.push({
+          x: Math.random() * W, y: Math.random() * H,
+          vx: (Math.random()-0.5) * 0.5, vy: -Math.random() * 0.5 - 0.2,
+          life: 60 + Math.random() * 40,
+          color: ['#44ff8844','#ffffff44','#ffdd4444'][Math.floor(Math.random()*3)],
+          size: 1 + Math.random() * 2,
+        });
+      }
+    }
+
+    // Phase 6 (750-850): WHITE OUT — massive flash, peaceful transition
+    if (dt === 750) {
+      screenFlash = 80;
+      screenFlashColor = '#ffffff';
+      shakeTimer = 30;
+      // Enormous particle explosion
+      for (let i = 0; i < 200; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2 + Math.random() * 15;
+        particles.push({
+          x: hx, y: hy - 150,
+          vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 3,
+          life: 80 + Math.random() * 80,
+          color: ['#44ff88','#ffffff','#ffdd44','#44ffff','#88ffcc'][Math.floor(Math.random()*5)],
+          size: 2 + Math.random() * 8,
+        });
+      }
+    }
+
+    // Phase 7 (850-900): Return to game, mark all dead, trigger victory
+    if (dt === 900) {
+      // Mark Hawking dead
+      if (hawk) { hawk.hp = 0; hawk.dead = true; }
+      // Mark ALL bosses dead (they should already be dead except Hawking)
+      for (const mb of miniBosses) mb.dead = true;
+      // Now trigger victory
+      bossDeathTimer = 0;
+      screenFlash = 60;
+      screenFlashColor = '#ffffff';
+      shakeTimer = 50;
+      for (let i = 0; i < 150; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2 + Math.random() * 14;
+        particles.push({ x: player.x + player.w/2, y: player.y + player.h/2, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed-3, life: 80+Math.random()*60, color: ['#ff4400','#8844ff','#ffdd44','#ffffff','#44ff88','#4488ff','#ff44ff'][Math.floor(Math.random()*7)], size: 3+Math.random()*8 });
+      }
+      bossVfx.push({ type: 'ring', x: player.x+player.w/2, y: player.y+player.h/2, radius: 10, maxRadius: 900, life: 70, maxLife: 70, color: '#ffdd44' });
+      bossVfx.push({ type: 'text', x: player.x+player.w/2, y: player.y - 50, text: '★ FREEDOM! ★', life: 200, maxLife: 200, color: '#ffdd44' });
+      player.x = bigWall.x + bigWall.w + 30;
+      player.y = bigWall.y - player.h;
+      player.vy = 0; player.vx = 0;
+      arenaPlats = [];
+      state = 'won';
+      player.won = true;
+      spawnParticles(player.x, player.y, '#ffdd44', 50);
+      spawnParticles(player.x, player.y, '#ff6644', 40);
+      restartCooldown = 60;
+    }
+  }
   
   // Update boss VFX
   for (let i = bossVfx.length - 1; i >= 0; i--) {
@@ -3574,7 +3766,7 @@ function draw() {
   ctx.save();
   ctx.translate(shake, shake * 0.6);
 
-  const inBossFight = state === 'bossfight' || state === 'bossdialogue' || state === 'epsteinfight' || state === 'phonecall' || state === 'fusioncutscene' || state === 'fusionfight' || state === 'splitfight' || state === 'hawkingRefusal';
+  const inBossFight = state === 'bossfight' || state === 'bossdialogue' || state === 'epsteinfight' || state === 'phonecall' || state === 'fusioncutscene' || state === 'fusionfight' || state === 'splitfight' || state === 'hawkingRefusal' || state === 'hawkingDeath';
   const bossPhase = boss ? boss.phase : 1;
 
   // Desert sunset sky — underground sewer during bossfight
@@ -3844,7 +4036,7 @@ function draw() {
 
   // ── SEWER / UNDERGROUND BUNKER ARENA ──
   // Draw the full sewer background behind platforms (only during bossfight)
-  const drawArena = (state === 'bossfight' || state === 'bossdialogue' || state === 'cutscene' || state === 'epsteinfight' || state === 'phonecall' || state === 'fusioncutscene' || state === 'fusionfight' || state === 'splitfight' || state === 'hawkingRefusal' || bossDeathTimer > 0) && arenaPlats.length > 0;
+  const drawArena = (state === 'bossfight' || state === 'bossdialogue' || state === 'cutscene' || state === 'epsteinfight' || state === 'phonecall' || state === 'fusioncutscene' || state === 'fusionfight' || state === 'splitfight' || state === 'hawkingRefusal' || state === 'hawkingDeath' || bossDeathTimer > 0) && arenaPlats.length > 0;
   if (drawArena) {
     const sewFloor = arenaPlats.find(a => a.isFloor);
     const sewCeil = arenaPlats.find(a => a.isCeiling);
@@ -5037,6 +5229,419 @@ function draw() {
     }
 
     ctx.imageSmoothingEnabled = true;
+
+    // SKIP button
+    ctx.fillStyle = '#ffffff22';
+    ctx.fillRect(W - 110, 8, 100, 28);
+    ctx.strokeStyle = '#ffffff44';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(W - 110, 8, 100, 28);
+    ctx.fillStyle = '#aaa';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('SKIP \u25b6\u25b6', W - 60, 27);
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // HAWKING DEATH — Epic cinematic death scene drawing
+  // ════════════════════════════════════════════════════════════════
+  if (state === 'hawkingDeath') {
+    const dt = hawkingDeathTimer;
+    const hawk = miniBosses.find(m => m.name === 'HAWKING');
+    const hx = hawk ? hawk._deathX || W/2 : W/2;
+    const hy = hawk ? hawk._deathY || H/2 : H/2;
+    const t = Date.now() / 1000;
+
+    // Phase 1 (0-80): TIME FREEZE — dramatic slow-mo distortion
+    if (dt < 80) {
+      const freezeProg = dt / 80;
+      // Darken arena progressively
+      ctx.fillStyle = `rgba(0,0,0,${freezeProg * 0.6})`;
+      ctx.fillRect(0, 0, W, H);
+      // Radial green distortion from Hawking
+      const distGrad = ctx.createRadialGradient(hx, hy, 10, hx, hy, 300 + freezeProg * 200);
+      distGrad.addColorStop(0, `rgba(68,255,136,${0.15 * freezeProg})`);
+      distGrad.addColorStop(0.4, `rgba(68,255,136,${0.05 * freezeProg})`);
+      distGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = distGrad;
+      ctx.fillRect(0, 0, W, H);
+      // Glitch lines
+      if (dt > 30) {
+        const glitchN = Math.floor((dt - 30) / 5);
+        for (let g = 0; g < glitchN; g++) {
+          const gy = ((g * 97 + dt * 7) % H);
+          const gw = 50 + Math.random() * 200;
+          ctx.fillStyle = `rgba(68,255,136,${0.1 + Math.random() * 0.15})`;
+          ctx.fillRect(Math.random() * W, gy, gw, 2);
+        }
+      }
+      // "TIME DISTORTION" text
+      if (dt > 40) {
+        ctx.globalAlpha = Math.sin((dt - 40) / 40 * Math.PI);
+        ctx.fillStyle = '#44ff88';
+        ctx.font = `bold ${14 + Math.sin(t * 10) * 2}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#44ff88';
+        ctx.shadowBlur = 20;
+        ctx.fillText('CRITICAL MASS REACHED', W/2, H * 0.15);
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // Phase 2 (80-200): HAWKING RISES — levitation with energy eruption
+    if (dt >= 80 && dt < 200) {
+      const riseProg = (dt - 80) / 120;
+      // Nearly full black
+      ctx.fillStyle = `rgba(0,0,0,${0.7 + riseProg * 0.2})`;
+      ctx.fillRect(0, 0, W, H);
+      // Massive green/white energy column from below
+      const colW = 60 + riseProg * 120;
+      const colGrad = ctx.createLinearGradient(hx - colW/2, H, hx + colW/2, hy - 200);
+      colGrad.addColorStop(0, 'rgba(68,255,136,0)');
+      colGrad.addColorStop(0.3, `rgba(68,255,136,${0.2 + riseProg * 0.3})`);
+      colGrad.addColorStop(0.6, `rgba(136,255,204,${0.15 + riseProg * 0.25})`);
+      colGrad.addColorStop(1, `rgba(255,255,255,${riseProg * 0.3})`);
+      ctx.fillStyle = colGrad;
+      ctx.fillRect(hx - colW/2, hy - 200, colW, H - hy + 200);
+      // Draw Hawking floating up
+      if (hawk) {
+        const floatY = hy - 100 * riseProg;
+        const hSize = 120 + riseProg * 40;
+        const hH = imgH(hawkingImg, hSize);
+        ctx.save();
+        ctx.globalAlpha = 1;
+        ctx.shadowColor = '#44ff88';
+        ctx.shadowBlur = 30 + riseProg * 60;
+        ctx.drawImage(hawkingImg, hx - hSize/2, floatY - hH/2, hSize, hH);
+        ctx.shadowBlur = 0;
+        ctx.restore();
+      }
+      // Energy rings expanding outward
+      const ringCount = Math.floor(riseProg * 6);
+      for (let r = 0; r < ringCount; r++) {
+        const rProg = ((t * 0.8 + r * 0.3) % 1);
+        const rRadius = 50 + rProg * 350;
+        ctx.strokeStyle = `rgba(68,255,136,${(1-rProg) * 0.3})`;
+        ctx.lineWidth = 3 * (1 - rProg);
+        ctx.beginPath();
+        ctx.arc(hx, hy - 100 * riseProg, rRadius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      // Floating particles sucked inward then exploding out
+      for (let p = 0; p < 8; p++) {
+        const pa = (t * 2 + p * 0.785) % (Math.PI * 2);
+        const pd = 100 + Math.sin(t * 3 + p) * 40;
+        const px = hx + Math.cos(pa) * pd;
+        const py = (hy - 100 * riseProg) + Math.sin(pa) * pd * 0.6;
+        ctx.fillStyle = `rgba(68,255,136,${0.4 + Math.sin(t*5+p)*0.2})`;
+        ctx.beginPath();
+        ctx.arc(px, py, 2 + Math.sin(t*4+p)*1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Phase 3 (200-400): REALITY CRACKS — space-time tears, cosmic energy
+    if (dt >= 200 && dt < 400) {
+      const crackProg = (dt - 200) / 200;
+      // Deep black background
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      // Star field appearing — cosmos becoming visible
+      const starCount = Math.floor(crackProg * 120);
+      for (let s = 0; s < starCount; s++) {
+        const sx = (s * 73.7 + s * s * 3.1) % W;
+        const sy = (s * 47.3 + s * 11.7) % H;
+        const twinkle = 0.2 + Math.sin(t * 3 + s * 2) * 0.15;
+        ctx.fillStyle = `rgba(255,255,255,${twinkle * crackProg})`;
+        const sSize = s % 11 === 0 ? 3 : (s % 5 === 0 ? 2 : 1);
+        ctx.fillRect(sx, sy, sSize, sSize);
+      }
+      // Reality crack lines — jagged tears in space
+      const crackCount = Math.floor(crackProg * 8);
+      for (let c = 0; c < crackCount; c++) {
+        const cStartX = (c * 157 + 100) % W;
+        const cStartY = (c * 211 + 80) % H;
+        ctx.strokeStyle = `rgba(68,255,136,${0.4 + Math.sin(t*4+c)*0.2})`;
+        ctx.lineWidth = 2 + Math.sin(t * 6 + c) * 1;
+        ctx.shadowColor = '#44ff88';
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.moveTo(cStartX, cStartY);
+        for (let seg = 0; seg < 6; seg++) {
+          ctx.lineTo(
+            cStartX + (Math.random()-0.5) * 150 * (seg+1)/3,
+            cStartY + seg * 30 + (Math.random()-0.5) * 40
+          );
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        // Bright glow at crack origin
+        const crGlow = ctx.createRadialGradient(cStartX, cStartY, 0, cStartX, cStartY, 30);
+        crGlow.addColorStop(0, `rgba(68,255,136,${0.3 * (1 - crackProg * 0.5)})`);
+        crGlow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = crGlow;
+        ctx.fillRect(cStartX - 30, cStartY - 30, 60, 60);
+      }
+      // Hawking still visible, dissolving
+      if (hawk) {
+        const dissolve = Math.min(1, crackProg * 1.5);
+        const floatY = hy - 120 - Math.sin(t * 0.5) * 20;
+        const hSize = 160 - crackProg * 40;
+        const hH = imgH(hawkingImg, hSize);
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, 1 - dissolve);
+        ctx.shadowColor = '#44ff88';
+        ctx.shadowBlur = 40 + crackProg * 80;
+        ctx.drawImage(hawkingImg, hx - hSize/2, floatY - hH/2, hSize, hH);
+        ctx.shadowBlur = 0;
+        ctx.restore();
+        // Energy aura where Hawking was
+        const auraGrad = ctx.createRadialGradient(hx, floatY, 10, hx, floatY, 200);
+        auraGrad.addColorStop(0, `rgba(68,255,136,${0.3 + dissolve * 0.3})`);
+        auraGrad.addColorStop(0.4, `rgba(68,255,136,${0.1})`);
+        auraGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = auraGrad;
+        ctx.beginPath();
+        ctx.arc(hx, floatY, 200, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Chromatic aberration bars
+      if (crackProg > 0.5 && Math.random() < crackProg * 0.3) {
+        const barY = Math.random() * H;
+        ctx.fillStyle = `rgba(68,255,136,${Math.random() * 0.1})`;
+        ctx.fillRect(0, barY, W, 2 + Math.random() * 4);
+      }
+    }
+
+    // Phase 4 (400-550): DISINTEGRATION — body breaks into constellation
+    if (dt >= 400 && dt < 550) {
+      const disProg = (dt - 400) / 150;
+      // Deep space background
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      // Full star field
+      for (let s = 0; s < 150; s++) {
+        const sx = (s * 73.7 + s * s * 3.1) % W;
+        const sy = (s * 47.3 + s * 11.7) % H;
+        const twinkle = 0.15 + Math.sin(t * 2.5 + s * 1.5) * 0.12;
+        ctx.fillStyle = `rgba(255,255,255,${twinkle})`;
+        ctx.fillRect(sx, sy, s % 7 === 0 ? 2 : 1, s % 7 === 0 ? 2 : 1);
+      }
+      // Supernova explosion at center — concentric rings
+      const novaCenter = { x: hx, y: hy - 120 };
+      const novaR = disProg * 400;
+      for (let nr = 0; nr < 4; nr++) {
+        const nrR = novaR * (0.3 + nr * 0.2);
+        const nrAlpha = Math.max(0, (1 - disProg) * 0.4 - nr * 0.08);
+        ctx.strokeStyle = `rgba(68,255,136,${nrAlpha})`;
+        ctx.lineWidth = 4 - nr;
+        ctx.beginPath();
+        ctx.arc(novaCenter.x, novaCenter.y, nrR, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      // Central bright glow fading
+      const novaGlow = ctx.createRadialGradient(novaCenter.x, novaCenter.y, 0, novaCenter.x, novaCenter.y, 100 * (1 - disProg * 0.5));
+      novaGlow.addColorStop(0, `rgba(255,255,255,${(1 - disProg) * 0.6})`);
+      novaGlow.addColorStop(0.3, `rgba(68,255,136,${(1 - disProg) * 0.3})`);
+      novaGlow.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = novaGlow;
+      ctx.beginPath();
+      ctx.arc(novaCenter.x, novaCenter.y, 100, 0, Math.PI * 2);
+      ctx.fill();
+      // Constellation dots forming from the explosion — scattered outward
+      const constellationPts = 30;
+      for (let cp = 0; cp < constellationPts; cp++) {
+        const cpAngle = (cp / constellationPts) * Math.PI * 2 + Math.sin(cp * 3) * 0.5;
+        const cpDist = 30 + disProg * (80 + cp * 8);
+        const cpx = novaCenter.x + Math.cos(cpAngle) * cpDist;
+        const cpy = novaCenter.y + Math.sin(cpAngle) * cpDist * 0.7;
+        if (cpx < 0 || cpx > W || cpy < 0 || cpy > H) continue;
+        const cpAlpha = Math.min(1, disProg * 3) * (0.3 + Math.sin(t * 2 + cp) * 0.2);
+        ctx.fillStyle = `rgba(68,255,136,${cpAlpha})`;
+        const cpSize = cp % 4 === 0 ? 4 : 2;
+        ctx.beginPath();
+        ctx.arc(cpx, cpy, cpSize, 0, Math.PI * 2);
+        ctx.fill();
+        // Glow around larger dots
+        if (cp % 4 === 0) {
+          ctx.fillStyle = `rgba(68,255,136,${cpAlpha * 0.3})`;
+          ctx.beginPath();
+          ctx.arc(cpx, cpy, 10, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      // Connect some constellation points with faint lines
+      if (disProg > 0.4) {
+        ctx.strokeStyle = `rgba(68,255,136,${(disProg - 0.4) * 0.15})`;
+        ctx.lineWidth = 1;
+        for (let lp = 0; lp < constellationPts - 1; lp += 3) {
+          const a1 = (lp / constellationPts) * Math.PI * 2 + Math.sin(lp * 3) * 0.5;
+          const d1 = 30 + disProg * (80 + lp * 8);
+          const a2 = ((lp+3) / constellationPts) * Math.PI * 2 + Math.sin((lp+3) * 3) * 0.5;
+          const d2 = 30 + disProg * (80 + (lp+3) * 8);
+          ctx.beginPath();
+          ctx.moveTo(novaCenter.x + Math.cos(a1)*d1, novaCenter.y + Math.sin(a1)*d1*0.7);
+          ctx.lineTo(novaCenter.x + Math.cos(a2)*d2, novaCenter.y + Math.sin(a2)*d2*0.7);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Phase 5 (550-750): COSMIC MOMENT — equation + final words
+    if (dt >= 550 && dt < 750) {
+      const cosmicProg = (dt - 550) / 200;
+      // Deep space
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      // Stars slowly drifting
+      for (let s = 0; s < 100; s++) {
+        const sx = ((s * 73.7 + s * s * 3.1) + t * 5) % W;
+        const sy = (s * 47.3 + s * 11.7) % H;
+        ctx.fillStyle = `rgba(255,255,255,${0.15 + Math.sin(t + s) * 0.1})`;
+        ctx.fillRect(sx, sy, 1, 1);
+      }
+      // Scattered constellation dots still visible, slowly fading outward
+      for (let cp = 0; cp < 20; cp++) {
+        const cpAngle = (cp / 20) * Math.PI * 2;
+        const cpDist = 200 + cosmicProg * 50 + Math.sin(t * 0.5 + cp) * 20;
+        const cpx = hx + Math.cos(cpAngle) * cpDist;
+        const cpy = (hy - 120) + Math.sin(cpAngle) * cpDist * 0.7;
+        ctx.fillStyle = `rgba(68,255,136,${0.15 * (1 - cosmicProg * 0.5)})`;
+        ctx.beginPath();
+        ctx.arc(cpx, cpy, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // E = mc² appearing letter by letter
+      if (cosmicProg < 0.4) {
+        const eqText = 'E = mc\u00B2';
+        const eqProg = cosmicProg / 0.4;
+        const charCount = Math.floor(eqText.length * eqProg);
+        ctx.fillStyle = `rgba(255,221,68,${eqProg})`;
+        ctx.font = `bold ${40 + Math.sin(t * 2) * 3}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#ffdd44';
+        ctx.shadowBlur = 25;
+        ctx.fillText(eqText.substring(0, charCount), W/2, H * 0.35);
+        ctx.shadowBlur = 0;
+      } else {
+        // Equation fading
+        const fadeProg = Math.min(1, (cosmicProg - 0.4) / 0.15);
+        ctx.globalAlpha = 1 - fadeProg;
+        ctx.fillStyle = '#ffdd44';
+        ctx.font = `bold 40px monospace`;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#ffdd44';
+        ctx.shadowBlur = 20;
+        ctx.fillText('E = mc\u00B2', W/2, H * 0.35);
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+      }
+
+      // Dialogue appearing after equation
+      if (cosmicProg > 0.35) {
+        const dlgProg = (cosmicProg - 0.35) / 0.65;
+        const dialogues = [
+          { at: 0.0, text: '"The universe...' },
+          { at: 0.3, text: '...finally balanced."' },
+          { at: 0.65, text: '- Stephen Hawking' },
+        ];
+        for (const dlg of dialogues) {
+          if (dlgProg >= dlg.at) {
+            const dProg = Math.min(1, (dlgProg - dlg.at) / 0.2);
+            const isAttrib = dlg.text.startsWith('-');
+            ctx.globalAlpha = Math.sin(Math.min(1, dProg) * Math.PI * 0.5);
+            ctx.fillStyle = isAttrib ? '#44ff88' : '#ffffff';
+            ctx.font = isAttrib ? 'italic 18px monospace' : `${22 + Math.sin(t)*1}px monospace`;
+            ctx.textAlign = 'center';
+            ctx.shadowColor = isAttrib ? '#44ff88' : '#ffffff';
+            ctx.shadowBlur = 12;
+            const yOff = isAttrib ? 0.62 : (dlg.at < 0.2 ? 0.48 : 0.55);
+            // Typewriter effect
+            const fullLen = dlg.text.length;
+            const showLen = Math.floor(fullLen * Math.min(1, dProg * 3));
+            ctx.fillText(dlg.text.substring(0, showLen), W/2, H * yOff);
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1;
+          }
+        }
+      }
+
+      // Gentle green pulse from center
+      const pulseR = 100 + Math.sin(t * 1.5) * 30;
+      const pulseGrad = ctx.createRadialGradient(W/2, H * 0.45, 0, W/2, H * 0.45, pulseR);
+      pulseGrad.addColorStop(0, `rgba(68,255,136,${0.05 + Math.sin(t*2)*0.02})`);
+      pulseGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = pulseGrad;
+      ctx.beginPath();
+      ctx.arc(W/2, H * 0.45, pulseR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Phase 6 (750-850): WHITE OUT + "HAWKING DEFEATED"
+    if (dt >= 750 && dt < 850) {
+      const whiteProg = (dt - 750) / 100;
+      if (whiteProg < 0.3) {
+        // Flash to white
+        const flashP = whiteProg / 0.3;
+        ctx.fillStyle = `rgba(255,255,255,${flashP})`;
+        ctx.fillRect(0, 0, W, H);
+      } else if (whiteProg < 0.7) {
+        // Hold white with text
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, W, H);
+        const textProg = (whiteProg - 0.3) / 0.4;
+        ctx.fillStyle = `rgba(0,0,0,${Math.sin(textProg * Math.PI)})`;
+        ctx.font = 'bold 48px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('HAWKING DEFEATED', W/2, H * 0.45);
+        ctx.fillStyle = `rgba(68,100,60,${Math.sin(textProg * Math.PI) * 0.7})`;
+        ctx.font = '18px monospace';
+        ctx.fillText('The mind that defied death... rests at last.', W/2, H * 0.55);
+      } else {
+        // Fade from white to black
+        const fadeP = (whiteProg - 0.7) / 0.3;
+        const brightness = Math.floor(255 * (1 - fadeP));
+        ctx.fillStyle = `rgb(${brightness},${brightness},${brightness})`;
+        ctx.fillRect(0, 0, W, H);
+      }
+    }
+
+    // Phase 7 (850-900): Victory transition
+    if (dt >= 850) {
+      // Fade to black, player emerges victorious
+      const victProg = (dt - 850) / 50;
+      ctx.fillStyle = `rgba(0,0,0,${1 - victProg * 0.5})`;
+      ctx.fillRect(0, 0, W, H);
+      // Golden text
+      ctx.globalAlpha = Math.sin(victProg * Math.PI);
+      ctx.fillStyle = '#ffdd44';
+      ctx.font = 'bold 36px monospace';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#ffdd44';
+      ctx.shadowBlur = 30;
+      ctx.fillText('\u2605 FREEDOM \u2605', W/2, H * 0.45);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+
+    // Letterbox bars throughout
+    const barH = 45;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, barH);
+    ctx.fillRect(0, H - barH, W, barH);
+    ctx.strokeStyle = '#44ff8844';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, barH); ctx.lineTo(W, barH); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, H - barH); ctx.lineTo(W, H - barH); ctx.stroke();
+
+    // Vignette
+    const vigGrad = ctx.createRadialGradient(W/2, H/2, H*0.2, W/2, H/2, H*0.9);
+    vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    vigGrad.addColorStop(1, `rgba(0,0,0,${Math.min(0.5, dt / 200)})`);
+    ctx.fillStyle = vigGrad;
+    ctx.fillRect(0, 0, W, H);
 
     // SKIP button
     ctx.fillStyle = '#ffffff22';
@@ -7357,11 +7962,11 @@ function draw() {
         
         // Assembly positions (where they end up)
         const assemblyPos = [
-          { x: 0.12, y: 0.14, s: 0.85 },    // Trump far left
-          { x: 0.30, y: 0.14, s: 0.9 },      // Epstein inner left
-          { x: 0.70, y: 0.14, s: 0.9 },      // Musk inner right
-          { x: 0.88, y: 0.14, s: 0.85 },     // Clinton far right
-          { x: 0.50, y: 0.02, s: 1.7 },      // Hawking CENTER, BIGGEST
+          { x: 0.12, y: 0.35, s: 0.85 },    // Trump far left
+          { x: 0.30, y: 0.35, s: 0.9 },      // Epstein inner left
+          { x: 0.70, y: 0.35, s: 0.9 },      // Musk inner right
+          { x: 0.88, y: 0.35, s: 0.85 },     // Clinton far right
+          { x: 0.50, y: 0.18, s: 1.7 },      // Hawking CENTER, BIGGEST
         ];
         
         for (const rev of reveals) {
@@ -7384,7 +7989,7 @@ function draw() {
           if (inSpotlight || assemblyProg < 1) {
             // Spotlight position (centered, large)
             const spotX = W / 2;
-            const spotY = H * 0.08;
+            const spotY = H * 0.30;
             const spotSize = baseSize * (isHawking ? 2.0 : 1.4);
             
             // Assembly target
