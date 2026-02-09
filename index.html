@@ -625,6 +625,7 @@ function updateAimFromTouch(cx, cy) {
   }
 }
 
+let touchJumpQueued = false; // survives between frames so quick taps aren't lost
 function updateTouchControlsFromActive() {
   touchControls.left = false;
   touchControls.right = false;
@@ -633,8 +634,10 @@ function updateTouchControlsFromActive() {
   for (const zone of Object.values(activeTouches)) {
     if (zone === 'left') touchControls.left = true;
     else if (zone === 'right') touchControls.right = true;
-    else if (zone === 'up') touchControls.up = true;
+    else if (zone === 'up') { touchControls.up = true; touchJumpQueued = true; }
   }
+  // Keep jump flag alive if queued (tap ended before update ran)
+  if (touchJumpQueued) touchControls.up = true;
 }
 
 canvas.addEventListener('touchstart', e => {
@@ -1697,6 +1700,8 @@ function update() {
   if (up && !p.prevUp) p.jumpBuffer = 8;
   else if (!up) p.jumpBuffer--;
   p.prevUp = up;
+  // Consume queued touch jump so it doesn't repeat
+  touchJumpQueued = false;
 
   if (p.onGround) { p.coyoteTime = 6; p.jumpsLeft = p.maxJumps; }
   else p.coyoteTime--;
