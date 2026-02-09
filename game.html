@@ -1227,6 +1227,7 @@ function advanceCutscene() {
 
 // ── Throw Projectile ──
 function throwProjectile() {
+  if (state === 'hawkingDeath' || state === 'hawkingRefusal') return;
   const p = player;
   if (p.throwCooldown > 0 && !cheats.noCooldown) return;
   p.throwCooldown = cheats.noCooldown ? 0 : 18;
@@ -1312,6 +1313,11 @@ function update() {
   // ── CHEAT EFFECTS ──
   if (cheats.godMode && player.alive) {
     player.hp = player.maxHp;
+  }
+
+  // Player invulnerable during hawkingDeath scene
+  if (state === 'hawkingDeath') {
+    player.iFrames = Math.max(player.iFrames, 5);
   }
 
   // ── MENU BACKGROUND UPDATE ──
@@ -2413,6 +2419,7 @@ function update() {
               mb._deathX = mb.x + mb.w/2;
               mb._deathY = mb.y + mb.h/2;
               state = 'hawkingDeath';
+              projectiles = [];
               epsteinProjectiles = [];
               bossMinions = [];
               bossVfx = [];
@@ -9885,13 +9892,19 @@ function draw() {
   }
   ctx.restore();
 }
-function loop() {
-  update();
+let _lastFrameTime = 0;
+function loop(timestamp) {
+  if (!_lastFrameTime) _lastFrameTime = timestamp;
+  const elapsed = timestamp - _lastFrameTime;
+  _lastFrameTime = timestamp;
+  // Run multiple ticks per frame on slow devices (iPad 30fps) to maintain game speed
+  const ticks = Math.min(Math.max(1, Math.round(elapsed / 16.67)), 4);
+  for (let i = 0; i < ticks; i++) update();
   draw();
   requestAnimationFrame(loop);
 }
 
-loop();
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
