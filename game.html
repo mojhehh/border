@@ -693,6 +693,7 @@ function setupRoomListeners(code, uid) {
           // Skip entire cutscene
           if (state === 'cutscene') { cutscene.phase = 3; cutscene.fadeAlpha = 1; cutscene.timer = 0; }
           else if (state === 'fusioncutscene') { fusionCutsceneTimer = 1; }
+          else if (state === 'phonecall') { phonecallTimer = 1; }
           else if (state === 'bossdialogue') { bossDialogue.index = bossDialogue.texts.length; advanceCutscene(); }
         }
       }
@@ -3487,9 +3488,10 @@ function update() {
     }
   }
 
-  // Trigger cutscene when ANY player reaches top of wall (first time)
+  // Trigger cutscene when ANY player reaches top of wall (first time) — HOST ONLY
+  if ((!mpEnabled || isHost) && bigWall && !boss && !cutscene.active) {
   let anyPlayerAtWall = p.y < bigWall.y + 80 && p.x > bigWall.x - 100 && p.x < bigWall.x + bigWall.w + 100;
-  if (!anyPlayerAtWall && mpEnabled && isHost) {
+  if (!anyPlayerAtWall && mpEnabled) {
     for (const uid of Object.keys(roomPlayers)) {
       if (uid === myUid()) continue;
       const rp = roomPlayers[uid];
@@ -3498,13 +3500,14 @@ function update() {
       }
     }
   }
-  if (bigWall && !boss && !cutscene.active && anyPlayerAtWall) {
+  if (anyPlayerAtWall) {
     state = 'cutscene';
     cutscene.active = true;
     cutscene.timer = 0;
     cutscene.phase = 0;
     cutscene.fadeAlpha = 0;
     cutscene.dialogueIndex = 0;
+  }
   }
 
   // Win condition: player goes over the big wall AND boss is dead
@@ -3613,7 +3616,7 @@ function update() {
     } // end _mpHost guard AI
 
     // Damage player on touch (with iFrames) — ALL players
-    if (p.iFrames <= 0 && rectsOverlap(p, g)) {
+    if (p.alive && p.iFrames <= 0 && rectsOverlap(p, g)) {
       p.hp--;
       p.iFrames = 40;
       shakeTimer = 10;
@@ -3895,14 +3898,14 @@ function update() {
     }
 
     // Boss contact damage — ALL players (guest uses synced positions)
-    if (boss.charging && p.iFrames <= 0 && rectsOverlap(p, boss)) {
+    if (boss.charging && p.alive && p.iFrames <= 0 && rectsOverlap(p, boss)) {
       p.hp -= 1;
       p.iFrames = 60;
       p.vx = (boss.chargeVx || boss.dir * 8) * 0.8;
       p.vy = -8;
       shakeTimer = 12;
       spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4444', 15);
-    } else if (!boss.charging && p.iFrames <= 0 && rectsOverlap(p, boss)) {
+    } else if (!boss.charging && p.alive && p.iFrames <= 0 && rectsOverlap(p, boss)) {
       p.hp -= 1;
       p.iFrames = 40;
       p.vx = (p.x < boss.x ? -1 : 1) * 5;
@@ -3965,7 +3968,7 @@ function update() {
     if (m.frameTimer > 8) { m.frameTimer = 0; m.frame = (m.frame + 1) % 4; }
     } // end _mpHost boss minion AI
     // Damage player — ALL players
-    if (p.iFrames <= 0 && rectsOverlap(p, m)) {
+    if (p.alive && p.iFrames <= 0 && rectsOverlap(p, m)) {
       p.hp--;
       p.iFrames = 35;
       shakeTimer = 6;
@@ -4564,7 +4567,7 @@ function update() {
    } // end _mpHost epstein AI
 
     // Contact damage — ALL players
-    if (p.iFrames <= 0 && rectsOverlap(p, epstein)) {
+    if (p.alive && p.iFrames <= 0 && rectsOverlap(p, epstein)) {
       p.hp -= 1;
       p.iFrames = 45;
       p.vx = (p.x < epstein.x ? -1 : 1) * 6;
@@ -4753,7 +4756,7 @@ function update() {
    } // end _mpHost fusion AI
 
     // Contact damage — ALL players
-    if (p.iFrames <= 0 && rectsOverlap(p, fusionBoss)) {
+    if (p.alive && p.iFrames <= 0 && rectsOverlap(p, fusionBoss)) {
       p.hp -= 2;
       p.iFrames = 50;
       p.vx = (p.x < fusionBoss.x ? -1 : 1) * 8;
@@ -4767,7 +4770,7 @@ function update() {
       fusionBoss._slamShock--;
       if (fusionBoss._slamShock > 20) {
         shakeTimer = Math.max(shakeTimer, fusionBoss._slamShock);
-        if (p.onGround && Math.abs(p.x - fusionBoss.x) < 300 && p.iFrames <= 0) {
+        if (p.alive && p.onGround && Math.abs(p.x - fusionBoss.x) < 300 && p.iFrames <= 0) {
           p.hp--;
           p.iFrames = 45;
           p.vy = -10;
@@ -5163,7 +5166,7 @@ function update() {
 
       // Contact damage — ALL players
       const contactDmg = (mb.name === 'HAWKING' && hawkingAlone) ? (hawkingPhase2 ? 3 : 2) : 1;
-      if (p.iFrames <= 0 && rectsOverlap(p, mb)) {
+      if (p.alive && p.iFrames <= 0 && rectsOverlap(p, mb)) {
         p.hp -= contactDmg;
         p.iFrames = 40;
         p.vx = (p.x < mb.x ? -1 : 1) * 5;
