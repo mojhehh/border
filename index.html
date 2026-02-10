@@ -2093,24 +2093,17 @@ function updateAimFromTouch(cx, cy) {
 
 let touchJumpQueued = false; // survives between frames so quick taps aren't lost
 function updateTouchControlsFromActive() {
-  // Reset up state — will be re-set below if jump is active
-  touchControls.up = false;
   // Movement from joystick
   if (moveJoystick.active) {
     const dist = Math.sqrt(moveJoystick.dx * moveJoystick.dx + moveJoystick.dy * moveJoystick.dy);
     touchControls.left = dist > MOVE_DEAD_ZONE && moveJoystick.dx < -MOVE_DEAD_ZONE;
     touchControls.right = dist > MOVE_DEAD_ZONE && moveJoystick.dx > MOVE_DEAD_ZONE;
-    // Flick UP on move joystick also jumps
-    if (dist > MOVE_DEAD_ZONE && moveJoystick.dy < -MOVE_DEAD_ZONE * 1.5) {
-      if (!touchControls.up) { touchControls.up = true; touchJumpQueued = true; }
-    }
   } else {
     touchControls.left = false;
     touchControls.right = false;
   }
-  // Jump button
-  if (jumpTouchId !== null) { touchControls.up = true; touchJumpQueued = true; }
-  if (touchJumpQueued) touchControls.up = true;
+  // Jump button — set up true while finger is held, queue a jump for rising edge
+  touchControls.up = (jumpTouchId !== null) || touchJumpQueued;
 }
 
 canvas.addEventListener('touchstart', e => {
@@ -3334,14 +3327,16 @@ function update() {
     spawnParticles(p.x + p.w/2, p.y + p.h/2, '#44ff88', 3);
   }
 
-  // Consume queued touch jump so it doesn't repeat (must be outside p.alive check)
-  touchJumpQueued = false;
-
   // Input — skip if dead (spectating)
   if (p.alive) {
   const left = keys['ArrowLeft'] || keys['KeyA'] || touchControls.left;
   const right = keys['ArrowRight'] || keys['KeyD'] || touchControls.right;
   const up = keys['ArrowUp'] || keys['KeyW'] || keys['Space'] || touchControls.up;
+
+  // After reading touch state, reset it to actual finger-on-button only
+  // This ensures prevUp can go false between taps for proper rising edge detection
+  touchControls.up = (jumpTouchId !== null);
+  touchJumpQueued = false;
 
   // Horizontal movement
   const pSpeed = cheats.speedBoost ? PLAYER_SPEED * 2 : PLAYER_SPEED;
@@ -3504,6 +3499,10 @@ function update() {
     p.trail.push({ x: p.x + p.w / 2, y: p.y + p.h / 2, life: 10 });
   }
   p.trail = p.trail.filter(t => { t.life--; return t.life > 0; });
+  } else {
+    // Dead/spectating — still consume touch state to prevent stale inputs
+    touchControls.up = false;
+    touchJumpQueued = false;
   } // end if (p.alive) — player input/physics
 
   // ── Guards ──
