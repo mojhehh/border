@@ -1425,21 +1425,21 @@ async function unblockUser(targetUid) {
 let touchControls = { left: false, right: false, up: false };
 
 // Touch aim joystick state (right side)
-let touchAim = { active: false, cx: W - 140, cy: H - 180, dx: 0, dy: 0, angle: 0 };
+let touchAim = { active: false, cx: W - 140, cy: H - 120, dx: 0, dy: 0, angle: 0 };
 const AIM_CENTER_X = W - 140;
-const AIM_CENTER_Y = H - 180;
+const AIM_CENTER_Y = H - 120;
 const AIM_RADIUS = 70;
 const AIM_DEAD_ZONE = 8;
 
 // Touch movement joystick state (left side)
 const MOVE_CENTER_X = 140;
-const MOVE_CENTER_Y = H - 180;
+const MOVE_CENTER_Y = H - 120;
 const MOVE_RADIUS = 70;
 const MOVE_DEAD_ZONE = 10;
 let moveJoystick = { active: false, dx: 0, dy: 0, touchId: null };
 
 // Jump button (right side, above aim joystick)
-const JUMP_BTN = { x: W - 250, y: H - 310, r: 60 };
+const JUMP_BTN = { x: W - 260, y: H - 240, r: 60 };
 let jumpTouchId = null;
 
 // Shared touch button renderer — called from each game state's HUD
@@ -1491,7 +1491,7 @@ function drawTouchButtons() {
 
   // ── RIGHT SIDE: Jump button (above aim joystick) ──
   ctx.globalAlpha = 0.45;
-  ctx.fillStyle = touchControls.up ? '#88ff88' : '#ffffff';
+  ctx.fillStyle = jumpTouchId !== null ? '#88ff88' : '#ffffff';
   ctx.beginPath(); ctx.arc(JUMP_BTN.x, JUMP_BTN.y, JUMP_BTN.r, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#000'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
   ctx.fillText('JUMP', JUMP_BTN.x, JUMP_BTN.y + 7);
@@ -2093,6 +2093,8 @@ function updateAimFromTouch(cx, cy) {
 
 let touchJumpQueued = false; // survives between frames so quick taps aren't lost
 function updateTouchControlsFromActive() {
+  // Reset up state — will be re-set below if jump is active
+  touchControls.up = false;
   // Movement from joystick
   if (moveJoystick.active) {
     const dist = Math.sqrt(moveJoystick.dx * moveJoystick.dx + moveJoystick.dy * moveJoystick.dy);
@@ -3332,6 +3334,9 @@ function update() {
     spawnParticles(p.x + p.w/2, p.y + p.h/2, '#44ff88', 3);
   }
 
+  // Consume queued touch jump so it doesn't repeat (must be outside p.alive check)
+  touchJumpQueued = false;
+
   // Input — skip if dead (spectating)
   if (p.alive) {
   const left = keys['ArrowLeft'] || keys['KeyA'] || touchControls.left;
@@ -3348,8 +3353,6 @@ function update() {
   if (up && !p.prevUp) p.jumpBuffer = 8;
   else if (!up) p.jumpBuffer--;
   p.prevUp = up;
-  // Consume queued touch jump so it doesn't repeat
-  touchJumpQueued = false;
 
   if (p.onGround) { p.coyoteTime = 6; p.jumpsLeft = p.maxJumps; }
   else p.coyoteTime--;
