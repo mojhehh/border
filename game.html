@@ -1436,11 +1436,8 @@ const MOVE_CENTER_X = 140;
 const MOVE_CENTER_Y = H - 120;
 const MOVE_RADIUS = 70;
 const MOVE_DEAD_ZONE = 10;
-let moveJoystick = { active: false, dx: 0, dy: 0, touchId: null, inJumpZone: false };
-
-// Jump button (above move joystick, left side)
-const JUMP_BTN = { x: MOVE_CENTER_X, y: MOVE_CENTER_Y - 160, r: 60 };
-let jumpTouchId = null;
+let moveJoystick = { active: false, dx: 0, dy: 0, touchId: null, inJumpUp: false };
+const MOVE_JUMP_THRESHOLD = -25; // dy must be less than this (upward) to trigger jump
 
 // Shared touch button renderer — called from each game state's HUD
 let _isTouchDev = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
@@ -1489,12 +1486,11 @@ function drawTouchButtons() {
     ctx.fillText('MOVE', MOVE_CENTER_X, MOVE_CENTER_Y + 4);
   }
 
-  // ── LEFT SIDE: Jump button (above move joystick) ──
-  ctx.globalAlpha = 0.45;
-  ctx.fillStyle = jumpTouchId !== null ? '#88ff88' : '#ffffff';
-  ctx.beginPath(); ctx.arc(JUMP_BTN.x, JUMP_BTN.y, JUMP_BTN.r, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#000'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
-  ctx.fillText('JUMP', JUMP_BTN.x, JUMP_BTN.y + 7);
+  // Up arrow above move joystick to hint jump
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = '#88bbff';
+  ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('\u25b2', MOVE_CENTER_X, MOVE_CENTER_Y - MOVE_RADIUS - 14);
 
   // ── RIGHT SIDE: Aim joystick ──
   ctx.globalAlpha = 0.25;
@@ -2070,15 +2066,8 @@ function isInMoveZone(cx, cy) {
   return cx < MOVE_ZONE.w;
 }
 
-function isInJumpButton(cx, cy) {
-  const dx = cx - JUMP_BTN.x;
-  const dy = cy - JUMP_BTN.y;
-  return (dx * dx + dy * dy) <= (JUMP_BTN.r + 20) * (JUMP_BTN.r + 20);
-}
-
 function isInAimZone(cx, cy) {
-  // Right side (matches move zone boundary), but not the jump button
-  return cx >= W * 0.45 && !isInJumpButton(cx, cy);
+  return cx >= W * 0.45;
 }
 
 function updateAimFromTouch(cx, cy) {
@@ -2102,8 +2091,8 @@ function updateTouchControlsFromActive() {
     touchControls.left = false;
     touchControls.right = false;
   }
-  // Jump button — set up true while finger is held, queue a jump for rising edge
-  touchControls.up = (jumpTouchId !== null) || touchJumpQueued;
+  // Jump from joystick-up — queue a jump for rising edge
+  touchControls.up = moveJoystick.inJumpUp || touchJumpQueued;
 }
 
 canvas.addEventListener('touchstart', e => {
@@ -2331,15 +2320,8 @@ canvas.addEventListener('touchstart', e => {
         return;
       }
 
-      // Jump button (above move joystick)
-      if (isInJumpButton(cx, cy)) {
-        jumpTouchId = t.identifier;
-        touchControls.up = true;
-        touchJumpQueued = true;
-        updateTouchControlsFromActive();
-      }
       // Aim joystick (right side)
-      else if (isInAimZone(cx, cy)) {
+      if (isInAimZone(cx, cy)) {
         aimTouchId = t.identifier;
         updateAimFromTouch(cx, cy);
         updateTouchControlsFromActive();
@@ -2351,6 +2333,12 @@ canvas.addEventListener('touchstart', e => {
         moveJoystick.active = true;
         moveJoystick.dx = cx - MOVE_CENTER_X;
         moveJoystick.dy = cy - MOVE_CENTER_Y;
+        // Check if initial touch is already in jump-up zone
+        if (moveJoystick.dy < MOVE_JUMP_THRESHOLD) {
+          moveJoystick.inJumpUp = true;
+          touchJumpQueued = true;
+          touchControls.up = true;
+        }
         updateTouchControlsFromActive();
       }
     }
@@ -2359,8 +2347,7 @@ canvas.addEventListener('touchstart', e => {
 
 function clearTouch(id) {
   if (id === aimTouchId) { aimTouchId = null; touchAim.active = false; touchAim.dx = 0; touchAim.dy = 0; }
-  if (id === moveJoystick.touchId) { moveJoystick.touchId = null; moveJoystick.active = false; moveJoystick.dx = 0; moveJoystick.dy = 0; moveJoystick.inJumpZone = false; }
-  if (id === jumpTouchId) { jumpTouchId = null; }
+  if (id === moveJoystick.touchId) { moveJoystick.touchId = null; moveJoystick.active = false; moveJoystick.dx = 0; moveJoystick.dy = 0; moveJoystick.inJumpUp = false; }
 }
 
 canvas.addEventListener('touchend', e => {
@@ -2386,16 +2373,16 @@ canvas.addEventListener('touchmove', e => {
     // Movement joystick drag
     if (t.identifier === moveJoystick.touchId) {
       const { x: cx, y: cy } = clientToCanvas(t.clientX, t.clientY);
-      // If move finger enters jump button zone, trigger jump
-      if (isInJumpButton(cx, cy) && !moveJoystick.inJumpZone) {
-        moveJoystick.inJumpZone = true;
-        touchJumpQueued = true;
-        touchControls.up = true;
-      } else if (!isInJumpButton(cx, cy)) {
-        moveJoystick.inJumpZone = false;
-      }
       moveJoystick.dx = cx - MOVE_CENTER_X;
       moveJoystick.dy = cy - MOVE_CENTER_Y;
+      // Joystick pushed up = jump
+      if (moveJoystick.dy < MOVE_JUMP_THRESHOLD && !moveJoystick.inJumpUp) {
+        moveJoystick.inJumpUp = true;
+        touchJumpQueued = true;
+        touchControls.up = true;
+      } else if (moveJoystick.dy >= MOVE_JUMP_THRESHOLD) {
+        moveJoystick.inJumpUp = false;
+      }
       updateTouchControlsFromActive();
     }
   }
@@ -3341,9 +3328,9 @@ function update() {
   const right = keys['ArrowRight'] || keys['KeyD'] || touchControls.right;
   const up = keys['ArrowUp'] || keys['KeyW'] || keys['Space'] || touchControls.up;
 
-  // After reading touch state, reset it to actual finger-on-button only
-  // This ensures prevUp can go false between taps for proper rising edge detection
-  touchControls.up = (jumpTouchId !== null);
+  // After reading touch state, reset to actual joystick-up state only
+  // This ensures prevUp can go false between jumps for proper rising edge detection
+  touchControls.up = moveJoystick.inJumpUp;
   touchJumpQueued = false;
 
   // Horizontal movement
