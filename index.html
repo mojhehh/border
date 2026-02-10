@@ -39,6 +39,8 @@ canvas {
   <p>Arrow Keys / WASD to move &amp; jump · Dodge la migra · Climb the border wall!</p>
 </div>
 <canvas id="game"></canvas>
+<!-- Hidden input for iOS/iPad virtual keyboard -->
+<input id="hiddenInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="position:fixed;left:-9999px;top:50%;width:1px;height:1px;opacity:0;font-size:16px;z-index:-1;pointer-events:none;" />
 
 <!-- Firebase SDK (compat for non-module script) -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -156,6 +158,13 @@ let bossVfx = []; // special visual effects: {type, x, y, radius, life, maxLife,
 let bossDeathTimer = 0; // big death explosion sequence
 let screenFlash = 0; // white/red screen flash
 let screenFlashColor = '#fff';
+
+// ── In-game toast notifications ──
+let mpToasts = []; // [{text, life, color}]
+function showToast(text, color = '#ffffff') {
+  mpToasts.push({ text, life: 180, color }); // ~3 seconds at 60fps
+  if (mpToasts.length > 5) mpToasts.shift();
+}
 let bossIntroTimer = 0; // boss entrance animation
 let mouseX = 0;
 let mouseY = 0;
@@ -357,61 +366,115 @@ function handlePlayerDeath() {
 // ── Text Input System ──  
 let activeTextInput = null;   // which input is active: 'username'|'password'|'confirm'|'chat'|'roomcode'|'friendadd'|null
 let textCursorBlink = 0;
-// Capture typed text for input fields
+
+// Hidden input for iOS/iPad virtual keyboard
+const _hiddenInput = document.getElementById('hiddenInput');
+function _focusHiddenInput(inputType) {
+  if (!_hiddenInput) return;
+  const cur = _getTextInputValue(inputType);
+  _hiddenInput.value = cur || '';
+  _hiddenInput.setAttribute('maxlength', inputType === 'chat' ? '100' : inputType === 'roomcode' ? '6' : '20');
+  _hiddenInput.type = (inputType === 'password' || inputType === 'confirm') ? 'password' : 'text';
+  _hiddenInput.style.left = '0px';
+  _hiddenInput.style.opacity = '0';
+  _hiddenInput.style.pointerEvents = 'auto';
+  setTimeout(() => _hiddenInput.focus(), 50);
+}
+function _blurHiddenInput() {
+  if (!_hiddenInput) return;
+  _hiddenInput.blur();
+  _hiddenInput.style.left = '-9999px';
+  _hiddenInput.style.pointerEvents = 'none';
+}
+function _getTextInputValue(type) {
+  if (type === 'username') return authInputs.username;
+  if (type === 'password') return authInputs.password;
+  if (type === 'confirm') return authInputs.confirm;
+  if (type === 'chat') return chatInput;
+  if (type === 'roomcode') return joinRoomInput;
+  if (type === 'friendadd') return friendInput;
+  return '';
+}
+function _setTextInputValue(type, v) {
+  if (type === 'username') authInputs.username = v;
+  else if (type === 'password') authInputs.password = v;
+  else if (type === 'confirm') authInputs.confirm = v;
+  else if (type === 'chat') chatInput = v;
+  else if (type === 'roomcode') joinRoomInput = v;
+  else if (type === 'friendadd') friendInput = v;
+}
+function activateTextInput(type) {
+  activeTextInput = type;
+  _focusHiddenInput(type);
+}
+function deactivateTextInput() {
+  activeTextInput = null;
+  _blurHiddenInput();
+}
+// Sync hidden input → game state on every input event (iOS keyboard)
+if (_hiddenInput) {
+  _hiddenInput.addEventListener('input', () => {
+    if (!activeTextInput) return;
+    let val = _hiddenInput.value;
+    // Apply filters
+    if (activeTextInput === 'username') val = val.replace(/[^a-zA-Z0-9_\-]/g, '');
+    if (activeTextInput === 'roomcode') val = val.toUpperCase();
+    const maxLen = activeTextInput === 'chat' ? 100 : activeTextInput === 'roomcode' ? 6 : 20;
+    val = val.slice(0, maxLen);
+    _hiddenInput.value = val;
+    _setTextInputValue(activeTextInput, val);
+  });
+  _hiddenInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeTextInput === 'chat') { sendChatMessage(); chatOpen = false; deactivateTextInput(); }
+      else if (activeTextInput === 'roomcode') { joinRoom(joinRoomInput); deactivateTextInput(); }
+      else if (activeTextInput === 'friendadd') { addFriend(friendInput); deactivateTextInput(); }
+      else if (activeTextInput === 'username' || activeTextInput === 'password' || activeTextInput === 'confirm') {
+        if (authScreen === 'register') registerAccount(authInputs.username, authInputs.password);
+        else loginAccount(authInputs.username, authInputs.password);
+        deactivateTextInput();
+      }
+      else { deactivateTextInput(); }
+    }
+  });
+}
+// Capture typed text for input fields (PC keyboard — also works alongside hidden input)
 window.addEventListener('keydown', e => {
   if (!activeTextInput) return;
   e.preventDefault();
   e.stopPropagation();
   if (e.key === 'Escape') {
     if (activeTextInput === 'chat') chatOpen = false;
-    activeTextInput = null;
+    deactivateTextInput();
     return;
   }
-  const getInput = () => {
-    if (activeTextInput === 'username') return authInputs.username;
-    if (activeTextInput === 'password') return authInputs.password;
-    if (activeTextInput === 'confirm') return authInputs.confirm;
-    if (activeTextInput === 'chat') return chatInput;
-    if (activeTextInput === 'roomcode') return joinRoomInput;
-    if (activeTextInput === 'friendadd') return friendInput;
-    return '';
-  };
-  const setInput = (v) => {
-    if (activeTextInput === 'username') authInputs.username = v;
-    else if (activeTextInput === 'password') authInputs.password = v;
-    else if (activeTextInput === 'confirm') authInputs.confirm = v;
-    else if (activeTextInput === 'chat') chatInput = v;
-    else if (activeTextInput === 'roomcode') joinRoomInput = v;
-    else if (activeTextInput === 'friendadd') friendInput = v;
-  };
+  let cur = _getTextInputValue(activeTextInput);
   const maxLen = activeTextInput === 'chat' ? 100 : activeTextInput === 'roomcode' ? 6 : 20;
-  let cur = getInput();
-  if (e.key === 'Backspace') { setInput(cur.slice(0, -1)); }
+  if (e.key === 'Backspace') { _setTextInputValue(activeTextInput, cur.slice(0, -1)); if (_hiddenInput) _hiddenInput.value = _getTextInputValue(activeTextInput); }
   else if (e.key === 'Tab') {
-    // Tab between auth fields
-    if (activeTextInput === 'username') activeTextInput = 'password';
-    else if (activeTextInput === 'password') activeTextInput = authScreen === 'register' ? 'confirm' : 'username';
-    else if (activeTextInput === 'confirm') activeTextInput = 'username';
+    if (activeTextInput === 'username') activateTextInput('password');
+    else if (activeTextInput === 'password') activateTextInput(authScreen === 'register' ? 'confirm' : 'username');
+    else if (activeTextInput === 'confirm') activateTextInput('username');
   }
   else if (e.key === 'Enter') {
-    if (activeTextInput === 'chat') { sendChatMessage(); chatOpen = false; activeTextInput = null; }
-    else if (activeTextInput === 'roomcode') { joinRoom(joinRoomInput); activeTextInput = null; }
-    else if (activeTextInput === 'friendadd') { addFriend(friendInput); activeTextInput = null; }
+    if (activeTextInput === 'chat') { sendChatMessage(); chatOpen = false; deactivateTextInput(); }
+    else if (activeTextInput === 'roomcode') { joinRoom(joinRoomInput); deactivateTextInput(); }
+    else if (activeTextInput === 'friendadd') { addFriend(friendInput); deactivateTextInput(); }
     else if (activeTextInput === 'username' || activeTextInput === 'password' || activeTextInput === 'confirm') {
-      // Submit auth form on Enter from any field
       if (authScreen === 'register') registerAccount(authInputs.username, authInputs.password);
       else loginAccount(authInputs.username, authInputs.password);
-      activeTextInput = null;
+      deactivateTextInput();
     }
-    else { activeTextInput = null; }
+    else { deactivateTextInput(); }
   }
   else if (e.key.length === 1 && cur.length < maxLen) {
-    // Filter special chars from username (Firebase path-safe)
     if (activeTextInput === 'username') {
-      if (/^[a-zA-Z0-9_\-]$/.test(e.key)) setInput(cur + e.key);
+      if (/^[a-zA-Z0-9_\-]$/.test(e.key)) _setTextInputValue(activeTextInput, cur + e.key);
     }
-    else if (activeTextInput === 'roomcode') setInput(cur + e.key.toUpperCase());
-    else setInput(cur + e.key);
+    else if (activeTextInput === 'roomcode') _setTextInputValue(activeTextInput, cur + e.key.toUpperCase());
+    else _setTextInputValue(activeTextInput, cur + e.key);
+    if (_hiddenInput) _hiddenInput.value = _getTextInputValue(activeTextInput);
   }
 }, true); // capture phase so it runs before game keydown
 
@@ -605,10 +668,43 @@ function myUid() {
 
 function setupRoomListeners(code, uid) {
   const roomR = db.ref('rooms/' + code);
+
+  // Monitor Firebase connection state
+  let _wasConnected = true;
+  const connRef = db.ref('.info/connected');
+  const _connHandler = connRef.on('value', snap => {
+    const connected = snap.val() === true;
+    if (_wasConnected && !connected) {
+      showToast('Connection lost — reconnecting...', '#ffaa00');
+    } else if (!_wasConnected && connected) {
+      showToast('Reconnected!', '#44ff88');
+    }
+    _wasConnected = connected;
+  });
+  window._mpConnRef = connRef;
+  window._mpConnHandler = _connHandler;
   
   // Listen to players
+  let _prevPlayerIds = new Set();
   roomR.child('players').on('value', snap => {
     const data = snap.val() || {};
+    const newIds = new Set(Object.keys(data));
+    const myId = myUid();
+    // Detect joins
+    for (const pid of newIds) {
+      if (!_prevPlayerIds.has(pid) && _prevPlayerIds.size > 0 && pid !== myId) {
+        const name = data[pid]?.username || 'Player';
+        showToast(name + ' joined', '#44ff88');
+      }
+    }
+    // Detect leaves
+    for (const pid of _prevPlayerIds) {
+      if (!newIds.has(pid) && pid !== myId) {
+        const name = roomPlayers[pid]?.username || 'Player';
+        showToast(name + ' disconnected', '#ff6644');
+      }
+    }
+    _prevPlayerIds = newIds;
     roomPlayers = data;
   });
   
@@ -664,13 +760,31 @@ function setupRoomListeners(code, uid) {
     });
   }
   
-  // Detect room deletion (host left) — non-host gets kicked
-  // Listen only to 'host' field for efficiency (not entire room)
+  // Detect room deletion (host left) — non-host gets kicked with grace period
+  // Allow 5 seconds for host to reconnect (Safari tab switch)
   if (!isHost) {
+    let _hostGraceTimeout = null;
     roomR.child('host').on('value', snap => {
       if (!snap.exists() && currentRoom === code) {
-        authError = 'Host left the room!';
-        leaveRoom();
+        // Start grace period — host might come back
+        if (!_hostGraceTimeout) {
+          _hostGraceTimeout = setTimeout(() => {
+            // Check one more time before leaving
+            roomR.child('host').once('value', snap2 => {
+              if (!snap2.exists() && currentRoom === code) {
+                authError = 'Host left the room!';
+                leaveRoom();
+              }
+              _hostGraceTimeout = null;
+            });
+          }, 5000);
+        }
+      } else {
+        // Host is back — cancel grace period
+        if (_hostGraceTimeout) {
+          clearTimeout(_hostGraceTimeout);
+          _hostGraceTimeout = null;
+        }
       }
     });
   }
@@ -694,6 +808,8 @@ function setupRoomListeners(code, uid) {
           if (state === 'cutscene') { cutscene.phase = 3; cutscene.fadeAlpha = 1; cutscene.timer = 0; }
           else if (state === 'fusioncutscene') { fusionCutsceneTimer = 1; }
           else if (state === 'phonecall') { phonecallTimer = 1; }
+          else if (state === 'hawkingRefusal') { hawkingRefusalTimer = 669; }
+          else if (state === 'hawkingDeath') { hawkingDeathTimer = 899; }
           else if (state === 'bossdialogue') { bossDialogue.index = bossDialogue.texts.length; advanceCutscene(); }
         }
       }
@@ -707,11 +823,42 @@ function setupRoomListeners(code, uid) {
   if (isHost) {
     roomR.child('host').onDisconnect().remove();
   }
+
+  // ── Connection resilience (Safari tab switching, brief disconnects) ──
+  // Re-establish onDisconnect when returning from background
+  const _visHandler = () => {
+    if (document.visibilityState === 'visible' && currentRoom) {
+      const uid2 = myUid();
+      if (!uid2) return;
+      const rr = db.ref('rooms/' + currentRoom);
+      // Re-establish presence — write player back and reset onDisconnect
+      rr.child('players/' + uid2).update({ alive: player ? player.alive : true });
+      rr.child('players/' + uid2).onDisconnect().remove();
+      if (isHost) {
+        rr.child('host').set(uid2);
+        rr.child('host').onDisconnect().remove();
+      }
+    }
+  };
+  document.addEventListener('visibilitychange', _visHandler);
+  // Store handler so leaveRoom can clean it up
+  window._mpVisHandler = _visHandler;
 }
 
 async function leaveRoom() {
   if (!currentRoom) return;
   const uid = myUid();
+  // Remove visibilitychange handler
+  if (window._mpVisHandler) {
+    document.removeEventListener('visibilitychange', window._mpVisHandler);
+    window._mpVisHandler = null;
+  }
+  // Remove connection state listener
+  if (window._mpConnRef && window._mpConnHandler) {
+    window._mpConnRef.off('value', window._mpConnHandler);
+    window._mpConnRef = null;
+    window._mpConnHandler = null;
+  }
   try {
     await db.ref('rooms/' + currentRoom + '/players/' + uid).remove();
     // If host, delete room
@@ -740,7 +887,7 @@ async function leaveRoom() {
   mpGameStarted = false;
   chatOpen = false;
   chatInput = '';
-  activeTextInput = null;
+  deactivateTextInput();
   lastSyncData = '';
   mpSyncTimer = 0;
   mpEnemySyncTimer = 0;
@@ -760,7 +907,7 @@ async function startMultiplayerGame() {
   if (!isHost || !currentRoom) return;
   chatOpen = false;
   chatInput = '';
-  activeTextInput = null;
+  deactivateTextInput();
   // Sync match settings to all players
   await db.ref('rooms/' + currentRoom + '/matchSettings').set({
     difficulty: settings.difficulty,
@@ -798,9 +945,9 @@ function syncMyPositionImmediate() {
 
 function syncMyPosition() {
   if (!mpEnabled || !currentRoom || !player) return;
-  mpSyncTimer++;
-  if (mpSyncTimer < 3) return; // sync every 3 frames (~20 times/sec)
-  mpSyncTimer = 0;
+  const now = Date.now();
+  if (now - _lastSyncTime < 50) return; // sync every 50ms (~20Hz wall-clock)
+  _lastSyncTime = now;
   
   const uid = myUid();
   const data = {
@@ -836,9 +983,9 @@ function syncMyPosition() {
 let mpEnemySyncTimer = 0;
 function syncEnemyData() {
   if (!mpEnabled || !isHost || !currentRoom) return;
-  mpEnemySyncTimer++;
-  if (mpEnemySyncTimer < 6) return;
-  mpEnemySyncTimer = 0;
+  const now = Date.now();
+  if (now - _lastEnemySyncTime < 100) return; // sync every 100ms (~10Hz wall-clock)
+  _lastEnemySyncTime = now;
 
   const enemies = {};
   // Sync ALL guards (including dead) to maintain index alignment
@@ -923,6 +1070,9 @@ function syncEnemyData() {
   enemies.bossIntroT = bossIntroTimer;
   enemies.bossDeathT = bossDeathTimer;
   enemies.shakeT = shakeTimer;
+  enemies.hawkP2 = hawkingPhase2;
+  enemies.hawkRefT = hawkingRefusalTimer;
+  enemies.hawkDeathT = hawkingDeathTimer;
 
   db.ref('rooms/' + currentRoom + '/enemies').set(enemies);
 }
@@ -1034,7 +1184,7 @@ function applyEnemyData() {
       }
       // Teleport player into arena when entering any fight state for first time
       const fightStates = ['bossfight','epsteinfight','fusionfight','splitfight'];
-      const wasInFight = fightStates.includes(oldState) || oldState === 'cutscene' || oldState === 'bossdialogue' || oldState === 'phonecall' || oldState === 'fusioncutscene';
+      const wasInFight = fightStates.includes(oldState);
       if (fightStates.includes(d.gameState) && !wasInFight && bigWall) {
         const arenaW2 = 2400;
         const arenaLeft2 = bigWall.x + bigWall.w/2 - arenaW2/2;
@@ -1082,6 +1232,10 @@ function applyEnemyData() {
   if (typeof d.bossIntroT === 'number') bossIntroTimer = d.bossIntroT;
   if (typeof d.bossDeathT === 'number') bossDeathTimer = d.bossDeathT;
   if (typeof d.shakeT === 'number') shakeTimer = Math.max(shakeTimer, d.shakeT);
+  // Continuously sync hawking state (timers tick every frame, host sends every 6)
+  if (d.hawkP2 !== undefined) hawkingPhase2 = d.hawkP2;
+  if (typeof d.hawkRefT === 'number') hawkingRefusalTimer = d.hawkRefT;
+  if (typeof d.hawkDeathT === 'number') hawkingDeathTimer = d.hawkDeathT;
 }
 
 // Handle guest damage event on host
@@ -1668,7 +1822,7 @@ window.addEventListener('keydown', e => {
         const submitIdx = authScreen === 'register' ? 3 : 2;
         if (authInputField < submitIdx) {
           const fields = ['username', 'password', 'confirm'];
-          activeTextInput = fields[authInputField];
+          activateTextInput(fields[authInputField]);
         } else {
           if (authScreen === 'register') registerAccount(authInputs.username, authInputs.password);
           else loginAccount(authInputs.username, authInputs.password);
@@ -1681,14 +1835,14 @@ window.addEventListener('keydown', e => {
       if (e.code === 'ArrowDown' || e.code === 'KeyS') { mpMenuSelection++; if (mpMenuSelection > mpMax) mpMenuSelection = 0; }
       if (e.code === 'Space' || e.code === 'Enter') {
         if (mpMenuSelection === 0) { if (!playerUsername) { menuState = 'account'; authInputField = 0; authError = ''; } else createRoom(); }
-        else if (mpMenuSelection === 1) { if (!playerUsername) { menuState = 'account'; authInputField = 0; authError = ''; } else { activeTextInput = 'roomcode'; joinRoomInput = ''; } }
+        else if (mpMenuSelection === 1) { if (!playerUsername) { menuState = 'account'; authInputField = 0; authError = ''; } else { activateTextInput('roomcode'); joinRoomInput = ''; } }
         else if (mpMenuSelection === 2) { if (!playerUsername) { menuState = 'account'; authInputField = 0; authError = ''; } else { friendsBackTo = 'multiplayer'; menuState = 'friends'; friendMenuSelection = 0; authError = ''; loadFriendsList(); } }
         else if (mpMenuSelection === 3) { menuState = 'main'; menuSelection = 1; }
         else if (mpMenuSelection === 4) { logoutAccount(); }
       }
     } else if (menuState === 'lobby') {
       if (e.code === 'Escape') { leaveRoom(); }
-      if (e.code === 'Enter' && !chatOpen) { chatOpen = true; activeTextInput = 'chat'; chatInput = ''; }
+      if (e.code === 'Enter' && !chatOpen) { chatOpen = true; activateTextInput('chat'); chatInput = ''; }
       if (e.code === 'Space' && !chatOpen && isHost) { startMultiplayerGame(); }
       // Host settings navigation
       if (isHost && !chatOpen) {
@@ -1723,7 +1877,7 @@ window.addEventListener('keydown', e => {
       if (e.code === 'ArrowDown' || e.code === 'KeyS') { friendMenuSelection++; }
       if (e.code === 'Space' || e.code === 'Enter') {
         if (friendTab === 1 && friendRequests[friendMenuSelection]) acceptFriendRequest(friendRequests[friendMenuSelection].uid);
-        if (friendTab === 3) { activeTextInput = 'friendadd'; friendInput = ''; }
+        if (friendTab === 3) { activateTextInput('friendadd'); friendInput = ''; }
       }
       if (e.code === 'KeyX') {
         if (friendTab === 0 && friendsList[friendMenuSelection]) removeFriend(friendsList[friendMenuSelection].uid);
@@ -1761,11 +1915,13 @@ window.addEventListener('keydown', e => {
     return;
   }
   if (e.code === 'Escape' && state === 'hawkingRefusal') {
-    hawkingRefusalTimer = 669; // skip to just before end
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); }
+    else { hawkingRefusalTimer = 669; }
     return;
   }
   if (e.code === 'Escape' && state === 'hawkingDeath') {
-    hawkingDeathTimer = 899; // skip to just before end
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); }
+    else { hawkingDeathTimer = 899; }
     return;
   }
   if (e.code === 'Escape' && state === 'bossdialogue') {
@@ -1945,7 +2101,7 @@ canvas.addEventListener('click', e => {
         const y = mpY + i * 50;
         if (cx > W/2 - 180 && cx < W/2 + 180 && cy > y - 24 && cy < y + 24) {
           if (i === 0) { if (!playerUsername) { menuState = 'account'; authInputField = 0; authError = ''; } else createRoom(); }
-          else if (i === 1) { if (!playerUsername) { menuState = 'account'; authInputField = 0; authError = ''; } else { activeTextInput = 'roomcode'; joinRoomInput = ''; } }
+          else if (i === 1) { if (!playerUsername) { menuState = 'account'; authInputField = 0; authError = ''; } else { activateTextInput('roomcode'); joinRoomInput = ''; } }
           else if (i === 2) { if (!playerUsername) { menuState = 'account'; authInputField = 0; authError = ''; } else { friendsBackTo = 'multiplayer'; menuState = 'friends'; friendMenuSelection = 0; authError = ''; loadFriendsList(); } }
           else if (i === 3) { menuState = 'main'; menuSelection = 1; }
           return;
@@ -1963,10 +2119,10 @@ canvas.addEventListener('click', e => {
       // Account screen touch — generous touch targets
       const accY = H * 0.38;
       // Username field
-      if (cy > accY - 14 && cy < accY + 32) { activeTextInput = 'username'; return; }
+      if (cy > accY - 14 && cy < accY + 32) { activateTextInput('username'); return; }
       // Password field
-      if (cy > accY + 34 && cy < accY + 78) { activeTextInput = 'password'; return; }
-      if (authScreen === 'register' && cy > accY + 82 && cy < accY + 130) { activeTextInput = 'confirm'; return; }
+      if (cy > accY + 34 && cy < accY + 78) { activateTextInput('password'); return; }
+      if (authScreen === 'register' && cy > accY + 82 && cy < accY + 130) { activateTextInput('confirm'); return; }
       // Submit button
       const btnY = authScreen === 'register' ? accY + 150 : accY + 100;
       if (cy > btnY - 14 && cy < btnY + 32) {
@@ -1986,7 +2142,7 @@ canvas.addEventListener('click', e => {
       return;
     } else if (menuState === 'lobby') {
       // Chat area tap → open chat
-      if (cy > H * 0.58 && cy < H * 0.87) { chatOpen = true; activeTextInput = 'chat'; chatInput = ''; return; }
+      if (cy > H * 0.58 && cy < H * 0.87) { chatOpen = true; activateTextInput('chat'); chatInput = ''; return; }
       // Start button (host only)
       if (isHost && cy > H * 0.87) { startMultiplayerGame(); return; }
       // Leave button (bigger touch target)
@@ -2002,7 +2158,7 @@ canvas.addEventListener('click', e => {
         return;
       }
       // Add friend input tap
-      if (friendTab === 3 && cy > H * 0.38 && cy < H * 0.52) { activeTextInput = 'friendadd'; friendInput = ''; return; }
+      if (friendTab === 3 && cy > H * 0.38 && cy < H * 0.52) { activateTextInput('friendadd'); friendInput = ''; return; }
       // List item taps
       const listY = H * 0.42;
       const items = friendTab === 0 ? friendsList : friendTab === 1 ? friendRequests : friendTab === 2 ? blockedUsers : [];
@@ -2041,10 +2197,10 @@ canvas.addEventListener('click', e => {
     if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { fusionCutsceneTimer = 1; } return;
   }
   if (state === 'hawkingRefusal' && cx > W - 120 && cy < 50) {
-    hawkingRefusalTimer = 669; return;
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { hawkingRefusalTimer = 669; } return;
   }
   if (state === 'hawkingDeath' && cx > W - 120 && cy < 50) {
-    hawkingDeathTimer = 899; return;
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { hawkingDeathTimer = 899; } return;
   }
   if (state === 'bossdialogue' && cx > W - 120 && cy < 50) {
     if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { bossDialogue.index = bossDialogue.texts.length; advanceCutscene(); } return;
@@ -2202,7 +2358,7 @@ canvas.addEventListener('touchstart', e => {
           const y = mpY + i * 50;
           if (cx > W/2 - 180 && cx < W/2 + 180 && cy > y - 24 && cy < y + 24) {
             if (i === 0) { if (!playerUsername) { menuState = 'account'; authInputField = 0; authError = ''; } else createRoom(); }
-            else if (i === 1) { if (!playerUsername) { menuState = 'account'; authInputField = 0; authError = ''; } else { activeTextInput = 'roomcode'; joinRoomInput = ''; } }
+            else if (i === 1) { if (!playerUsername) { menuState = 'account'; authInputField = 0; authError = ''; } else { activateTextInput('roomcode'); joinRoomInput = ''; } }
             else if (i === 2) { if (!playerUsername) { menuState = 'account'; authInputField = 0; authError = ''; } else { friendsBackTo = 'multiplayer'; menuState = 'friends'; friendMenuSelection = 0; authError = ''; loadFriendsList(); } }
             else if (i === 3) { menuState = 'main'; menuSelection = 1; }
             return;
@@ -2215,9 +2371,9 @@ canvas.addEventListener('touchstart', e => {
         }
       } else if (menuState === 'account') {
         const accY = H * 0.38;
-        if (cy > accY - 14 && cy < accY + 32) { activeTextInput = 'username'; return; }
-        if (cy > accY + 34 && cy < accY + 78) { activeTextInput = 'password'; return; }
-        if (authScreen === 'register' && cy > accY + 82 && cy < accY + 130) { activeTextInput = 'confirm'; return; }
+        if (cy > accY - 14 && cy < accY + 32) { activateTextInput('username'); return; }
+        if (cy > accY + 34 && cy < accY + 78) { activateTextInput('password'); return; }
+        if (authScreen === 'register' && cy > accY + 82 && cy < accY + 130) { activateTextInput('confirm'); return; }
         const btnY = authScreen === 'register' ? accY + 150 : accY + 100;
         if (cy > btnY - 14 && cy < btnY + 32) {
           if (authScreen === 'register') registerAccount(authInputs.username, authInputs.password);
@@ -2235,7 +2391,7 @@ canvas.addEventListener('touchstart', e => {
         const chatBoxY = H * 0.42;
         const chatBoxH = H * 0.40;
         if (cx > colL && cx < colL + colW && cy > chatBoxY && cy < chatBoxY + chatBoxH) {
-          chatOpen = true; activeTextInput = 'chat'; chatInput = ''; return;
+          chatOpen = true; activateTextInput('chat'); chatInput = ''; return;
         }
         // Host match settings touch (right column)
         if (isHost && cx > colR && cx < colR + colW) {
@@ -2266,7 +2422,7 @@ canvas.addEventListener('touchstart', e => {
       } else if (menuState === 'friends') {
         const tabW = W / 4;
         if (cy > H * 0.25 && cy < H * 0.33) { friendTab = Math.min(3, Math.floor(cx / tabW)); friendMenuSelection = 0; return; }
-        if (friendTab === 3 && cy > H * 0.38 && cy < H * 0.52) { activeTextInput = 'friendadd'; friendInput = ''; return; }
+        if (friendTab === 3 && cy > H * 0.38 && cy < H * 0.52) { activateTextInput('friendadd'); friendInput = ''; return; }
         const items = friendTab === 0 ? friendsList : friendTab === 1 ? friendRequests : friendTab === 2 ? blockedUsers : [];
         const listY = H * 0.42;
         for (let i = 0; i < items.length; i++) {
@@ -2306,8 +2462,8 @@ canvas.addEventListener('touchstart', e => {
       if (state === 'cutscene') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { cutscene.phase = 3; cutscene.fadeAlpha = 1; cutscene.timer = 0; } }
       else if (state === 'phonecall') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { phonecallTimer = 1; } }
       else if (state === 'fusioncutscene') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { fusionCutsceneTimer = 1; } }
-      else if (state === 'hawkingRefusal') { hawkingRefusalTimer = 669; }
-      else if (state === 'hawkingDeath') { hawkingDeathTimer = 899; }
+      else if (state === 'hawkingRefusal') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { hawkingRefusalTimer = 669; } }
+      else if (state === 'hawkingDeath') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { hawkingDeathTimer = 899; } }
       else if (state === 'bossdialogue') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { bossDialogue.index = bossDialogue.texts.length; advanceCutscene(); } }
       return;
     }
@@ -2893,9 +3049,12 @@ function rectsOverlap(a, b) {
 }
 
 // ── Particles ──
+const MAX_PARTICLES = 800;
 function spawnParticles(x, y, color, count) {
   if (!settings.particles) return; // respect particles setting
-  for (let i = 0; i < count; i++) {
+  if (particles.length >= MAX_PARTICLES) return; // cap total particles for performance
+  const allowed = Math.min(count, MAX_PARTICLES - particles.length);
+  for (let i = 0; i < allowed; i++) {
     particles.push({
       x, y,
       vx: (Math.random() - 0.5) * 6,
@@ -2931,6 +3090,12 @@ function update() {
   if (restartCooldown > 0) restartCooldown--;
   if (shakeTimer > 0 && settings.screenShake) shakeTimer--;
   else if (!settings.screenShake) shakeTimer = 0;
+
+  // Toast life management
+  for (let i = mpToasts.length - 1; i >= 0; i--) {
+    mpToasts[i].life--;
+    if (mpToasts[i].life <= 0) mpToasts.splice(i, 1);
+  }
   
   // ── MULTIPLAYER SYNC ──
   if (mpEnabled && player) {
@@ -3852,7 +4017,15 @@ function update() {
     // Slam landing
     if (boss.slamming) {
       boss.slamTimer++;
-      if (boss.vy >= 0 && boss.slamTimer > 10) {
+      // Safety: force-end slam after 90 frames to prevent freeze
+      if (boss.slamTimer > 90) {
+        boss.slamming = false;
+        boss.vy = 0;
+        boss.y = arenaFloor - boss.h;
+        boss._slamShock = 25;
+        shakeTimer = 25;
+      }
+      else if (boss.vy >= 0 && boss.slamTimer > 10) {
         // Check if landed
         for (const plat of arenaPlats) {
           if (rectsOverlap(boss, plat)) {
@@ -3887,7 +4060,7 @@ function update() {
       if (boss._slamShock > 20) { // Only damage on first few frames
         shakeTimer = Math.max(shakeTimer, boss._slamShock);
         const shockRange2 = 250;
-        if (Math.abs(p.x - boss.x) < shockRange2 && p.y > boss.y - 50 && p.iFrames <= 0) {
+        if (p.alive && Math.abs(p.x - boss.x) < shockRange2 && p.y > boss.y - 50 && p.iFrames <= 0) {
           p.hp -= 1;
           p.iFrames = 30;
           p.vy = -12;
@@ -5175,9 +5348,10 @@ function update() {
         spawnParticles(p.x + p.w/2, p.y + p.h/2, mb.color, 8);
       }
 
-      // Hawking gravity well pull — ALL players
+      // Hawking gravity well pull — ALL alive players
       if (mb.name === 'HAWKING' && mb._gravPull && mb._gravPull.active > 0) {
         mb._gravPull.active--;
+        if (!p.alive) continue;
         const gpDx = (mb.x + mb.w/2) - (p.x + p.w/2);
         const gpDy = (mb.y + mb.h/2) - (p.y + p.h/2);
         const gpDist = Math.sqrt(gpDx*gpDx + gpDy*gpDy) || 1;
@@ -5193,7 +5367,7 @@ function update() {
         if (mb._slamShock > 20) {
           shakeTimer = Math.max(shakeTimer, mb._slamShock);
           const shockDist = Math.abs(p.x - mb.x);
-          if (shockDist < 250 && p.iFrames <= 0 && Math.abs(p.y + p.h - (mb.y + mb.h)) < 60) {
+          if (p.alive && shockDist < 250 && p.iFrames <= 0 && Math.abs(p.y + p.h - (mb.y + mb.h)) < 60) {
             p.hp -= 3;
             p.iFrames = 45;
             p.vy = -10;
@@ -5617,6 +5791,9 @@ function draw() {
 
   const inBossFight = state === 'bossfight' || state === 'bossdialogue' || state === 'epsteinfight' || state === 'phonecall' || state === 'fusioncutscene' || state === 'fusionfight' || state === 'splitfight' || state === 'hawkingRefusal' || state === 'hawkingDeath';
   const bossPhase = boss ? boss.phase : 1;
+
+  // Skip game-world rendering when in menu (menu draws its own background)
+  if (state !== 'menu') {
 
   // Desert sunset sky — underground sewer during bossfight
   const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
@@ -10786,6 +10963,8 @@ function draw() {
       ctx.fillRect(0, H - barH2, W, barH2);
     }
   }
+
+  } // end if (state !== 'menu') — skip game-world rendering
   
   if (state === 'menu') {
     // ── ANIMATED BACKGROUND (Geometry Dash style) ──
@@ -12300,14 +12479,38 @@ function draw() {
     ctx.beginPath(); ctx.moveTo(cx+3, cy+8); ctx.lineTo(cx+3, cy+3); ctx.lineTo(cx+8, cy+3); ctx.stroke();
   }
   ctx.restore();
+
+  // Draw MP toast notifications (visible in ALL states)
+  if (mpToasts.length > 0) {
+    ctx.save();
+    for (let i = 0; i < mpToasts.length; i++) {
+      const t = mpToasts[i];
+      const alpha = Math.min(1, t.life / 30); // fade out last 0.5s
+      ctx.globalAlpha = alpha;
+      ctx.font = 'bold 16px Arial';
+      const tw = ctx.measureText(t.text).width;
+      const tx = W / 2 - tw / 2 - 12;
+      const ty = 50 + i * 32;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.beginPath();
+      ctx.roundRect(tx, ty - 16, tw + 24, 28, 8);
+      ctx.fill();
+      ctx.fillStyle = t.color;
+      ctx.fillText(t.text, W / 2 - tw / 2, ty + 2);
+    }
+    ctx.restore();
+  }
 }
 let _lastFrameTime = 0;
+let _lastSyncTime = 0;
+let _lastEnemySyncTime = 0;
 function loop(timestamp) {
   if (!_lastFrameTime) _lastFrameTime = timestamp;
   const elapsed = timestamp - _lastFrameTime;
   _lastFrameTime = timestamp;
   // Run multiple ticks per frame on slow devices (iPad 30fps) to maintain game speed
-  const ticks = Math.min(Math.max(1, Math.round(elapsed / 16.67)), 4);
+  // Cap at 3 ticks to prevent performance death spiral
+  const ticks = Math.min(Math.max(1, Math.round(elapsed / 16.67)), 3);
   for (let i = 0; i < ticks; i++) update();
   draw();
   requestAnimationFrame(loop);
