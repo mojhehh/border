@@ -591,6 +591,21 @@ function setupRoomListeners(code, uid) {
       if (dmg) mpHandleDamageEvent(dmg);
       snap.ref.remove();
     });
+    // Host listens for cutscene advance events from other players
+    roomR.child('cutsceneAdvance').on('child_added', snap => {
+      const evt = snap.val();
+      if (evt) {
+        if (evt.type === 'advance') {
+          advanceCutscene();
+        } else if (evt.type === 'skip') {
+          // Skip entire cutscene
+          if (state === 'cutscene') { cutscene.phase = 3; cutscene.fadeAlpha = 1; cutscene.timer = 0; }
+          else if (state === 'fusioncutscene') { fusionCutsceneTimer = 1; }
+          else if (state === 'bossdialogue') { bossDialogue.index = bossDialogue.texts.length; advanceCutscene(); }
+        }
+      }
+      snap.ref.remove();
+    });
   }
 
   // Cleanup on disconnect
@@ -618,6 +633,7 @@ async function leaveRoom() {
     roomRef.child('enemies').off();
     roomRef.child('host').off(); // room deletion listener
     roomRef.child('damageQueue').off();
+    roomRef.child('cutsceneAdvance').off();
     roomRef.off(); // remove room-level listeners too
   }
   currentRoom = null;
@@ -786,6 +802,20 @@ function syncEnemyData() {
     }));
   }
 
+  // Sync game state, cutscene, dialogue, and timers for all players
+  enemies.gameState = state;
+  enemies.cutscenePhase = cutscene.phase;
+  enemies.cutsceneDI = cutscene.dialogueIndex;
+  enemies.cutsceneFA = Math.round(cutscene.fadeAlpha * 100) / 100;
+  enemies.bdActive = bossDialogue.active;
+  enemies.bdIndex = bossDialogue.index;
+  if (bossDialogue.active && bossDialogue.texts) enemies.bdTexts = bossDialogue.texts;
+  enemies.phonecallT = phonecallTimer;
+  enemies.fusionCT = fusionCutsceneTimer;
+  enemies.bossIntroT = bossIntroTimer;
+  enemies.bossDeathT = bossDeathTimer;
+  enemies.shakeT = shakeTimer;
+
   db.ref('rooms/' + currentRoom + '/enemies').set(enemies);
 }
 
@@ -884,6 +914,60 @@ function applyEnemyData() {
   } else {
     epsteinProjectiles = [];
   }
+  // Apply game state + cutscene/dialogue sync from host
+  if (d.gameState) {
+    const syncStates = ['cutscene','bossfight','bossdialogue','phonecall','epsteinfight','fusioncutscene','fusionfight','splitfight','hawkingRefusal','hawkingDeath','won'];
+    if (syncStates.includes(d.gameState) && state !== d.gameState) {
+      const oldState = state;
+      // First time entering cutscene — set up cutscene.active so rendering works
+      if (d.gameState === 'cutscene' && state !== 'cutscene') {
+        cutscene.active = true;
+      }
+      // Teleport player into arena when entering any fight state for first time
+      const fightStates = ['bossfight','epsteinfight','fusionfight','splitfight'];
+      const wasInFight = fightStates.includes(oldState) || oldState === 'cutscene' || oldState === 'bossdialogue' || oldState === 'phonecall' || oldState === 'fusioncutscene';
+      if (fightStates.includes(d.gameState) && !wasInFight && bigWall) {
+        const arenaW2 = 2400;
+        const arenaLeft2 = bigWall.x + bigWall.w/2 - arenaW2/2;
+        const arenaBottom2 = bigWall.y + 40 + 800;
+        player.x = arenaLeft2 + 100 + Math.random() * 200;
+        player.y = arenaBottom2 - player.h - 10;
+        player.vy = 0; player.vx = 0;
+        player.onGround = true;
+        player.climbingBigWall = false;
+        player.onWall = false;
+        screenFlash = 30;
+        screenFlashColor = '#ffffff';
+        shakeTimer = 15;
+      }
+      // HP restore on boss transitions (same as host)
+      if (d.gameState === 'epsteinfight' && oldState !== 'epsteinfight') {
+        player.maxHp += 5; player.hp = player.maxHp;
+      }
+      if (d.gameState === 'fusionfight' && oldState !== 'fusionfight') {
+        player.maxHp = 40; player.hp = player.maxHp;
+      }
+      if (d.gameState === 'splitfight' && oldState !== 'splitfight') {
+        player.maxHp = 50; player.hp = player.maxHp;
+      }
+      state = d.gameState;
+    }
+  }
+  if (typeof d.cutscenePhase === 'number') cutscene.phase = d.cutscenePhase;
+  if (typeof d.cutsceneDI === 'number') cutscene.dialogueIndex = d.cutsceneDI;
+  if (typeof d.cutsceneFA === 'number') cutscene.fadeAlpha = d.cutsceneFA;
+  if (d.bdActive) {
+    bossDialogue.active = true;
+    bossDialogue.index = d.bdIndex || 0;
+    if (d.bdTexts) bossDialogue.texts = d.bdTexts;
+  } else {
+    bossDialogue.active = false;
+  }
+  if (typeof d.phonecallT === 'number') phonecallTimer = d.phonecallT;
+  if (typeof d.fusionCT === 'number') fusionCutsceneTimer = d.fusionCT;
+  if (typeof d.bossIntroT === 'number') bossIntroTimer = d.bossIntroT;
+  if (typeof d.bossDeathT === 'number') bossDeathTimer = d.bossDeathT;
+  if (typeof d.shakeT === 'number') shakeTimer = Math.max(shakeTimer, d.shakeT);
 }
 
 // Handle guest damage event on host
@@ -952,6 +1036,12 @@ function mpSendDamage(target, index, amount) {
   db.ref('rooms/' + currentRoom + '/damageQueue').push({
     target: target, index: index || 0, amount: amount || 1
   });
+}
+
+// Send cutscene advance/skip event to host (non-host only)
+function mpSendCutsceneEvent(type) {
+  if (!mpEnabled || isHost || !currentRoom) return;
+  db.ref('rooms/' + currentRoom + '/cutsceneAdvance').push({ type: type });
 }
 
 // Get nearest player target for bosses (multiplayer-aware)
@@ -1456,17 +1546,20 @@ window.addEventListener('keydown', e => {
     return;
   }
   
-  // Skip cutscenes with Escape
+  // Skip cutscenes with Escape (host directly, non-host sends to host)
   if (e.code === 'Escape' && state === 'cutscene') {
-    cutscene.phase = 3; cutscene.fadeAlpha = 1; cutscene.timer = 0;
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); }
+    else { cutscene.phase = 3; cutscene.fadeAlpha = 1; cutscene.timer = 0; }
     return;
   }
   if (e.code === 'Escape' && state === 'phonecall') {
-    phonecallTimer = 1;
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); }
+    else { phonecallTimer = 1; }
     return;
   }
   if (e.code === 'Escape' && state === 'fusioncutscene') {
-    fusionCutsceneTimer = 1;
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); }
+    else { fusionCutsceneTimer = 1; }
     return;
   }
   if (e.code === 'Escape' && state === 'hawkingRefusal') {
@@ -1478,13 +1571,14 @@ window.addEventListener('keydown', e => {
     return;
   }
   if (e.code === 'Escape' && state === 'bossdialogue') {
-    bossDialogue.index = bossDialogue.texts.length;
-    advanceCutscene();
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); }
+    else { bossDialogue.index = bossDialogue.texts.length; advanceCutscene(); }
     return;
   }
   
   if ((e.code === 'Space' || e.code === 'Enter') && (state === 'cutscene' || state === 'bossdialogue')) {
-    advanceCutscene();
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('advance'); }
+    else { advanceCutscene(); }
   } else if ((e.code === 'Space' || e.code === 'Enter') && (state === 'won' || state === 'dead')) {
     if (restartCooldown <= 0) {
       if (mpEnabled) { leaveRoom(); }
@@ -1697,19 +1791,19 @@ canvas.addEventListener('click', e => {
   
   // Skip cutscene click (top-right SKIP button)
   if (state === 'cutscene' && cx > W - 120 && cy < 50) {
-    cutscene.phase = 3; cutscene.fadeAlpha = 1; cutscene.timer = 0; return;
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { cutscene.phase = 3; cutscene.fadeAlpha = 1; cutscene.timer = 0; } return;
   }
   if (state === 'phonecall' && cx > W - 120 && cy < 50) {
-    phonecallTimer = 1; return;
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { phonecallTimer = 1; } return;
   }
   if (state === 'fusioncutscene' && cx > W - 120 && cy < 50) {
-    fusionCutsceneTimer = 1; return;
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { fusionCutsceneTimer = 1; } return;
   }
   if (state === 'hawkingRefusal' && cx > W - 120 && cy < 50) {
     hawkingRefusalTimer = 669; return;
   }
   if (state === 'bossdialogue' && cx > W - 120 && cy < 50) {
-    bossDialogue.index = bossDialogue.texts.length; advanceCutscene(); return;
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { bossDialogue.index = bossDialogue.texts.length; advanceCutscene(); } return;
   }
   // Skip split fight cinematic
   if (state === 'splitfight' && bossIntroTimer > 1) {
@@ -1717,7 +1811,9 @@ canvas.addEventListener('click', e => {
   }
   
   if (state === 'tutorial') { tutorialPage++; if (tutorialPage >= 5) startGame(); return; }
-  if (state === 'cutscene' || state === 'bossdialogue') { advanceCutscene(); return; }
+  if (state === 'cutscene' || state === 'bossdialogue') {
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('advance'); } else { advanceCutscene(); } return;
+  }
   if ((state === 'playing' || state === 'bossfight' || state === 'epsteinfight' || state === 'fusionfight' || state === 'splitfight') && player.alive) throwProjectile();
   if (state === 'won' || state === 'dead') { if (restartCooldown <= 0) { if (mpEnabled) { leaveRoom(); } state = 'menu'; menuState = 'main'; menuSelection = 0; } }
 });
@@ -1923,17 +2019,19 @@ canvas.addEventListener('touchstart', e => {
 
     // Skip button touch (top-right area)
     if ((state === 'cutscene' || state === 'phonecall' || state === 'fusioncutscene' || state === 'bossdialogue' || state === 'hawkingRefusal' || state === 'hawkingDeath') && cx > W - 140 && cy < 60) {
-      if (state === 'cutscene') { cutscene.phase = 3; cutscene.fadeAlpha = 1; cutscene.timer = 0; }
-      else if (state === 'phonecall') { phonecallTimer = 1; }
-      else if (state === 'fusioncutscene') { fusionCutsceneTimer = 1; }
+      if (state === 'cutscene') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { cutscene.phase = 3; cutscene.fadeAlpha = 1; cutscene.timer = 0; } }
+      else if (state === 'phonecall') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { phonecallTimer = 1; } }
+      else if (state === 'fusioncutscene') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { fusionCutsceneTimer = 1; } }
       else if (state === 'hawkingRefusal') { hawkingRefusalTimer = 669; }
       else if (state === 'hawkingDeath') { hawkingDeathTimer = 899; }
-      else if (state === 'bossdialogue') { bossDialogue.index = bossDialogue.texts.length; advanceCutscene(); }
+      else if (state === 'bossdialogue') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { bossDialogue.index = bossDialogue.texts.length; advanceCutscene(); } }
       return;
     }
 
     // Advance cutscene/dialogue on touch
-    if (state === 'cutscene' || state === 'bossdialogue') { advanceCutscene(); return; }
+    if (state === 'cutscene' || state === 'bossdialogue') {
+      if (mpEnabled && !isHost) { mpSendCutsceneEvent('advance'); } else { advanceCutscene(); } return;
+    }
     if (state === 'won' || state === 'dead') { if (restartCooldown <= 0) { if (mpEnabled) { leaveRoom(); } state = 'menu'; menuState = 'main'; menuSelection = 0; } return; }
 
     // Gameplay touch controls — dual joystick + jump button
@@ -2652,6 +2750,13 @@ function update() {
       // Fade to black
       cutscene.fadeAlpha += 0.025;
       if (cutscene.fadeAlpha >= 1) { cutscene.fadeAlpha = 1; cutscene.phase = 1; cutscene.timer = 0; }
+    } else if (cutscene.phase === 1 && cutscene.timer > 120) {
+      // Auto-advance from boss image to dialogue after 2 sec
+      cutscene.phase = 2; cutscene.dialogueIndex = 0; cutscene.timer = 0;
+    } else if (cutscene.phase === 2 && cutscene.timer > 180) {
+      // Auto-advance dialogue lines every ~3 seconds
+      advanceCutscene();
+      cutscene.timer = 0;
     } else if (cutscene.phase === 3) {
       // Fade out from cutscene to bossfight
       cutscene.fadeAlpha -= 0.03;
@@ -2722,6 +2827,10 @@ function update() {
   // Boss mid-fight dialogue update (typewriter timer)
   if (state === 'bossdialogue') {
     bossDialogue.timer++;
+    // Auto-advance dialogue after ~3 seconds per line
+    if (bossDialogue.timer > 180) {
+      advanceCutscene();
+    }
     if (screenFlash > 0) screenFlash--;
     // Update VFX during dialogue too
     for (let i = bossVfx.length - 1; i >= 0; i--) {
@@ -3019,8 +3128,18 @@ function update() {
     }
   }
 
-  // Trigger cutscene when player reaches top of wall (first time)
-  if (bigWall && !boss && !cutscene.active && p.y < bigWall.y + 80 && p.x > bigWall.x - 100 && p.x < bigWall.x + bigWall.w + 100) {
+  // Trigger cutscene when ANY player reaches top of wall (first time)
+  let anyPlayerAtWall = p.y < bigWall.y + 80 && p.x > bigWall.x - 100 && p.x < bigWall.x + bigWall.w + 100;
+  if (!anyPlayerAtWall && mpEnabled && isHost) {
+    for (const uid of Object.keys(roomPlayers)) {
+      if (uid === myUid()) continue;
+      const rp = roomPlayers[uid];
+      if (rp && rp.y < bigWall.y + 80 && rp.x > bigWall.x - 100 && rp.x < bigWall.x + bigWall.w + 100) {
+        anyPlayerAtWall = true; break;
+      }
+    }
+  }
+  if (bigWall && !boss && !cutscene.active && anyPlayerAtWall) {
     state = 'cutscene';
     cutscene.active = true;
     cutscene.timer = 0;
