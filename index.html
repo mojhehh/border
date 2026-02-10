@@ -220,6 +220,37 @@ let settings = {
   showTimer: false,
   colorblind: false,
 };
+
+// ── TOUCH CONTROL LAYOUT SYSTEM ──
+const TOUCH_PRESETS = {
+  default: { name: 'Default', moveX: 140, moveY: 600, moveR: 70, aimX: 1140, aimY: 600, aimR: 70 },
+  lefty:   { name: 'Lefty',   moveX: 1140, moveY: 600, moveR: 70, aimX: 140, aimY: 600, aimR: 70 },
+  compact: { name: 'Compact', moveX: 100, moveY: 640, moveR: 50, aimX: 1180, aimY: 640, aimR: 50 },
+  spread:  { name: 'Spread',  moveX: 160, moveY: 540, moveR: 80, aimX: 1120, aimY: 540, aimR: 80 },
+  high:    { name: 'High',    moveX: 140, moveY: 480, moveR: 65, aimX: 1140, aimY: 480, aimR: 65 },
+};
+let touchLayout = Object.assign({}, TOUCH_PRESETS.default);
+let touchPresetName = 'default';
+// Load from localStorage
+(function loadTouchLayout() {
+  try {
+    const saved = localStorage.getItem('touchLayout');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      touchLayout = Object.assign({}, TOUCH_PRESETS.default, parsed);
+    }
+    const savedPreset = localStorage.getItem('touchPreset');
+    if (savedPreset) touchPresetName = savedPreset;
+  } catch(e) {}
+})();
+function saveTouchLayout() {
+  localStorage.setItem('touchLayout', JSON.stringify(touchLayout));
+  localStorage.setItem('touchPreset', touchPresetName);
+}
+// Touch controls editor state
+let tcDragging = null; // 'move' | 'aim' | null
+let tcResizing = null; // 'move' | 'aim' | null
+let tcDragOffX = 0, tcDragOffY = 0;
 let tutorialPage = 0;
 let tutorialDone = localStorage.getItem('tutorialDone') === 'true'; // check local first
 function completeTutorial() {
@@ -1595,17 +1626,17 @@ async function unblockUser(targetUid) {
 
 let touchControls = { left: false, right: false, up: false };
 
-// Touch aim joystick state (right side)
-let touchAim = { active: false, cx: W - 140, cy: H - 120, dx: 0, dy: 0, angle: 0 };
-const AIM_CENTER_X = W - 140;
-const AIM_CENTER_Y = H - 120;
-const AIM_RADIUS = 70;
+// Touch aim joystick state (right side) — positions from touchLayout
+let touchAim = { active: false, cx: 0, cy: 0, dx: 0, dy: 0, angle: 0 };
+function getAimCenterX() { return touchLayout.aimX; }
+function getAimCenterY() { return touchLayout.aimY; }
+function getAimRadius() { return touchLayout.aimR; }
 const AIM_DEAD_ZONE = 8;
 
-// Touch movement joystick state (left side)
-const MOVE_CENTER_X = 140;
-const MOVE_CENTER_Y = H - 120;
-const MOVE_RADIUS = 70;
+// Touch movement joystick state (left side) — positions from touchLayout
+function getMoveCenterX() { return touchLayout.moveX; }
+function getMoveCenterY() { return touchLayout.moveY; }
+function getMoveRadius() { return touchLayout.moveR; }
 const MOVE_DEAD_ZONE = 10;
 let moveJoystick = { active: false, dx: 0, dy: 0, touchId: null, inJumpUp: false };
 const MOVE_JUMP_THRESHOLD = -25; // dy must be less than this (upward) to trigger jump
@@ -1618,25 +1649,27 @@ window.addEventListener('touchstart', () => { _isTouchDev = true; }, { once: tru
 function drawTouchButtons() {
   if (!_isTouchDev || !settings.touchButtons) return;
   ctx.save();
+  const MCX = getMoveCenterX(), MCY = getMoveCenterY(), MR = getMoveRadius();
+  const ACX = getAimCenterX(), ACY = getAimCenterY(), AR = getAimRadius();
 
   // ── LEFT SIDE: Movement joystick ──
   ctx.globalAlpha = 0.25;
   ctx.strokeStyle = '#88bbff';
   ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(MOVE_CENTER_X, MOVE_CENTER_Y, MOVE_RADIUS, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(MCX, MCY, MR, 0, Math.PI * 2); ctx.stroke();
   // Crosshair
   ctx.globalAlpha = 0.12;
-  ctx.beginPath(); ctx.moveTo(MOVE_CENTER_X - MOVE_RADIUS, MOVE_CENTER_Y); ctx.lineTo(MOVE_CENTER_X + MOVE_RADIUS, MOVE_CENTER_Y); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(MOVE_CENTER_X, MOVE_CENTER_Y - MOVE_RADIUS); ctx.lineTo(MOVE_CENTER_X, MOVE_CENTER_Y + MOVE_RADIUS); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(MCX - MR, MCY); ctx.lineTo(MCX + MR, MCY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(MCX, MCY - MR); ctx.lineTo(MCX, MCY + MR); ctx.stroke();
   // Directional arrows around ring
   ctx.globalAlpha = 0.2;
   ctx.fillStyle = '#88bbff';
   ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
-  ctx.fillText('\u25c4', MOVE_CENTER_X - MOVE_RADIUS - 14, MOVE_CENTER_Y + 7);
-  ctx.fillText('\u25ba', MOVE_CENTER_X + MOVE_RADIUS + 14, MOVE_CENTER_Y + 7);
+  ctx.fillText('\u25c4', MCX - MR - 14, MCY + 7);
+  ctx.fillText('\u25ba', MCX + MR + 14, MCY + 7);
 
   if (moveJoystick.active) {
-    const len = Math.min(Math.sqrt(moveJoystick.dx * moveJoystick.dx + moveJoystick.dy * moveJoystick.dy), MOVE_RADIUS);
+    const len = Math.min(Math.sqrt(moveJoystick.dx * moveJoystick.dx + moveJoystick.dy * moveJoystick.dy), MR);
     const dist = Math.sqrt(moveJoystick.dx * moveJoystick.dx + moveJoystick.dy * moveJoystick.dy) || 1;
     const nx = moveJoystick.dx / dist;
     const ny = moveJoystick.dy / dist;
@@ -1645,18 +1678,18 @@ function drawTouchButtons() {
     ctx.strokeStyle = _jFlash ? '#88ff88' : '#88bbff';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(MOVE_CENTER_X, MOVE_CENTER_Y);
-    ctx.lineTo(MOVE_CENTER_X + nx * len, MOVE_CENTER_Y + ny * len);
+    ctx.moveTo(MCX, MCY);
+    ctx.lineTo(MCX + nx * len, MCY + ny * len);
     ctx.stroke();
     ctx.globalAlpha = 0.7;
     ctx.fillStyle = _jFlash ? '#aaffaa' : '#aaddff';
-    ctx.beginPath(); ctx.arc(MOVE_CENTER_X + nx * len, MOVE_CENTER_Y + ny * len, 22, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(MCX + nx * len, MCY + ny * len, 22, 0, Math.PI * 2); ctx.fill();
   } else {
     ctx.globalAlpha = 0.3;
     ctx.fillStyle = '#88bbff';
-    ctx.beginPath(); ctx.arc(MOVE_CENTER_X, MOVE_CENTER_Y, 22, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(MCX, MCY, 22, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#000'; ctx.font = 'bold 12px monospace';
-    ctx.fillText('MOVE', MOVE_CENTER_X, MOVE_CENTER_Y + 4);
+    ctx.fillText('MOVE', MCX, MCY + 4);
   }
 
   // Up arrow above move joystick to hint jump
@@ -1664,37 +1697,37 @@ function drawTouchButtons() {
   ctx.globalAlpha = _jFlash2 ? 0.55 : 0.18;
   ctx.fillStyle = _jFlash2 ? '#88ff88' : '#88bbff';
   ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
-  ctx.fillText('\u25b2', MOVE_CENTER_X, MOVE_CENTER_Y - MOVE_RADIUS - 14);
+  ctx.fillText('\u25b2', MCX, MCY - MR - 14);
 
   // ── RIGHT SIDE: Aim joystick ──
   ctx.globalAlpha = 0.25;
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(AIM_CENTER_X, AIM_CENTER_Y, AIM_RADIUS, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(ACX, ACY, AR, 0, Math.PI * 2); ctx.stroke();
   ctx.globalAlpha = 0.12;
-  ctx.beginPath(); ctx.moveTo(AIM_CENTER_X - AIM_RADIUS, AIM_CENTER_Y); ctx.lineTo(AIM_CENTER_X + AIM_RADIUS, AIM_CENTER_Y); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(AIM_CENTER_X, AIM_CENTER_Y - AIM_RADIUS); ctx.lineTo(AIM_CENTER_X, AIM_CENTER_Y + AIM_RADIUS); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ACX - AR, ACY); ctx.lineTo(ACX + AR, ACY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ACX, ACY - AR); ctx.lineTo(ACX, ACY + AR); ctx.stroke();
 
   if (touchAim.active) {
-    const len = Math.min(Math.sqrt(touchAim.dx * touchAim.dx + touchAim.dy * touchAim.dy), AIM_RADIUS);
+    const len = Math.min(Math.sqrt(touchAim.dx * touchAim.dx + touchAim.dy * touchAim.dy), AR);
     const nx = Math.cos(touchAim.angle);
     const ny = Math.sin(touchAim.angle);
     ctx.globalAlpha = 0.6;
     ctx.strokeStyle = '#ffaa44';
     ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.moveTo(AIM_CENTER_X, AIM_CENTER_Y);
-    ctx.lineTo(AIM_CENTER_X + nx * len, AIM_CENTER_Y + ny * len);
+    ctx.moveTo(ACX, ACY);
+    ctx.lineTo(ACX + nx * len, ACY + ny * len);
     ctx.stroke();
     ctx.globalAlpha = 0.7;
     ctx.fillStyle = '#ffcc66';
-    ctx.beginPath(); ctx.arc(AIM_CENTER_X + nx * len, AIM_CENTER_Y + ny * len, 18, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ACX + nx * len, ACY + ny * len, 18, 0, Math.PI * 2); ctx.fill();
   } else {
     ctx.globalAlpha = 0.3;
     ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.arc(AIM_CENTER_X, AIM_CENTER_Y, 18, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ACX, ACY, 18, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#000'; ctx.font = 'bold 14px monospace';
-    ctx.fillText('AIM', AIM_CENTER_X, AIM_CENTER_Y + 5);
+    ctx.fillText('AIM', ACX, ACY + 5);
   }
 
   ctx.restore();
@@ -1797,8 +1830,8 @@ window.addEventListener('keydown', e => {
       }
       if (e.code === 'Escape' || e.code === 'Backspace') { menuState = 'main'; menuSelection = 2; }
     } else if (menuState === 'settings') {
-      if (e.code === 'ArrowUp' || e.code === 'KeyW') { menuSelection--; if (menuSelection < 0) menuSelection = 6; }
-      if (e.code === 'ArrowDown' || e.code === 'KeyS') { menuSelection++; if (menuSelection > 6) menuSelection = 0; }
+      if (e.code === 'ArrowUp' || e.code === 'KeyW') { menuSelection--; if (menuSelection < 0) menuSelection = 7; }
+      if (e.code === 'ArrowDown' || e.code === 'KeyS') { menuSelection++; if (menuSelection > 7) menuSelection = 0; }
       if (e.code === 'Space' || e.code === 'Enter' || e.code === 'ArrowRight' || e.code === 'ArrowLeft') {
         if (menuSelection === 0) settings.screenShake = !settings.screenShake;
         else if (menuSelection === 1) settings.particles = !settings.particles;
@@ -1806,9 +1839,29 @@ window.addEventListener('keydown', e => {
         else if (menuSelection === 3) settings.doubleJump = !settings.doubleJump;
         else if (menuSelection === 4) settings.showTimer = !settings.showTimer;
         else if (menuSelection === 5) settings.colorblind = !settings.colorblind;
-        else if (menuSelection === 6) { menuState = 'main'; menuSelection = 3; }
+        else if (menuSelection === 6) { menuState = 'touchcontrols'; menuSelection = 0; }
+        else if (menuSelection === 7) { menuState = 'main'; menuSelection = 3; }
       }
       if (e.code === 'Escape' || e.code === 'Backspace') { menuState = 'main'; menuSelection = 3; }
+    } else if (menuState === 'touchcontrols') {
+      const presetKeys = Object.keys(TOUCH_PRESETS);
+      if (e.code === 'ArrowUp' || e.code === 'KeyW') { menuSelection--; if (menuSelection < 0) menuSelection = presetKeys.length + 1; }
+      if (e.code === 'ArrowDown' || e.code === 'KeyS') { menuSelection++; if (menuSelection > presetKeys.length + 1) menuSelection = 0; }
+      if (e.code === 'Space' || e.code === 'Enter') {
+        if (menuSelection < presetKeys.length) {
+          touchPresetName = presetKeys[menuSelection];
+          touchLayout = Object.assign({}, TOUCH_PRESETS[touchPresetName]);
+          saveTouchLayout();
+        } else if (menuSelection === presetKeys.length) {
+          // Reset to default
+          touchPresetName = 'default';
+          touchLayout = Object.assign({}, TOUCH_PRESETS.default);
+          saveTouchLayout();
+        } else {
+          menuState = 'settings'; menuSelection = 6;
+        }
+      }
+      if (e.code === 'Escape' || e.code === 'Backspace') { menuState = 'settings'; menuSelection = 6; }
     } else if (menuState === 'controls') {
       if (e.code === 'Escape' || e.code === 'Backspace' || e.code === 'Space' || e.code === 'Enter') { menuState = 'main'; menuSelection = 4; }
     } else if (menuState === 'credits') {
@@ -1991,6 +2044,20 @@ canvas.addEventListener('mousemove', e => {
   mouseX = x;
   mouseY = y;
   mouseActive = true;
+  // Touch controls editor drag (mouse)
+  if (tcDragging && state === 'menu' && menuState === 'touchcontrols') {
+    const cx = x, cy = y;
+    const pvScaleX = (W - 80) / W;
+    const newX = Math.max(60, Math.min(W - 60, (cx - tcDragOffX - 40) / pvScaleX));
+    const newY = touchLayout[tcDragging === 'move' ? 'moveY' : 'aimY']; // Y stays fixed in preview
+    if (tcDragging === 'move') { touchLayout.moveX = Math.round(newX); }
+    else if (tcDragging === 'aim') { touchLayout.aimX = Math.round(newX); }
+    touchPresetName = 'custom';
+    saveTouchLayout();
+  }
+});
+canvas.addEventListener('mouseup', e => {
+  if (tcDragging) { tcDragging = null; }
 });
 
 // Fullscreen toggle
@@ -2055,7 +2122,7 @@ canvas.addEventListener('click', e => {
       if (cy > H * 0.85) { menuState = 'main'; menuSelection = 2; return; }
     } else if (menuState === 'settings') {
       const setY = H * 0.36;
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i < 8; i++) {
         const y = setY + i * 40;
         if (cx > W/2 - 200 && cx < W/2 + 200 && cy > y - 14 && cy < y + 18) {
           if (i === 0) settings.screenShake = !settings.screenShake;
@@ -2064,8 +2131,68 @@ canvas.addEventListener('click', e => {
           else if (i === 3) settings.doubleJump = !settings.doubleJump;
           else if (i === 4) settings.showTimer = !settings.showTimer;
           else if (i === 5) settings.colorblind = !settings.colorblind;
-          else if (i === 6) { menuState = 'main'; menuSelection = 3; }
+          else if (i === 6) { menuState = 'touchcontrols'; menuSelection = 0; }
+          else if (i === 7) { menuState = 'main'; menuSelection = 3; }
           return;
+        }
+      }
+    } else if (menuState === 'touchcontrols') {
+      // Preset list
+      const presetKeys = Object.keys(TOUCH_PRESETS);
+      const tcY = H * 0.36;
+      for (let i = 0; i < presetKeys.length; i++) {
+        const y = tcY + i * 36;
+        if (cx > W/2 - 200 && cx < W/2 + 200 && cy > y - 14 && cy < y + 18) {
+          touchPresetName = presetKeys[i];
+          touchLayout = Object.assign({}, TOUCH_PRESETS[touchPresetName]);
+          saveTouchLayout();
+          return;
+        }
+      }
+      // Size controls for move joystick
+      const sizeY = tcY + presetKeys.length * 36 + 10;
+      if (cx > W/2 - 80 && cx < W/2 - 40 && cy > sizeY - 10 && cy < sizeY + 20) {
+        touchLayout.moveR = Math.max(35, touchLayout.moveR - 5); touchPresetName = 'custom'; saveTouchLayout(); return;
+      }
+      if (cx > W/2 + 40 && cx < W/2 + 80 && cy > sizeY - 10 && cy < sizeY + 20) {
+        touchLayout.moveR = Math.min(100, touchLayout.moveR + 5); touchPresetName = 'custom'; saveTouchLayout(); return;
+      }
+      // Size controls for aim joystick
+      const sizeY2 = sizeY + 32;
+      if (cx > W/2 - 80 && cx < W/2 - 40 && cy > sizeY2 - 10 && cy < sizeY2 + 20) {
+        touchLayout.aimR = Math.max(35, touchLayout.aimR - 5); touchPresetName = 'custom'; saveTouchLayout(); return;
+      }
+      if (cx > W/2 + 40 && cx < W/2 + 80 && cy > sizeY2 - 10 && cy < sizeY2 + 20) {
+        touchLayout.aimR = Math.min(100, touchLayout.aimR + 5); touchPresetName = 'custom'; saveTouchLayout(); return;
+      }
+      // Reset button
+      const resetY = sizeY2 + 36;
+      if (cx > W/2 - 60 && cx < W/2 + 60 && cy > resetY - 12 && cy < resetY + 18) {
+        touchPresetName = 'default'; touchLayout = Object.assign({}, TOUCH_PRESETS.default); saveTouchLayout(); return;
+      }
+      // Back button
+      const backY = resetY + 36;
+      if (cx > W/2 - 60 && cx < W/2 + 60 && cy > backY - 12 && cy < backY + 18) {
+        menuState = 'settings'; menuSelection = 6; return;
+      }
+      // Drag joystick on preview
+      if (cy > H * 0.7) {
+        const pvTop = H * 0.7;
+        const pvH = H - pvTop - 10;
+        const pvCenterY = pvTop + pvH / 2 + 8;
+        const pvScaleX = (W - 80) / W;
+        const pvScaleR = 0.5;
+        const pvMCX = 40 + touchLayout.moveX * pvScaleX;
+        const pvMCY = pvCenterY;
+        const pvACX = 40 + touchLayout.aimX * pvScaleX;
+        const pvACY = pvCenterY;
+        const mdx = cx - pvMCX, mdy = cy - pvMCY;
+        const adx = cx - pvACX, ady = cy - pvACY;
+        if (Math.sqrt(mdx*mdx + mdy*mdy) < touchLayout.moveR * pvScaleR + 20) {
+          tcDragging = 'move'; tcDragOffX = mdx; tcDragOffY = mdy; return;
+        }
+        if (Math.sqrt(adx*adx + ady*ady) < touchLayout.aimR * pvScaleR + 20) {
+          tcDragging = 'aim'; tcDragOffX = adx; tcDragOffY = ady; return;
         }
       }
     } else if (menuState === 'cheats') {
@@ -2239,21 +2366,22 @@ window.addEventListener('keydown', e => {
 // Touch controls — track active touches by ID
 let aimTouchId = null; // separate tracking for aim joystick
 
-// Touch button hit zones (canvas coords) — left side only for movement
-// Movement joystick zone (left half)
-const MOVE_ZONE = { x: 0, y: 0, w: W * 0.45, h: H };
-
+// Touch button hit zones — dynamically split based on joystick positions
 function isInMoveZone(cx, cy) {
-  return cx < MOVE_ZONE.w;
+  // Touch is in move zone if closer to move joystick center
+  const mdx = cx - getMoveCenterX(), mdy = cy - getMoveCenterY();
+  const adx = cx - getAimCenterX(), ady = cy - getAimCenterY();
+  return (mdx*mdx + mdy*mdy) < (adx*adx + ady*ady);
 }
 
 function isInAimZone(cx, cy) {
-  return cx >= W * 0.45;
+  return !isInMoveZone(cx, cy);
 }
 
 function updateAimFromTouch(cx, cy) {
-  touchAim.dx = cx - AIM_CENTER_X;
-  touchAim.dy = cy - AIM_CENTER_Y;
+  const acx = getAimCenterX(), acy = getAimCenterY();
+  touchAim.dx = cx - acx;
+  touchAim.dy = cy - acy;
   const dist = Math.sqrt(touchAim.dx * touchAim.dx + touchAim.dy * touchAim.dy);
   if (dist > AIM_DEAD_ZONE) {
     touchAim.angle = Math.atan2(touchAim.dy, touchAim.dx);
@@ -2324,7 +2452,7 @@ canvas.addEventListener('touchstart', e => {
         if (cy > H * 0.85) { menuState = 'main'; menuSelection = 2; return; }
       } else if (menuState === 'settings') {
         const setY = H * 0.36;
-        for (let i = 0; i < 7; i++) {
+        for (let i = 0; i < 8; i++) {
           const y = setY + i * 40;
           if (cx > W/2 - 200 && cx < W/2 + 200 && cy > y - 16 && cy < y + 20) {
             if (i === 0) settings.screenShake = !settings.screenShake;
@@ -2333,8 +2461,67 @@ canvas.addEventListener('touchstart', e => {
             else if (i === 3) settings.doubleJump = !settings.doubleJump;
             else if (i === 4) settings.showTimer = !settings.showTimer;
             else if (i === 5) settings.colorblind = !settings.colorblind;
-            else if (i === 6) { menuState = 'main'; menuSelection = 3; }
+            else if (i === 6) { menuState = 'touchcontrols'; menuSelection = 0; }
+            else if (i === 7) { menuState = 'main'; menuSelection = 3; }
             return;
+          }
+        }
+      } else if (menuState === 'touchcontrols') {
+        // Preset list
+        const presetKeys = Object.keys(TOUCH_PRESETS);
+        const tcY = H * 0.36;
+        for (let i = 0; i < presetKeys.length; i++) {
+          const y = tcY + i * 36;
+          if (cx > W/2 - 200 && cx < W/2 + 200 && cy > y - 14 && cy < y + 18) {
+            touchPresetName = presetKeys[i];
+            touchLayout = Object.assign({}, TOUCH_PRESETS[touchPresetName]);
+            saveTouchLayout();
+            return;
+          }
+        }
+        // Size controls
+        const sizeY = tcY + presetKeys.length * 36 + 10;
+        if (cx > W/2 - 80 && cx < W/2 - 40 && cy > sizeY - 10 && cy < sizeY + 20) {
+          touchLayout.moveR = Math.max(35, touchLayout.moveR - 5); touchPresetName = 'custom'; saveTouchLayout(); return;
+        }
+        if (cx > W/2 + 40 && cx < W/2 + 80 && cy > sizeY - 10 && cy < sizeY + 20) {
+          touchLayout.moveR = Math.min(100, touchLayout.moveR + 5); touchPresetName = 'custom'; saveTouchLayout(); return;
+        }
+        const sizeY2 = sizeY + 32;
+        if (cx > W/2 - 80 && cx < W/2 - 40 && cy > sizeY2 - 10 && cy < sizeY2 + 20) {
+          touchLayout.aimR = Math.max(35, touchLayout.aimR - 5); touchPresetName = 'custom'; saveTouchLayout(); return;
+        }
+        if (cx > W/2 + 40 && cx < W/2 + 80 && cy > sizeY2 - 10 && cy < sizeY2 + 20) {
+          touchLayout.aimR = Math.min(100, touchLayout.aimR + 5); touchPresetName = 'custom'; saveTouchLayout(); return;
+        }
+        // Reset
+        const resetY = sizeY2 + 36;
+        if (cx > W/2 - 60 && cx < W/2 + 60 && cy > resetY - 12 && cy < resetY + 18) {
+          touchPresetName = 'default'; touchLayout = Object.assign({}, TOUCH_PRESETS.default); saveTouchLayout(); return;
+        }
+        // Back
+        const backY = resetY + 36;
+        if (cx > W/2 - 60 && cx < W/2 + 60 && cy > backY - 12 && cy < backY + 18) {
+          menuState = 'settings'; menuSelection = 6; return;
+        }
+        // Drag joystick on preview area (bottom of screen)
+        if (cy > H * 0.7) {
+          const pvTop = H * 0.7;
+          const pvH = H - pvTop - 10;
+          const pvCenterY = pvTop + pvH / 2 + 8;
+          const pvScaleX = (W - 80) / W;
+          const pvScaleR = 0.5;
+          const pvMCX = 40 + touchLayout.moveX * pvScaleX;
+          const pvMCY = pvCenterY;
+          const pvACX = 40 + touchLayout.aimX * pvScaleX;
+          const pvACY = pvCenterY;
+          const mdx = cx - pvMCX, mdy = cy - pvMCY;
+          const adx = cx - pvACX, ady = cy - pvACY;
+          if (Math.sqrt(mdx*mdx + mdy*mdy) < touchLayout.moveR * pvScaleR + 30) {
+            tcDragging = 'move'; tcDragOffX = mdx; tcDragOffY = mdy; return;
+          }
+          if (Math.sqrt(adx*adx + ady*ady) < touchLayout.aimR * pvScaleR + 30) {
+            tcDragging = 'aim'; tcDragOffX = adx; tcDragOffY = ady; return;
           }
         }
       } else if (menuState === 'cheats') {
@@ -2515,8 +2702,8 @@ canvas.addEventListener('touchstart', e => {
       else if (isInMoveZone(cx, cy)) {
         moveJoystick.touchId = t.identifier;
         moveJoystick.active = true;
-        moveJoystick.dx = cx - MOVE_CENTER_X;
-        moveJoystick.dy = cy - MOVE_CENTER_Y;
+        moveJoystick.dx = cx - getMoveCenterX();
+        moveJoystick.dy = cy - getMoveCenterY();
         // Check if initial touch is already in jump-up zone
         if (moveJoystick.dy < MOVE_JUMP_THRESHOLD) {
           moveJoystick.inJumpUp = true;
@@ -2536,18 +2723,32 @@ function clearTouch(id) {
 
 canvas.addEventListener('touchend', e => {
   e.preventDefault();
+  if (tcDragging) { tcDragging = null; return; }
   for (const t of e.changedTouches) clearTouch(t.identifier);
   updateTouchControlsFromActive();
 }, { passive: false });
 
 canvas.addEventListener('touchcancel', e => {
   e.preventDefault();
+  tcDragging = null;
   for (const t of e.changedTouches) clearTouch(t.identifier);
   updateTouchControlsFromActive();
 }, { passive: false });
 
 canvas.addEventListener('touchmove', e => {
   e.preventDefault();
+  // Touch controls editor drag
+  if (tcDragging && state === 'menu' && menuState === 'touchcontrols') {
+    const t = e.changedTouches[0];
+    const { x: cx, y: cy } = clientToCanvas(t.clientX, t.clientY);
+    const pvScaleX = (W - 80) / W;
+    const newX = Math.max(60, Math.min(W - 60, (cx - tcDragOffX - 40) / pvScaleX));
+    if (tcDragging === 'move') { touchLayout.moveX = Math.round(newX); }
+    else if (tcDragging === 'aim') { touchLayout.aimX = Math.round(newX); }
+    touchPresetName = 'custom';
+    saveTouchLayout();
+    return;
+  }
   for (const t of e.changedTouches) {
     // Aim joystick drag
     if (t.identifier === aimTouchId) {
@@ -2557,8 +2758,8 @@ canvas.addEventListener('touchmove', e => {
     // Movement joystick drag
     if (t.identifier === moveJoystick.touchId) {
       const { x: cx, y: cy } = clientToCanvas(t.clientX, t.clientY);
-      moveJoystick.dx = cx - MOVE_CENTER_X;
-      moveJoystick.dy = cy - MOVE_CENTER_Y;
+      moveJoystick.dx = cx - getMoveCenterX();
+      moveJoystick.dy = cy - getMoveCenterY();
       // Joystick pushed up = jump
       if (moveJoystick.dy < MOVE_JUMP_THRESHOLD && !moveJoystick.inJumpUp) {
         moveJoystick.inJumpUp = true;
@@ -5823,12 +6024,19 @@ function draw() {
     ctx.fillRect(0, 0, W, H);
   }
 
-  // Stars (top of sky only) — hidden during bossfight
-  ctx.fillStyle = inBossFight ? 'transparent' : '#ffffff55';
-  for (let i = 0; i < 40; i++) {
-    const sx = ((i * 137 + 50) % W + (cameraX * 0.05) % W) % W;
-    const sy = (i * 97 + 20) % (H * 0.3);
-    if (!inBossFight) ctx.fillRect(sx, sy, 1.5, 1.5);
+  // Stars (top of sky only) — hidden during bossfight, with twinkle
+  if (!inBossFight) {
+    const _starTime = Date.now() / 1000;
+    for (let i = 0; i < 50; i++) {
+      const sx = ((i * 137 + 50) % W + (cameraX * 0.05) % W) % W;
+      const sy = (i * 97 + 20) % (H * 0.3);
+      const twinkle = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(_starTime * (1.2 + i * 0.3) + i * 2.7));
+      const starSize = 1 + (i % 3) * 0.5;
+      ctx.globalAlpha = twinkle * 0.5;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(sx, sy, starSize, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
 
   // Sun (setting)
@@ -5950,14 +6158,29 @@ function draw() {
 
   // Walls - desert obstacles (adobe/sandstone)
   for (const wall of walls) {
+    // Drop shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(wall.x + 3, wall.y + 3, wall.w, wall.h);
     if (wall.isPlatform) {
-      ctx.fillStyle = '#a08050';
+      const platGrad = ctx.createLinearGradient(wall.x, wall.y, wall.x, wall.y + wall.h);
+      platGrad.addColorStop(0, '#c0a060');
+      platGrad.addColorStop(0.3, '#a08050');
+      platGrad.addColorStop(1, '#806030');
+      ctx.fillStyle = platGrad;
       ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
-      ctx.fillStyle = '#b89060';
-      ctx.fillRect(wall.x, wall.y, wall.w, 3);
+      // Top highlight
+      ctx.fillStyle = '#d4b87088';
+      ctx.fillRect(wall.x, wall.y, wall.w, 2);
+      // Bottom edge
+      ctx.fillStyle = '#60401044';
+      ctx.fillRect(wall.x, wall.y + wall.h - 1, wall.w, 1);
     } else {
-      // Adobe/sandstone wall
-      ctx.fillStyle = '#b08040';
+      // Adobe/sandstone wall with gradient
+      const wallGrad = ctx.createLinearGradient(wall.x, wall.y, wall.x + wall.w, wall.y + wall.h);
+      wallGrad.addColorStop(0, '#c09050');
+      wallGrad.addColorStop(0.5, '#b08040');
+      wallGrad.addColorStop(1, '#906830');
+      ctx.fillStyle = wallGrad;
       ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
       ctx.strokeStyle = '#90603022';
       ctx.lineWidth = 1;
@@ -5967,7 +6190,8 @@ function draw() {
         ctx.lineTo(wall.x + wall.w, by);
         ctx.stroke();
       }
-      ctx.fillStyle = '#c09a5544';
+      // Top highlight
+      ctx.fillStyle = '#d4b87066';
       ctx.fillRect(wall.x, wall.y, wall.w, 3);
     }
   }
@@ -7064,13 +7288,37 @@ function draw() {
 
   // Particles
   for (const pt of particles) {
+    const pAlpha = pt.life / 40;
+    ctx.globalAlpha = pAlpha;
     ctx.fillStyle = pt.color;
-    ctx.globalAlpha = pt.life / 40;
-    ctx.fillRect(pt.x - pt.size / 2, pt.y - pt.size / 2, pt.size, pt.size);
+    ctx.shadowColor = pt.color;
+    ctx.shadowBlur = pt.size * 2;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, pt.size / 2, 0, Math.PI * 2);
+    ctx.fill();
   }
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = 'transparent';
   ctx.globalAlpha = 1;
 
   ctx.restore();
+
+  // ── Screen Vignette ──
+  const vg = ctx.createRadialGradient(W/2, H/2, H * 0.35, W/2, H/2, H * 0.95);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,0.45)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Low HP red vignette ──
+  if (player && player.alive && player.hp / player.maxHp < 0.35) {
+    const hpPulse = 0.12 + Math.sin(Date.now() / 300) * 0.06;
+    const rvg = ctx.createRadialGradient(W/2, H/2, H * 0.25, W/2, H/2, H * 0.85);
+    rvg.addColorStop(0, 'rgba(255,0,0,0)');
+    rvg.addColorStop(1, `rgba(255,0,0,${hpPulse})`);
+    ctx.fillStyle = rvg;
+    ctx.fillRect(0, 0, W, H);
+  }
 
   // ── Screen Flash Effect ──
   if (screenFlash > 0) {
@@ -7860,25 +8108,45 @@ function draw() {
     ctx.fillStyle = barGrad;
     ctx.fillRect(W / 2 - 148, 14, 296 * pct, 16);
 
+    ctx.shadowColor = '#000';
+    ctx.shadowBlur = 3;
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 11px monospace';
     ctx.textAlign = 'center';
     ctx.fillText(`LA FRONTERA: ${Math.floor(pct * 100)}%`, W / 2, 27);
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
 
-    // Player HP bar
+    // Player HP bar (enhanced)
     const hpW = 200;
     ctx.fillStyle = '#00000088';
     ctx.fillRect(20, 12, hpW + 4, 22);
-    ctx.fillStyle = '#333';
+    ctx.fillStyle = '#222';
     ctx.fillRect(22, 14, hpW, 18);
     const phpPct = player.hp / player.maxHp;
     const phpCol = cbHP(phpPct);
-    ctx.fillStyle = phpCol.b;
+    const hpGrad = ctx.createLinearGradient(22, 14, 22, 32);
+    hpGrad.addColorStop(0, phpCol.b);
+    hpGrad.addColorStop(0.5, phpCol.b);
+    hpGrad.addColorStop(1, '#00000044');
+    ctx.fillStyle = hpGrad;
     ctx.fillRect(22, 14, hpW * phpPct, 18);
+    // Shimmer
+    ctx.fillStyle = '#ffffff18';
+    ctx.fillRect(22, 14, hpW * phpPct, 6);
+    // Border
+    ctx.strokeStyle = '#ffffff33';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(20, 12, hpW + 4, 22);
+    // Text with shadow
+    ctx.shadowColor = '#000';
+    ctx.shadowBlur = 3;
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 12px monospace';
     ctx.textAlign = 'left';
     ctx.fillText(`HP: ${player.hp}/${player.maxHp}`, 28, 28);
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
 
     // Controls reminder
     ctx.fillStyle = '#ffffff55';
@@ -11837,6 +12105,7 @@ function draw() {
         { name: 'Double Jump', value: settings.doubleJump },
         { name: 'Show Timer', value: settings.showTimer },
         { name: 'Colorblind Mode', value: settings.colorblind },
+        { name: 'Touch Controls \u25b6', value: 'page' },
         { name: 'BACK', value: null },
       ];
       const setY = H * 0.36;
@@ -11857,6 +12126,10 @@ function draw() {
           ctx.fillStyle = selected ? '#ff8844' : '#888';
           ctx.font = `${selected ? 'bold ' : ''}16px monospace`;
           ctx.fillText('<- ' + item.name, W/2, y + 6);
+        } else if (item.value === 'page') {
+          ctx.fillStyle = selected ? '#88ddff' : '#6699bb';
+          ctx.font = `${selected ? 'bold ' : ''}15px monospace`;
+          ctx.fillText(item.name, W/2, y + 6);
         } else {
           ctx.fillStyle = selected ? '#fff' : '#aaa';
           ctx.font = `${selected ? 'bold ' : ''}15px monospace`;
@@ -11880,6 +12153,116 @@ function draw() {
       ctx.font = '12px monospace';
       ctx.fillText(_isTouchDev ? 'Tap to toggle' : 'Click / ENTER to toggle -- ESC Back', W/2, H * 0.88);
       
+    } else if (menuState === 'touchcontrols') {
+      // ── TOUCH CONTROLS CUSTOMIZATION ──
+      ctx.fillStyle = '#88ddff';
+      ctx.font = 'bold 24px monospace';
+      ctx.fillText('TOUCH CONTROLS', W/2, H * 0.12);
+
+      // Current preset label
+      ctx.fillStyle = '#aaa';
+      ctx.font = '13px monospace';
+      ctx.fillText('Current: ' + (touchPresetName === 'custom' ? 'Custom' : TOUCH_PRESETS[touchPresetName]?.name || touchPresetName), W/2, H * 0.18);
+
+      // Preset list (left side)
+      const presetKeys = Object.keys(TOUCH_PRESETS);
+      const tcY = H * 0.24;
+      for (let i = 0; i < presetKeys.length; i++) {
+        const key = presetKeys[i];
+        const preset = TOUCH_PRESETS[key];
+        const y = tcY + i * 32;
+        const selected = touchPresetName === key;
+        ctx.fillStyle = selected ? '#88ddff' : '#777';
+        ctx.font = `${selected ? 'bold ' : ''}14px monospace`;
+        if (selected) {
+          ctx.fillStyle = '#88ddff20';
+          ctx.fillRect(W/2 - 100, y - 10, 200, 24);
+          ctx.strokeStyle = '#88ddff66';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(W/2 - 100, y - 10, 200, 24);
+          ctx.fillStyle = '#88ddff';
+        }
+        ctx.fillText(preset.name, W/2, y + 6);
+      }
+
+      // Size controls
+      const sizeY = tcY + presetKeys.length * 32 + 16;
+      ctx.fillStyle = '#aaa';
+      ctx.font = '13px monospace';
+      ctx.fillText('Move Size: ' + touchLayout.moveR, W/2, sizeY + 4);
+      // - button
+      ctx.fillStyle = '#ff8844';
+      ctx.font = 'bold 18px monospace';
+      ctx.fillText('[-]', W/2 - 60, sizeY + 5);
+      ctx.fillText('[+]', W/2 + 60, sizeY + 5);
+
+      const sizeY2 = sizeY + 28;
+      ctx.fillStyle = '#aaa';
+      ctx.font = '13px monospace';
+      ctx.fillText('Aim Size: ' + touchLayout.aimR, W/2, sizeY2 + 4);
+      ctx.fillStyle = '#ff8844';
+      ctx.font = 'bold 18px monospace';
+      ctx.fillText('[-]', W/2 - 60, sizeY2 + 5);
+      ctx.fillText('[+]', W/2 + 60, sizeY2 + 5);
+
+      // Reset + Back
+      const resetY = sizeY2 + 32;
+      ctx.fillStyle = '#ffaa44';
+      ctx.font = '14px monospace';
+      ctx.fillText('Reset to Default', W/2, resetY + 4);
+      const backY = resetY + 32;
+      ctx.fillStyle = '#ff8844';
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText('<- BACK', W/2, backY + 4);
+
+      // ── PREVIEW: Draw joystick positions at bottom ──
+      const pvTop = H * 0.7;
+      const pvH = H - pvTop - 10;
+      ctx.fillStyle = '#111';
+      ctx.fillRect(20, pvTop, W - 40, pvH);
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(20, pvTop, W - 40, pvH);
+      ctx.fillStyle = '#444';
+      ctx.font = '11px monospace';
+      ctx.fillText('Preview  --  Drag joysticks to reposition', W/2, pvTop + 14);
+
+      // Scale positions into preview area
+      const pvCenterY = pvTop + pvH / 2 + 8;
+      const pvScaleX = (W - 80) / W;
+      const pvScaleR = 0.5;
+      const pvMCX = 40 + touchLayout.moveX * pvScaleX;
+      const pvMCY = pvCenterY;
+      const pvACX = 40 + touchLayout.aimX * pvScaleX;
+      const pvACY = pvCenterY;
+
+      // Draw move joystick preview
+      ctx.globalAlpha = 0.5;
+      ctx.strokeStyle = '#88bbff';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(pvMCX, pvMCY, touchLayout.moveR * pvScaleR, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 0.4;
+      ctx.fillStyle = '#88bbff';
+      ctx.beginPath(); ctx.arc(pvMCX, pvMCY, 14, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#000'; ctx.font = 'bold 9px monospace';
+      ctx.fillText('MOVE', pvMCX, pvMCY + 3);
+
+      // Draw aim joystick preview
+      ctx.globalAlpha = 0.5;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(pvACX, pvACY, touchLayout.aimR * pvScaleR, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 0.4;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(pvACX, pvACY, 14, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#000'; ctx.font = 'bold 9px monospace';
+      ctx.fillText('AIM', pvACX, pvACY + 3);
+      ctx.globalAlpha = 1.0;
+
+      ctx.fillStyle = '#444';
+      ctx.font = '11px monospace';
+      ctx.fillText(_isTouchDev ? 'Tap preset or drag joysticks' : 'Click preset or drag joysticks -- ESC Back', W/2, H * 0.97);
+
     } else if (menuState === 'controls') {
       // ── CONTROLS SCREEN ──
       ctx.fillStyle = '#f0c040';
@@ -12423,7 +12806,7 @@ function draw() {
     ctx.fillStyle = jumpColor;
     ctx.font = '11px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`Jumps: ${'●'.repeat(player.jumpsLeft)}${'○'.repeat(player.maxJumps - player.jumpsLeft)}`, _isTouchDev ? MOVE_CENTER_X - 30 : 10, _isTouchDev ? MOVE_CENTER_Y - MOVE_RADIUS - 35 : H - 15);
+    ctx.fillText(`Jumps: ${'●'.repeat(player.jumpsLeft)}${'○'.repeat(player.maxJumps - player.jumpsLeft)}`, _isTouchDev ? getMoveCenterX() - 30 : 10, _isTouchDev ? getMoveCenterY() - getMoveRadius() - 35 : H - 15);
   }
 
   // Cheats active indicator
