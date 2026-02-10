@@ -220,7 +220,7 @@ function initMenuBg() {
 initMenuBg();
 let touchControls = { left: false, right: false, up: false, throw: false };
 
-// Touch aim joystick state
+// Touch aim joystick state (right side)
 let touchAim = { active: false, cx: W - 140, cy: H - 180, dx: 0, dy: 0, angle: 0 };
 const AIM_CENTER_X = W - 140;
 const AIM_CENTER_Y = H - 180;
@@ -228,43 +228,79 @@ const AIM_RADIUS = 70;
 const AIM_DEAD_ZONE = 8;
 let touchFireTimer = 0;
 
+// Touch movement joystick state (left side)
+const MOVE_CENTER_X = 140;
+const MOVE_CENTER_Y = H - 180;
+const MOVE_RADIUS = 70;
+const MOVE_DEAD_ZONE = 15;
+let moveJoystick = { active: false, dx: 0, dy: 0, touchId: null };
+
+// Jump button (right side, above aim joystick)
+const JUMP_BTN = { x: W - 250, y: H - 310, r: 50 };
+let jumpTouchId = null;
+
 // Shared touch button renderer — called from each game state's HUD
 const _isTouchDev = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 function drawTouchButtons() {
   if (!_isTouchDev || !settings.touchButtons) return;
   ctx.save();
-  ctx.globalAlpha = 0.4;
 
-  // Left button
-  ctx.fillStyle = touchControls.left ? '#88bbff' : '#ffffff';
-  ctx.beginPath(); ctx.arc(80, H - 90, 50, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#000'; ctx.font = 'bold 32px monospace'; ctx.textAlign = 'center';
-  ctx.fillText('\u25c4', 80, H - 80);
+  // ── LEFT SIDE: Movement joystick ──
+  ctx.globalAlpha = 0.25;
+  ctx.strokeStyle = '#88bbff';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(MOVE_CENTER_X, MOVE_CENTER_Y, MOVE_RADIUS, 0, Math.PI * 2); ctx.stroke();
+  // Crosshair
+  ctx.globalAlpha = 0.12;
+  ctx.beginPath(); ctx.moveTo(MOVE_CENTER_X - MOVE_RADIUS, MOVE_CENTER_Y); ctx.lineTo(MOVE_CENTER_X + MOVE_RADIUS, MOVE_CENTER_Y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(MOVE_CENTER_X, MOVE_CENTER_Y - MOVE_RADIUS); ctx.lineTo(MOVE_CENTER_X, MOVE_CENTER_Y + MOVE_RADIUS); ctx.stroke();
+  // Directional arrows around ring
+  ctx.globalAlpha = 0.2;
+  ctx.fillStyle = '#88bbff';
+  ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('\u25c4', MOVE_CENTER_X - MOVE_RADIUS - 14, MOVE_CENTER_Y + 7);
+  ctx.fillText('\u25ba', MOVE_CENTER_X + MOVE_RADIUS + 14, MOVE_CENTER_Y + 7);
 
-  // Right button
-  ctx.fillStyle = touchControls.right ? '#88bbff' : '#ffffff';
-  ctx.beginPath(); ctx.arc(200, H - 90, 50, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#000'; ctx.fillText('\u25ba', 200, H - 80);
+  if (moveJoystick.active) {
+    const len = Math.min(Math.sqrt(moveJoystick.dx * moveJoystick.dx + moveJoystick.dy * moveJoystick.dy), MOVE_RADIUS);
+    const dist = Math.sqrt(moveJoystick.dx * moveJoystick.dx + moveJoystick.dy * moveJoystick.dy) || 1;
+    const nx = moveJoystick.dx / dist;
+    const ny = moveJoystick.dy / dist;
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = '#88bbff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(MOVE_CENTER_X, MOVE_CENTER_Y);
+    ctx.lineTo(MOVE_CENTER_X + nx * len, MOVE_CENTER_Y + ny * len);
+    ctx.stroke();
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = '#aaddff';
+    ctx.beginPath(); ctx.arc(MOVE_CENTER_X + nx * len, MOVE_CENTER_Y + ny * len, 22, 0, Math.PI * 2); ctx.fill();
+  } else {
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#88bbff';
+    ctx.beginPath(); ctx.arc(MOVE_CENTER_X, MOVE_CENTER_Y, 22, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#000'; ctx.font = 'bold 12px monospace';
+    ctx.fillText('MOVE', MOVE_CENTER_X, MOVE_CENTER_Y + 4);
+  }
 
-  // Jump button
+  // ── RIGHT SIDE: Jump button (above aim joystick) ──
+  ctx.globalAlpha = 0.45;
   ctx.fillStyle = touchControls.up ? '#88ff88' : '#ffffff';
-  ctx.beginPath(); ctx.arc(140, H - 220, 55, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#000'; ctx.font = 'bold 24px monospace';
-  ctx.fillText('JUMP', 140, H - 212);
+  ctx.beginPath(); ctx.arc(JUMP_BTN.x, JUMP_BTN.y, JUMP_BTN.r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#000'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('JUMP', JUMP_BTN.x, JUMP_BTN.y + 7);
 
-  // Aim joystick — right side
-  // Outer ring
+  // ── RIGHT SIDE: Aim joystick ──
   ctx.globalAlpha = 0.25;
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 3;
   ctx.beginPath(); ctx.arc(AIM_CENTER_X, AIM_CENTER_Y, AIM_RADIUS, 0, Math.PI * 2); ctx.stroke();
-  // Crosshair lines
-  ctx.globalAlpha = 0.15;
+  ctx.globalAlpha = 0.12;
   ctx.beginPath(); ctx.moveTo(AIM_CENTER_X - AIM_RADIUS, AIM_CENTER_Y); ctx.lineTo(AIM_CENTER_X + AIM_RADIUS, AIM_CENTER_Y); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(AIM_CENTER_X, AIM_CENTER_Y - AIM_RADIUS); ctx.lineTo(AIM_CENTER_X, AIM_CENTER_Y + AIM_RADIUS); ctx.stroke();
 
   if (touchAim.active) {
-    // Aim direction line
     const len = Math.min(Math.sqrt(touchAim.dx * touchAim.dx + touchAim.dy * touchAim.dy), AIM_RADIUS);
     const nx = Math.cos(touchAim.angle);
     const ny = Math.sin(touchAim.angle);
@@ -275,12 +311,10 @@ function drawTouchButtons() {
     ctx.moveTo(AIM_CENTER_X, AIM_CENTER_Y);
     ctx.lineTo(AIM_CENTER_X + nx * len, AIM_CENTER_Y + ny * len);
     ctx.stroke();
-    // Knob
     ctx.globalAlpha = 0.7;
     ctx.fillStyle = '#ffcc66';
     ctx.beginPath(); ctx.arc(AIM_CENTER_X + nx * len, AIM_CENTER_Y + ny * len, 18, 0, Math.PI * 2); ctx.fill();
   } else {
-    // Idle knob at center
     ctx.globalAlpha = 0.3;
     ctx.fillStyle = '#ffffff';
     ctx.beginPath(); ctx.arc(AIM_CENTER_X, AIM_CENTER_Y, 18, 0, Math.PI * 2); ctx.fill();
@@ -595,24 +629,22 @@ let activeTouches = {}; // touchId -> 'left'|'right'|'up'
 let aimTouchId = null; // separate tracking for aim joystick
 
 // Touch button hit zones (canvas coords) — left side only for movement
-const TOUCH_ZONES = {
-  left:  { x: 0,   y: H - 180, w: 140, h: 180 },
-  right: { x: 140, y: H - 180, w: 140, h: 180 },
-  up:    { x: 0,   y: H - 320, w: 280, h: 140 }
-};
+// Movement joystick zone (left half)
+const MOVE_ZONE = { x: 0, y: 0, w: W * 0.45, h: H };
 
-// Right side of screen = aim joystick zone
-const AIM_ZONE = { x: W * 0.5, y: 0, w: W * 0.5, h: H };
+function isInMoveZone(cx, cy) {
+  return cx < MOVE_ZONE.w;
+}
 
-function hitTestTouchZone(cx, cy) {
-  for (const [name, z] of Object.entries(TOUCH_ZONES)) {
-    if (cx >= z.x && cx < z.x + z.w && cy >= z.y && cy < z.y + z.h) return name;
-  }
-  return null;
+function isInJumpButton(cx, cy) {
+  const dx = cx - JUMP_BTN.x;
+  const dy = cy - JUMP_BTN.y;
+  return (dx * dx + dy * dy) <= (JUMP_BTN.r + 15) * (JUMP_BTN.r + 15);
 }
 
 function isInAimZone(cx, cy) {
-  return cx >= AIM_ZONE.x && cy >= AIM_ZONE.y;
+  // Right half, but not the jump button
+  return cx >= W * 0.5 && !isInJumpButton(cx, cy);
 }
 
 function updateAimFromTouch(cx, cy) {
@@ -627,16 +659,22 @@ function updateAimFromTouch(cx, cy) {
 
 let touchJumpQueued = false; // survives between frames so quick taps aren't lost
 function updateTouchControlsFromActive() {
-  touchControls.left = false;
-  touchControls.right = false;
-  touchControls.up = false;
   touchControls.throw = aimTouchId !== null;
-  for (const zone of Object.values(activeTouches)) {
-    if (zone === 'left') touchControls.left = true;
-    else if (zone === 'right') touchControls.right = true;
-    else if (zone === 'up') { touchControls.up = true; touchJumpQueued = true; }
+  // Movement from joystick
+  if (moveJoystick.active) {
+    const dist = Math.sqrt(moveJoystick.dx * moveJoystick.dx + moveJoystick.dy * moveJoystick.dy);
+    touchControls.left = dist > MOVE_DEAD_ZONE && moveJoystick.dx < -MOVE_DEAD_ZONE;
+    touchControls.right = dist > MOVE_DEAD_ZONE && moveJoystick.dx > MOVE_DEAD_ZONE;
+    // Flick UP on move joystick also jumps
+    if (dist > MOVE_DEAD_ZONE && moveJoystick.dy < -MOVE_DEAD_ZONE * 1.5) {
+      if (!touchControls.up) { touchControls.up = true; touchJumpQueued = true; }
+    }
+  } else {
+    touchControls.left = false;
+    touchControls.right = false;
   }
-  // Keep jump flag alive if queued (tap ended before update ran)
+  // Jump button
+  if (jumpTouchId !== null) { touchControls.up = true; touchJumpQueued = true; }
   if (touchJumpQueued) touchControls.up = true;
 }
 
@@ -734,51 +772,50 @@ canvas.addEventListener('touchstart', e => {
     if (state === 'cutscene' || state === 'bossdialogue') { advanceCutscene(); return; }
     if (state === 'won' || state === 'dead') { if (restartCooldown <= 0) { state = 'menu'; menuState = 'main'; menuSelection = 0; } return; }
 
-    // Gameplay touch controls — use canvas-coordinate hit zones
+    // Gameplay touch controls — dual joystick + jump button
     if (state === 'playing' || state === 'intro' || state === 'bossfight' || state === 'epsteinfight' || state === 'fusionfight' || state === 'splitfight') {
-      // Check aim joystick first (right side)
-      if (isInAimZone(cx, cy)) {
+      // Jump button (right side, above aim)
+      if (isInJumpButton(cx, cy)) {
+        jumpTouchId = t.identifier;
+        touchControls.up = true;
+        touchJumpQueued = true;
+        updateTouchControlsFromActive();
+      }
+      // Aim joystick (right side)
+      else if (isInAimZone(cx, cy)) {
         aimTouchId = t.identifier;
         updateAimFromTouch(cx, cy);
         updateTouchControlsFromActive();
         throwProjectile();
-      } else {
-        // Movement buttons (left side)
-        const zone = hitTestTouchZone(cx, cy);
-        if (zone) {
-          activeTouches[t.identifier] = zone;
-          updateTouchControlsFromActive();
-        }
+      }
+      // Movement joystick (left side)
+      else if (isInMoveZone(cx, cy)) {
+        moveJoystick.touchId = t.identifier;
+        moveJoystick.active = true;
+        moveJoystick.dx = cx - MOVE_CENTER_X;
+        moveJoystick.dy = cy - MOVE_CENTER_Y;
+        updateTouchControlsFromActive();
       }
     }
   }
 }, { passive: false });
 
+function clearTouch(id) {
+  if (id === aimTouchId) { aimTouchId = null; touchAim.active = false; touchAim.dx = 0; touchAim.dy = 0; }
+  if (id === moveJoystick.touchId) { moveJoystick.touchId = null; moveJoystick.active = false; moveJoystick.dx = 0; moveJoystick.dy = 0; }
+  if (id === jumpTouchId) { jumpTouchId = null; }
+  delete activeTouches[id];
+}
+
 canvas.addEventListener('touchend', e => {
   e.preventDefault();
-  for (const t of e.changedTouches) {
-    if (t.identifier === aimTouchId) {
-      aimTouchId = null;
-      touchAim.active = false;
-      touchAim.dx = 0;
-      touchAim.dy = 0;
-    }
-    delete activeTouches[t.identifier];
-  }
+  for (const t of e.changedTouches) clearTouch(t.identifier);
   updateTouchControlsFromActive();
 }, { passive: false });
 
 canvas.addEventListener('touchcancel', e => {
   e.preventDefault();
-  for (const t of e.changedTouches) {
-    if (t.identifier === aimTouchId) {
-      aimTouchId = null;
-      touchAim.active = false;
-      touchAim.dx = 0;
-      touchAim.dy = 0;
-    }
-    delete activeTouches[t.identifier];
-  }
+  for (const t of e.changedTouches) clearTouch(t.identifier);
   updateTouchControlsFromActive();
 }, { passive: false });
 
@@ -790,18 +827,14 @@ canvas.addEventListener('touchmove', e => {
       const { x: cx, y: cy } = clientToCanvas(t.clientX, t.clientY);
       updateAimFromTouch(cx, cy);
     }
-    // Movement button slide
-    if (t.identifier in activeTouches) {
+    // Movement joystick drag
+    if (t.identifier === moveJoystick.touchId) {
       const { x: cx, y: cy } = clientToCanvas(t.clientX, t.clientY);
-      const zone = hitTestTouchZone(cx, cy);
-      if (zone) {
-        activeTouches[t.identifier] = zone;
-      } else {
-        delete activeTouches[t.identifier];
-      }
+      moveJoystick.dx = cx - MOVE_CENTER_X;
+      moveJoystick.dy = cy - MOVE_CENTER_Y;
+      updateTouchControlsFromActive();
     }
   }
-  updateTouchControlsFromActive();
 }, { passive: false });
 
 // ── Player ──
@@ -1318,8 +1351,8 @@ function update() {
     player.hp = player.maxHp;
   }
 
-  // Player invulnerable during hawkingDeath scene
-  if (state === 'hawkingDeath') {
+  // Player invulnerable during hawkingDeath scene and splitfight cutscene
+  if (state === 'hawkingDeath' || (state === 'splitfight' && bossIntroTimer > 0)) {
     player.iFrames = Math.max(player.iFrames, 5);
   }
 
@@ -3578,8 +3611,8 @@ function update() {
           });
         }
       }
-      if (dt === 400) { screenFlash = 40; screenFlashColor = '#44ff88'; shakeTimer = 40; }
-      if (dt === 450) { screenFlash = 30; screenFlashColor = '#ffffff'; }
+      if (dt >= 400 && dt <= 401) { screenFlash = 40; screenFlashColor = '#44ff88'; shakeTimer = 40; }
+      if (dt >= 450 && dt <= 451) { screenFlash = 30; screenFlashColor = '#ffffff'; }
       // Hide Hawking sprite progressively (handled in draw)
     }
 
@@ -3598,7 +3631,7 @@ function update() {
     }
 
     // Phase 6 (750-850): WHITE OUT — massive flash, peaceful transition
-    if (dt === 750) {
+    if (dt >= 750 && dt <= 751) {
       screenFlash = 80;
       screenFlashColor = '#ffffff';
       shakeTimer = 30;
@@ -3617,7 +3650,7 @@ function update() {
     }
 
     // Phase 7 (850-900): Return to game, mark all dead, trigger victory
-    if (dt === 900) {
+    if (dt >= 900) {
       // Mark Hawking dead
       if (hawk) { hawk.hp = 0; hawk.dead = true; }
       // Mark ALL bosses dead (they should already be dead except Hawking)
@@ -3634,8 +3667,10 @@ function update() {
       }
       bossVfx.push({ type: 'ring', x: player.x+player.w/2, y: player.y+player.h/2, radius: 10, maxRadius: 900, life: 70, maxLife: 70, color: '#ffdd44' });
       bossVfx.push({ type: 'text', x: player.x+player.w/2, y: player.y - 50, text: '★ FREEDOM! ★', life: 200, maxLife: 200, color: '#ffdd44' });
-      player.x = bigWall.x + bigWall.w + 30;
-      player.y = bigWall.y - player.h;
+      if (bigWall) {
+        player.x = bigWall.x + bigWall.w + 30;
+        player.y = bigWall.y - player.h;
+      }
       player.vy = 0; player.vx = 0;
       arenaPlats = [];
       state = 'won';
@@ -3644,6 +3679,8 @@ function update() {
       spawnParticles(player.x, player.y, '#ff6644', 40);
       restartCooldown = 60;
     }
+    // Cap timer to prevent runaway
+    if (hawkingDeathTimer > 910) hawkingDeathTimer = 910;
   }
   
   // Update boss VFX
