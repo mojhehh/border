@@ -1436,10 +1436,10 @@ const MOVE_CENTER_X = 140;
 const MOVE_CENTER_Y = H - 120;
 const MOVE_RADIUS = 70;
 const MOVE_DEAD_ZONE = 10;
-let moveJoystick = { active: false, dx: 0, dy: 0, touchId: null };
+let moveJoystick = { active: false, dx: 0, dy: 0, touchId: null, inJumpZone: false };
 
-// Jump button (right side, above aim joystick)
-const JUMP_BTN = { x: W - 260, y: H - 240, r: 60 };
+// Jump button (above move joystick, left side)
+const JUMP_BTN = { x: MOVE_CENTER_X, y: MOVE_CENTER_Y - 160, r: 60 };
 let jumpTouchId = null;
 
 // Shared touch button renderer — called from each game state's HUD
@@ -1489,7 +1489,7 @@ function drawTouchButtons() {
     ctx.fillText('MOVE', MOVE_CENTER_X, MOVE_CENTER_Y + 4);
   }
 
-  // ── RIGHT SIDE: Jump button (above aim joystick) ──
+  // ── LEFT SIDE: Jump button (above move joystick) ──
   ctx.globalAlpha = 0.45;
   ctx.fillStyle = jumpTouchId !== null ? '#88ff88' : '#ffffff';
   ctx.beginPath(); ctx.arc(JUMP_BTN.x, JUMP_BTN.y, JUMP_BTN.r, 0, Math.PI * 2); ctx.fill();
@@ -2331,7 +2331,7 @@ canvas.addEventListener('touchstart', e => {
         return;
       }
 
-      // Jump button (right side, above aim)
+      // Jump button (above move joystick)
       if (isInJumpButton(cx, cy)) {
         jumpTouchId = t.identifier;
         touchControls.up = true;
@@ -2359,7 +2359,7 @@ canvas.addEventListener('touchstart', e => {
 
 function clearTouch(id) {
   if (id === aimTouchId) { aimTouchId = null; touchAim.active = false; touchAim.dx = 0; touchAim.dy = 0; }
-  if (id === moveJoystick.touchId) { moveJoystick.touchId = null; moveJoystick.active = false; moveJoystick.dx = 0; moveJoystick.dy = 0; }
+  if (id === moveJoystick.touchId) { moveJoystick.touchId = null; moveJoystick.active = false; moveJoystick.dx = 0; moveJoystick.dy = 0; moveJoystick.inJumpZone = false; }
   if (id === jumpTouchId) { jumpTouchId = null; }
 }
 
@@ -2386,6 +2386,14 @@ canvas.addEventListener('touchmove', e => {
     // Movement joystick drag
     if (t.identifier === moveJoystick.touchId) {
       const { x: cx, y: cy } = clientToCanvas(t.clientX, t.clientY);
+      // If move finger enters jump button zone, trigger jump
+      if (isInJumpButton(cx, cy) && !moveJoystick.inJumpZone) {
+        moveJoystick.inJumpZone = true;
+        touchJumpQueued = true;
+        touchControls.up = true;
+      } else if (!isInJumpButton(cx, cy)) {
+        moveJoystick.inJumpZone = false;
+      }
       moveJoystick.dx = cx - MOVE_CENTER_X;
       moveJoystick.dy = cy - MOVE_CENTER_Y;
       updateTouchControlsFromActive();
