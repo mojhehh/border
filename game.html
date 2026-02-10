@@ -1469,14 +1469,14 @@ function drawTouchButtons() {
     const nx = moveJoystick.dx / dist;
     const ny = moveJoystick.dy / dist;
     ctx.globalAlpha = 0.5;
-    ctx.strokeStyle = '#88bbff';
+    ctx.strokeStyle = moveJoystick.inJumpUp ? '#88ff88' : '#88bbff';
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(MOVE_CENTER_X, MOVE_CENTER_Y);
     ctx.lineTo(MOVE_CENTER_X + nx * len, MOVE_CENTER_Y + ny * len);
     ctx.stroke();
     ctx.globalAlpha = 0.7;
-    ctx.fillStyle = '#aaddff';
+    ctx.fillStyle = moveJoystick.inJumpUp ? '#aaffaa' : '#aaddff';
     ctx.beginPath(); ctx.arc(MOVE_CENTER_X + nx * len, MOVE_CENTER_Y + ny * len, 22, 0, Math.PI * 2); ctx.fill();
   } else {
     ctx.globalAlpha = 0.3;
@@ -1487,8 +1487,8 @@ function drawTouchButtons() {
   }
 
   // Up arrow above move joystick to hint jump
-  ctx.globalAlpha = 0.18;
-  ctx.fillStyle = '#88bbff';
+  ctx.globalAlpha = moveJoystick.inJumpUp ? 0.55 : 0.18;
+  ctx.fillStyle = moveJoystick.inJumpUp ? '#88ff88' : '#88bbff';
   ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
   ctx.fillText('\u25b2', MOVE_CENTER_X, MOVE_CENTER_Y - MOVE_RADIUS - 14);
 
@@ -2304,7 +2304,7 @@ canvas.addEventListener('touchstart', e => {
       return;
     }
 
-    // Gameplay touch controls — dual joystick + jump button
+    // Gameplay touch controls — joystick up to jump
     if (state === 'playing' || state === 'intro' || state === 'bossfight' || state === 'epsteinfight' || state === 'fusionfight' || state === 'splitfight') {
       // Spectator touch — tap left/right half to cycle players
       if (mpSpectating) {
@@ -3372,8 +3372,11 @@ function update() {
     }
   }
 
-  // Wall jump (off small walls)
-  if (p.jumpBuffer > 0 && p.onWall && !p.onGround) {
+  // Wall jump (off small walls — NOT the big wall, which uses climb)
+  const _onBigWall = bigWall && state !== 'bossfight' && state !== 'bossdialogue' && rectsOverlap(
+    { x: p.x - 4, y: p.y, w: p.w + 8, h: p.h }, bigWall
+  );
+  if (p.jumpBuffer > 0 && p.onWall && !p.onGround && !_onBigWall) {
     p.vy = JUMP_FORCE * 0.9;
     p.vx = -p.wallDir * 6;
     p.jumpBuffer = 0;
@@ -3502,6 +3505,7 @@ function update() {
     // Dead/spectating — still consume touch state to prevent stale inputs
     touchControls.up = false;
     touchJumpQueued = false;
+    moveJoystick.inJumpUp = false;
   } // end if (p.alive) — player input/physics
 
   // ── Guards ──
@@ -11701,7 +11705,7 @@ function draw() {
       ctx.fillText('-- TOUCH / MOBILE --', W/2, H * 0.70);
       ctx.fillStyle = '#ccc';
       ctx.font = '12px monospace';
-      ctx.fillText('Left side: Move | Top-left: Jump | Right side: Throw', W/2, H * 0.75);
+      ctx.fillText('Left side: Move (flick up to jump) | Right side: Throw', W/2, H * 0.75);
       
       ctx.fillStyle = '#666';
       ctx.font = '12px monospace';
@@ -11913,11 +11917,11 @@ function draw() {
       {
         title: 'JUMPING',
         lines: [
-          'Press UP, W, or SPACE to jump',
+          _isTouchDev ? 'Flick the move joystick UP to jump' : 'Press UP, W, or SPACE to jump',
           'Jump over walls and onto platforms.',
           '',
           '>> YOU CAN DOUBLE JUMP! <<',
-          'Press jump again in mid-air for a second jump!',
+          _isTouchDev ? 'Flick down then up again in mid-air!' : 'Press jump again in mid-air for a second jump!',
           'A blue ring appears when you double jump.',
         ],
         icon: 'jump',
@@ -12205,7 +12209,7 @@ function draw() {
     ctx.fillStyle = jumpColor;
     ctx.font = '11px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`Jumps: ${'●'.repeat(player.jumpsLeft)}${'○'.repeat(player.maxJumps - player.jumpsLeft)}`, 10, H - 15);
+    ctx.fillText(`Jumps: ${'●'.repeat(player.jumpsLeft)}${'○'.repeat(player.maxJumps - player.jumpsLeft)}`, _isTouchDev ? MOVE_CENTER_X - 30 : 10, _isTouchDev ? MOVE_CENTER_Y - MOVE_RADIUS - 35 : H - 15);
   }
 
   // Cheats active indicator
