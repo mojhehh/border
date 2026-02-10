@@ -11274,13 +11274,17 @@ function draw() {
     } else if (menuState === 'lobby') {
       // ── LOBBY SCREEN ──
       ctx.fillStyle = '#44bbff';
-      ctx.font = 'bold 26px monospace';
-      ctx.fillText('LOBBY', W/2, H * 0.08);
+      ctx.font = 'bold 22px monospace';
+      ctx.fillText('LOBBY', W/2, H * 0.06);
       
-      // Room code
+      // Room code — displayed prominently with background
+      const rcText = 'Room: ' + (currentRoom || '???');
+      ctx.fillStyle = '#00000066';
+      const rcW = ctx.measureText(rcText).width + 30;
+      ctx.fillRect(W/2 - rcW/2, H * 0.09, rcW, 30);
       ctx.fillStyle = '#ffcc44';
-      ctx.font = 'bold 18px monospace';
-      ctx.fillText('Room: ' + (currentRoom || '???'), W/2, H * 0.14);
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText(rcText, W/2, H * 0.09 + 20);
       
       // === LEFT COLUMN: Players + Chat ===
       const colL = W/2 - 250;
