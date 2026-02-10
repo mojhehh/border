@@ -212,6 +212,14 @@ let settings = {
   colorblind: false,
 };
 let tutorialPage = 0;
+let tutorialDone = false; // persisted to Firebase
+function completeTutorial() {
+  tutorialDone = true;
+  if (currentUser) {
+    db.ref('users/' + currentUser.uid + '/tutorialDone').set(true);
+  }
+  startGame();
+}
 let gameTimer = 0; // track play time
 
 // Difficulty multipliers
@@ -499,6 +507,10 @@ auth.onAuthStateChanged(user => {
     db.ref('users/' + user.uid + '/online').set(true);
     db.ref('users/' + user.uid + '/online').onDisconnect().set(false);
     db.ref('users/' + user.uid + '/lastSeen').onDisconnect().set(firebase.database.ServerValue.TIMESTAMP);
+    // Load tutorial completion
+    db.ref('users/' + user.uid + '/tutorialDone').once('value', snap => {
+      if (snap.val() === true) tutorialDone = true;
+    });
     loadFriendsList();
   }
 });
@@ -1438,6 +1450,7 @@ const MOVE_RADIUS = 70;
 const MOVE_DEAD_ZONE = 10;
 let moveJoystick = { active: false, dx: 0, dy: 0, touchId: null, inJumpUp: false };
 const MOVE_JUMP_THRESHOLD = -25; // dy must be less than this (upward) to trigger jump
+let jumpFlashTimer = 0; // visual flash timer when jump triggers (frames)
 
 // Shared touch button renderer — called from each game state's HUD
 let _isTouchDev = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
@@ -1468,15 +1481,16 @@ function drawTouchButtons() {
     const dist = Math.sqrt(moveJoystick.dx * moveJoystick.dx + moveJoystick.dy * moveJoystick.dy) || 1;
     const nx = moveJoystick.dx / dist;
     const ny = moveJoystick.dy / dist;
+    const _jFlash = moveJoystick.inJumpUp || jumpFlashTimer > 0;
     ctx.globalAlpha = 0.5;
-    ctx.strokeStyle = moveJoystick.inJumpUp ? '#88ff88' : '#88bbff';
+    ctx.strokeStyle = _jFlash ? '#88ff88' : '#88bbff';
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(MOVE_CENTER_X, MOVE_CENTER_Y);
     ctx.lineTo(MOVE_CENTER_X + nx * len, MOVE_CENTER_Y + ny * len);
     ctx.stroke();
     ctx.globalAlpha = 0.7;
-    ctx.fillStyle = moveJoystick.inJumpUp ? '#aaffaa' : '#aaddff';
+    ctx.fillStyle = _jFlash ? '#aaffaa' : '#aaddff';
     ctx.beginPath(); ctx.arc(MOVE_CENTER_X + nx * len, MOVE_CENTER_Y + ny * len, 22, 0, Math.PI * 2); ctx.fill();
   } else {
     ctx.globalAlpha = 0.3;
@@ -1487,8 +1501,9 @@ function drawTouchButtons() {
   }
 
   // Up arrow above move joystick to hint jump
-  ctx.globalAlpha = moveJoystick.inJumpUp ? 0.55 : 0.18;
-  ctx.fillStyle = moveJoystick.inJumpUp ? '#88ff88' : '#88bbff';
+  const _jFlash2 = moveJoystick.inJumpUp || jumpFlashTimer > 0;
+  ctx.globalAlpha = _jFlash2 ? 0.55 : 0.18;
+  ctx.fillStyle = _jFlash2 ? '#88ff88' : '#88bbff';
   ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
   ctx.fillText('\u25b2', MOVE_CENTER_X, MOVE_CENTER_Y - MOVE_RADIUS - 14);
 
@@ -1584,7 +1599,10 @@ window.addEventListener('keydown', e => {
       if (e.code === 'ArrowUp' || e.code === 'KeyW') { menuSelection--; if (menuSelection < 0) menuSelection = 7; }
       if (e.code === 'ArrowDown' || e.code === 'KeyS') { menuSelection++; if (menuSelection > 7) menuSelection = 0; }
       if (e.code === 'Space' || e.code === 'Enter') {
-        if (menuSelection === 0) { state = 'tutorial'; tutorialPage = 0; }
+        if (menuSelection === 0) {
+          if (tutorialDone) { startGame(); }
+          else { state = 'tutorial'; tutorialPage = 0; }
+        }
         else if (menuSelection === 1) { menuState = 'multiplayer'; mpMenuSelection = 0; authError = ''; }
         else if (menuSelection === 2) { menuState = 'difficulty'; menuSelection = 0; }
         else if (menuSelection === 3) { menuState = 'settings'; menuSelection = 0; }
@@ -1715,10 +1733,9 @@ window.addEventListener('keydown', e => {
   if (state === 'tutorial') {
     if (e.code === 'Space' || e.code === 'Enter' || e.code === 'ArrowRight') {
       tutorialPage++;
-      if (tutorialPage >= 5) { startGame(); }
+      if (tutorialPage >= 5) { completeTutorial(); }
     }
     if (e.code === 'ArrowLeft' && tutorialPage > 0) tutorialPage--;
-    if (e.code === 'Escape') { startGame(); }
     return;
   }
   
@@ -1848,7 +1865,10 @@ canvas.addEventListener('click', e => {
         const y = menuY + i * 40;
         if (cx > W/2 - 160 && cx < W/2 + 160 && cy > y - 18 && cy < y + 18) {
           menuSelection = i;
-          if (i === 0) { state = 'tutorial'; tutorialPage = 0; }
+          if (i === 0) {
+            if (tutorialDone) { startGame(); }
+            else { state = 'tutorial'; tutorialPage = 0; }
+          }
           else if (i === 1) { menuState = 'multiplayer'; mpMenuSelection = 0; authError = ''; }
           else if (i === 2) { menuState = 'difficulty'; menuSelection = 0; }
           else if (i === 3) { menuState = 'settings'; menuSelection = 0; }
@@ -2029,7 +2049,7 @@ canvas.addEventListener('click', e => {
     bossIntroTimer = 1; return;
   }
   
-  if (state === 'tutorial') { tutorialPage++; if (tutorialPage >= 5) startGame(); return; }
+  if (state === 'tutorial') { tutorialPage++; if (tutorialPage >= 5) completeTutorial(); return; }
   if (state === 'cutscene' || state === 'bossdialogue') {
     if (mpEnabled && !isHost) { mpSendCutsceneEvent('advance'); } else { advanceCutscene(); } return;
   }
@@ -2115,7 +2135,10 @@ canvas.addEventListener('touchstart', e => {
           const y = menuY + i * 40;
           if (cx > W/2 - 160 && cx < W/2 + 160 && cy > y - 18 && cy < y + 18) {
             menuSelection = i;
-            if (i === 0) { state = 'tutorial'; tutorialPage = 0; }
+            if (i === 0) {
+              if (tutorialDone) { startGame(); }
+              else { state = 'tutorial'; tutorialPage = 0; }
+            }
             else if (i === 1) { menuState = 'multiplayer'; mpMenuSelection = 0; authError = ''; }
             else if (i === 2) { menuState = 'difficulty'; menuSelection = 0; }
             else if (i === 3) { menuState = 'settings'; menuSelection = 0; }
@@ -2269,7 +2292,7 @@ canvas.addEventListener('touchstart', e => {
     // Tutorial touch
     if (state === 'tutorial') {
       if (cx < W * 0.3 && tutorialPage > 0) { tutorialPage--; }
-      else { tutorialPage++; if (tutorialPage >= 5) startGame(); }
+      else { tutorialPage++; if (tutorialPage >= 5) completeTutorial(); }
       return;
     }
 
@@ -3338,6 +3361,7 @@ function update() {
   moveJoystick.inJumpUp = false;
   touchControls.up = (moveJoystick.active && moveJoystick.dy < MOVE_JUMP_THRESHOLD);
   touchJumpQueued = false;
+  if (jumpFlashTimer > 0) jumpFlashTimer--;
 
   // Horizontal movement
   const pSpeed = cheats.speedBoost ? PLAYER_SPEED * 2 : PLAYER_SPEED;
@@ -3362,11 +3386,13 @@ function update() {
       p.coyoteTime = 0;
       p.onGround = false;
       p.jumpsLeft = p.maxJumps - 1;
+      jumpFlashTimer = 8;
       spawnParticles(p.x + p.w / 2, p.y + p.h, '#c9a96e', 5);
     } else if ((p.jumpsLeft > 0 || cheats.infiniteJumps) && settings.doubleJump && !p.onGround) {
       // Double jump (air jump) - only when actually airborne
       p.vy = JUMP_FORCE * 0.85;
       p.jumpBuffer = 0;
+      jumpFlashTimer = 8;
       if (!cheats.infiniteJumps) p.jumpsLeft = 0; // consume all remaining jumps
       spawnParticles(p.x + p.w / 2, p.y + p.h, '#88ccff', 8);
       // Small visual ring for double jump
@@ -12010,7 +12036,7 @@ function draw() {
     }
     ctx.fillStyle = '#555';
     ctx.font = '11px monospace';
-    ctx.fillText(_isTouchDev ? 'Tap to skip tutorial' : 'ESC to skip tutorial', W/2, H * 0.9);
+    ctx.fillText('Complete all pages to start playing', W/2, H * 0.9);
   }
 
   if (state === 'won') {
