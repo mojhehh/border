@@ -296,6 +296,7 @@ let friendTab = 0;            // 0=friends, 1=requests, 2=blocked, 3=add
 let authSuccessMsg = '';      // green success messages
 let friendsBackTo = 'main';  // where to go when leaving friends screen
 let mpDeathSynced = false;    // prevent spamming death sync every frame
+let mpDamageQueueRef = null;  // Firebase ref for guest damage events
 
 // ── Text Input System ──  
 let activeTextInput = null;   // which input is active: 'username'|'password'|'confirm'|'chat'|'roomcode'|'friendadd'|null
@@ -582,8 +583,22 @@ function setupRoomListeners(code, uid) {
     });
   }
   
+  // Host listens for guest damage events
+  if (isHost) {
+    mpDamageQueueRef = roomR.child('damageQueue');
+    mpDamageQueueRef.on('child_added', snap => {
+      const dmg = snap.val();
+      if (dmg) mpHandleDamageEvent(dmg);
+      snap.ref.remove();
+    });
+  }
+
   // Cleanup on disconnect
   roomR.child('players/' + uid).onDisconnect().remove();
+  // Host field cleanup on disconnect so guest detects it
+  if (isHost) {
+    roomR.child('host').onDisconnect().remove();
+  }
 }
 
 async function leaveRoom() {
@@ -602,6 +617,7 @@ async function leaveRoom() {
     roomRef.child('state').off();
     roomRef.child('enemies').off();
     roomRef.child('host').off(); // room deletion listener
+    roomRef.child('damageQueue').off();
     roomRef.off(); // remove room-level listeners too
   }
   currentRoom = null;
@@ -677,6 +693,16 @@ function syncMyPosition() {
     iFrames: player.iFrames,
     throwCooldown: player.throwCooldown,
   };
+  // Include projectile positions for other players to render
+  if (projectiles.length > 0) {
+    data.projectiles = projectiles.map(pj => ({
+      x: Math.round(pj.x), y: Math.round(pj.y),
+      vx: Math.round(pj.vx * 10) / 10, vy: Math.round(pj.vy * 10) / 10,
+      w: pj.w, h: pj.h
+    }));
+  } else {
+    data.projectiles = null;
+  }
   const dataStr = JSON.stringify(data);
   if (dataStr === lastSyncData) return; // no change
   lastSyncData = dataStr;
@@ -690,26 +716,242 @@ function syncEnemyData() {
   mpEnemySyncTimer++;
   if (mpEnemySyncTimer < 6) return;
   mpEnemySyncTimer = 0;
-  
+
   const enemies = {};
-  if (boss && !boss.dead) {
-    enemies.boss = { x: Math.round(boss.x), y: Math.round(boss.y), hp: boss.hp, phase: boss.phase, dir: boss.dir };
+  // Sync ALL guards (including dead) to maintain index alignment
+  enemies.guards = guards.map(g => ({
+    x: Math.round(g.x), y: Math.round(g.y), dir: g.dir,
+    hp: g.hp, maxHp: g.maxHp, dead: g.dead,
+    alert: g.alert, frame: g.frame, climbing: g.climbing,
+    w: g.w, h: g.h
+  }));
+  // Boss (full state for rendering + contact damage)
+  if (boss) {
+    enemies.boss = {
+      x: Math.round(boss.x), y: Math.round(boss.y), w: boss.w, h: boss.h,
+      hp: boss.hp, maxHp: boss.maxHp, dir: boss.dir, dead: boss.dead,
+      phase: boss.phase, frame: boss.frame, alert: boss.alert,
+      charging: boss.charging, slamming: boss.slamming,
+      chargeVx: boss.chargeVx, speed: boss.speed, vy: boss.vy,
+      _slamShock: boss._slamShock || 0
+    };
   }
-  if (epstein && !epstein.dead) {
-    enemies.epstein = { x: Math.round(epstein.x), y: Math.round(epstein.y), hp: epstein.hp, phase: epstein.phase, dir: epstein.dir };
+  // Epstein (full state)
+  if (epstein) {
+    enemies.epstein = {
+      x: Math.round(epstein.x), y: Math.round(epstein.y), w: epstein.w, h: epstein.h,
+      hp: epstein.hp, maxHp: epstein.maxHp, dir: epstein.dir, dead: epstein.dead,
+      phase: epstein.phase, frame: epstein.frame,
+      charging: epstein.charging, chargeVx: epstein.chargeVx
+    };
   }
-  if (fusionBoss && !fusionBoss.dead) {
-    enemies.fusion = { x: Math.round(fusionBoss.x), y: Math.round(fusionBoss.y), hp: fusionBoss.hp, phase: fusionBoss.phase, dir: fusionBoss.dir };
+  // Fusion Boss (full state)
+  if (fusionBoss) {
+    enemies.fusion = {
+      x: Math.round(fusionBoss.x), y: Math.round(fusionBoss.y), w: fusionBoss.w, h: fusionBoss.h,
+      hp: fusionBoss.hp, maxHp: fusionBoss.maxHp, dir: fusionBoss.dir, dead: fusionBoss.dead,
+      phase: fusionBoss.phase, frame: fusionBoss.frame,
+      charging: fusionBoss.charging, chargeVx: fusionBoss.chargeVx, mergeGlow: fusionBoss.mergeGlow,
+      _slamShock: fusionBoss._slamShock || 0
+    };
   }
+  // Mini-Bosses (full state)
   if (miniBosses.length > 0) {
     enemies.minis = miniBosses.map(mb => ({
-      x: Math.round(mb.x), y: Math.round(mb.y), hp: mb.hp, name: mb.name, dead: mb.dead, dir: mb.dir
+      x: Math.round(mb.x), y: Math.round(mb.y), w: mb.w, h: mb.h,
+      hp: mb.hp, maxHp: mb.maxHp, dead: mb.dead, dir: mb.dir,
+      name: mb.name, color: mb.color, frame: mb.frame, speed: mb.speed, vy: mb.vy,
+      _slamShock: mb._slamShock || 0,
+      _gravPull: mb._gravPull || null
     }));
   }
-  // Sync guard positions
-  enemies.guards = guards.filter(g => g.alive).map(g => ({ x: Math.round(g.x), y: Math.round(g.y), dir: g.dir }));
-  
+  // Boss Minions (dynamically spawned)
+  if (bossMinions.length > 0) {
+    enemies.bossMinions = bossMinions.map(m => ({
+      x: Math.round(m.x), y: Math.round(m.y), w: m.w, h: m.h,
+      hp: m.hp, maxHp: m.maxHp, dead: m.dead, dir: m.dir, speed: m.speed, frame: m.frame
+    }));
+  }
+  // Boss bullets
+  if (bullets.length > 0) {
+    enemies.bullets = bullets.map(b => ({
+      x: Math.round(b.x), y: Math.round(b.y), vx: b.vx, vy: b.vy, life: b.life
+    }));
+  }
+  // Epstein/boss projectiles
+  if (epsteinProjectiles.length > 0) {
+    enemies.epProj = epsteinProjectiles.map(ep => ({
+      x: Math.round(ep.x), y: Math.round(ep.y), vx: ep.vx, vy: ep.vy,
+      size: ep.size, rotation: ep.rotation, life: ep.life, imgIdx: ep.imgIdx
+    }));
+  }
+
   db.ref('rooms/' + currentRoom + '/enemies').set(enemies);
+}
+
+// Apply synced enemy data from host (guest only, called every frame)
+function applyEnemyData() {
+  if (!mpEnabled || isHost || !mpEnemyData) return;
+  const d = mpEnemyData;
+  // Apply guards
+  if (d.guards && guards.length > 0) {
+    for (let i = 0; i < d.guards.length && i < guards.length; i++) {
+      const sg = d.guards[i];
+      guards[i].x = sg.x; guards[i].y = sg.y; guards[i].dir = sg.dir;
+      guards[i].hp = sg.hp; guards[i].dead = sg.dead;
+      guards[i].alert = sg.alert; guards[i].frame = sg.frame;
+      guards[i].climbing = sg.climbing;
+    }
+  }
+  // Apply boss
+  if (d.boss) {
+    if (!boss) {
+      boss = { frameTimer: 0, phaseTriggered2: false, phaseTriggered3: false,
+        attackTimer: 0, currentAttack: 'shoot', summonCooldown: 300, shootCooldown: 50 };
+    }
+    boss.x = d.boss.x; boss.y = d.boss.y; boss.w = d.boss.w; boss.h = d.boss.h;
+    boss.hp = d.boss.hp; boss.maxHp = d.boss.maxHp; boss.dir = d.boss.dir;
+    boss.dead = d.boss.dead; boss.phase = d.boss.phase; boss.frame = d.boss.frame;
+    boss.charging = d.boss.charging; boss.slamming = d.boss.slamming;
+    boss.chargeVx = d.boss.chargeVx || 0; boss.alert = d.boss.alert;
+    boss.speed = d.boss.speed; boss.vy = d.boss.vy;
+    boss._slamShock = d.boss._slamShock || 0;
+  }
+  // Apply epstein
+  if (d.epstein) {
+    if (!epstein) {
+      epstein = { frameTimer: 0, phaseTriggered2: false, attackTimer: 0, shootCooldown: 40,
+        teleportCooldown: 200, speed: 2.5, vy: 0 };
+    }
+    epstein.x = d.epstein.x; epstein.y = d.epstein.y; epstein.w = d.epstein.w; epstein.h = d.epstein.h;
+    epstein.hp = d.epstein.hp; epstein.maxHp = d.epstein.maxHp; epstein.dir = d.epstein.dir;
+    epstein.dead = d.epstein.dead; epstein.phase = d.epstein.phase; epstein.frame = d.epstein.frame;
+    epstein.charging = d.epstein.charging; epstein.chargeVx = d.epstein.chargeVx || 0;
+  }
+  // Apply fusion boss
+  if (d.fusion) {
+    if (!fusionBoss) {
+      fusionBoss = { frameTimer: 0, phaseTriggered2: false, attackTimer: 0, shootCooldown: 30,
+        slamCooldown: 200, dashCooldown: 150, speed: 3, vy: 0 };
+    }
+    fusionBoss.x = d.fusion.x; fusionBoss.y = d.fusion.y; fusionBoss.w = d.fusion.w; fusionBoss.h = d.fusion.h;
+    fusionBoss.hp = d.fusion.hp; fusionBoss.maxHp = d.fusion.maxHp; fusionBoss.dir = d.fusion.dir;
+    fusionBoss.dead = d.fusion.dead; fusionBoss.phase = d.fusion.phase; fusionBoss.frame = d.fusion.frame;
+    fusionBoss.charging = d.fusion.charging; fusionBoss.chargeVx = d.fusion.chargeVx || 0;
+    fusionBoss.mergeGlow = d.fusion.mergeGlow || 0;
+    fusionBoss._slamShock = d.fusion._slamShock || 0;
+  }
+  // Apply mini-bosses
+  if (d.minis) {
+    while (miniBosses.length < d.minis.length) {
+      miniBosses.push({ frameTimer: 0, attackTimer: 0, shootCooldown: 60, vx: 0, vy: 0 });
+    }
+    for (let i = 0; i < d.minis.length; i++) {
+      const sm = d.minis[i];
+      miniBosses[i].x = sm.x; miniBosses[i].y = sm.y; miniBosses[i].w = sm.w; miniBosses[i].h = sm.h;
+      miniBosses[i].hp = sm.hp; miniBosses[i].maxHp = sm.maxHp; miniBosses[i].dead = sm.dead;
+      miniBosses[i].dir = sm.dir; miniBosses[i].name = sm.name; miniBosses[i].color = sm.color;
+      miniBosses[i].frame = sm.frame; miniBosses[i].speed = sm.speed;
+      miniBosses[i]._slamShock = sm._slamShock || 0;
+      miniBosses[i]._gravPull = sm._gravPull || null;
+    }
+  }
+  // Apply boss minions
+  if (d.bossMinions) {
+    while (bossMinions.length < d.bossMinions.length) bossMinions.push({ vy: 0, frameTimer: 0 });
+    while (bossMinions.length > d.bossMinions.length) bossMinions.pop();
+    for (let i = 0; i < d.bossMinions.length; i++) {
+      const sm = d.bossMinions[i];
+      bossMinions[i].x = sm.x; bossMinions[i].y = sm.y; bossMinions[i].w = sm.w; bossMinions[i].h = sm.h;
+      bossMinions[i].hp = sm.hp; bossMinions[i].maxHp = sm.maxHp; bossMinions[i].dead = sm.dead;
+      bossMinions[i].dir = sm.dir; bossMinions[i].frame = sm.frame;
+    }
+  } else {
+    bossMinions = [];
+  }
+  // Apply bullets (full replacement — guest moves them locally between syncs)
+  if (d.bullets) {
+    bullets = d.bullets.map(b => ({ x: b.x, y: b.y, vx: b.vx, vy: b.vy, life: b.life }));
+  } else {
+    bullets = [];
+  }
+  // Apply epstein projectiles
+  if (d.epProj) {
+    epsteinProjectiles = d.epProj.map(ep => ({
+      x: ep.x, y: ep.y, vx: ep.vx, vy: ep.vy,
+      size: ep.size, rotation: ep.rotation || 0, life: ep.life, imgIdx: ep.imgIdx
+    }));
+  } else {
+    epsteinProjectiles = [];
+  }
+}
+
+// Handle guest damage event on host
+function mpHandleDamageEvent(dmg) {
+  if (!dmg || !dmg.target) return;
+  const amt = cheats.oneHitKill ? 999 : (dmg.amount || 1);
+  if (dmg.target === 'guard' && typeof dmg.index === 'number' && dmg.index < guards.length && !guards[dmg.index].dead) {
+    const g = guards[dmg.index];
+    g.hp -= amt;
+    spawnParticles(g.x + g.w/2, g.y + g.h/2, '#ff4444', 8);
+    if (g.hp <= 0) { g.dead = true; spawnParticles(g.x + g.w/2, g.y + g.h/2, '#ffffff', 10); }
+  } else if (dmg.target === 'boss' && boss && !boss.dead) {
+    boss.hp -= amt;
+    spawnParticles(boss.x + boss.w/2, boss.y + boss.h/3, '#ff8800', 10);
+    shakeTimer = 6;
+    if (boss.hp <= 0) {
+      boss.dead = true; bossDeathTimer = 200; bullets = [];
+      shakeTimer = 60; screenFlash = 50; screenFlashColor = '#ffffff';
+      for (let w2 = 0; w2 < 5; w2++) {
+        const ox = (Math.random()-0.5)*boss.w*2; const oy = (Math.random()-0.5)*boss.h*2;
+        spawnParticles(boss.x+boss.w/2+ox, boss.y+boss.h/2+oy, '#ff4444', 20);
+      }
+      bossVfx.push({ type: 'ring', x: boss.x+boss.w/2, y: boss.y+boss.h/2, radius: 10, maxRadius: 500, life: 60, maxLife: 60, color: '#ff4444' });
+      bossVfx.push({ type: 'text', x: boss.x+boss.w/2, y: boss.y-20, text: 'DEFEATED!', life: 150, maxLife: 150, color: '#ffdd44' });
+    }
+  } else if (dmg.target === 'epstein' && epstein && !epstein.dead) {
+    epstein.hp -= amt;
+    spawnParticles(epstein.x + epstein.w/2, epstein.y + epstein.h/3, '#8844ff', 10);
+    shakeTimer = 6;
+    if (epstein.hp <= 0) {
+      epstein.dead = true; bossDeathTimer = 200; bullets = []; epsteinProjectiles = [];
+      shakeTimer = 60; screenFlash = 50; screenFlashColor = '#ffffff';
+      bossVfx.push({ type: 'ring', x: epstein.x+epstein.w/2, y: epstein.y+epstein.h/2, radius: 10, maxRadius: 500, life: 60, maxLife: 60, color: '#8844ff' });
+    }
+  } else if (dmg.target === 'fusion' && fusionBoss && !fusionBoss.dead) {
+    fusionBoss.hp -= amt;
+    spawnParticles(fusionBoss.x + fusionBoss.w/2, fusionBoss.y + fusionBoss.h/3, '#ff8844', 10);
+    shakeTimer = 6;
+    if (fusionBoss.hp <= 0) {
+      fusionBoss.dead = true; bossDeathTimer = 200; bullets = []; epsteinProjectiles = [];
+      shakeTimer = 60; screenFlash = 60; screenFlashColor = '#ffffff';
+      bossVfx.push({ type: 'ring', x: fusionBoss.x+fusionBoss.w/2, y: fusionBoss.y+fusionBoss.h/2, radius: 10, maxRadius: 600, life: 60, maxLife: 60, color: '#ff4400' });
+    }
+  } else if (dmg.target === 'mini' && typeof dmg.index === 'number' && dmg.index < miniBosses.length && !miniBosses[dmg.index].dead) {
+    const mb = miniBosses[dmg.index];
+    mb.hp -= amt;
+    spawnParticles(mb.x + mb.w/2, mb.y + mb.h/3, mb.color || '#ffffff', 10);
+    shakeTimer = 6;
+    if (mb.hp <= 0) {
+      mb.dead = true;
+      spawnParticles(mb.x+mb.w/2, mb.y+mb.h/2, mb.color||'#ffffff', 25);
+      bossVfx.push({ type: 'ring', x: mb.x+mb.w/2, y: mb.y+mb.h/2, radius: 10, maxRadius: 250, life: 30, maxLife: 30, color: mb.color||'#ffffff' });
+      bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y-20, text: mb.name+' DOWN!', life: 120, maxLife: 120, color: mb.color||'#fff' });
+    }
+  } else if (dmg.target === 'bossMinion' && typeof dmg.index === 'number' && dmg.index < bossMinions.length && !bossMinions[dmg.index].dead) {
+    const bm = bossMinions[dmg.index];
+    bm.hp -= amt;
+    spawnParticles(bm.x + bm.w/2, bm.y + bm.h/2, '#ff4444', 6);
+    if (bm.hp <= 0) { bm.dead = true; spawnParticles(bm.x+bm.w/2, bm.y+bm.h/2, '#ffffff', 8); }
+  }
+}
+
+// Guest sends damage event to host via Firebase
+function mpSendDamage(target, index, amount) {
+  if (!mpEnabled || isHost || !currentRoom) return;
+  db.ref('rooms/' + currentRoom + '/damageQueue').push({
+    target: target, index: index || 0, amount: amount || 1
+  });
 }
 
 // Get nearest player target for bosses (multiplayer-aware)
@@ -779,6 +1021,29 @@ function drawOtherPlayers() {
       ctx.fillRect(barX, barY, barW * hpPct, barH);
     }
     ctx.restore();
+    
+    // Draw other player's projectiles
+    if (rp.projectiles) {
+      ctx.save();
+      ctx.globalAlpha = 0.7;
+      for (const pj of rp.projectiles) {
+        // Move projectiles locally using velocity for smooth interpolation
+        pj.x += pj.vx;
+        pj.y += pj.vy;
+        pj.vy += 0.12;
+        const sz = pj.w || 28;
+        ctx.fillStyle = '#ffcc44';
+        ctx.beginPath();
+        ctx.arc(pj.x + sz/2, pj.y + sz/2, sz/2 * 0.7, 0, Math.PI * 2);
+        ctx.fill();
+        // Glow
+        ctx.fillStyle = 'rgba(255, 200, 50, 0.3)';
+        ctx.beginPath();
+        ctx.arc(pj.x + sz/2, pj.y + sz/2, sz/2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
   }
 }
 
@@ -2250,6 +2515,7 @@ function update() {
   if (mpEnabled && player) {
     syncMyPosition();
     if (isHost) syncEnemyData();
+    if (!isHost) applyEnemyData();
     // Immediately sync death (once, not every frame)
     if (!player.alive && state === 'dead' && !mpDeathSynced) {
       mpDeathSynced = true;
@@ -2790,11 +3056,23 @@ function update() {
   p.trail = p.trail.filter(t => { t.life--; return t.life > 0; });
 
   // ── Guards ──
+  const _mpHost = !mpEnabled || isHost;
   for (const g of guards) {
     if (g.dead) continue;
 
-    // Check if player is climbing the big wall - guards follow!
-    const playerOnWall = p.climbingBigWall || (bigWall && p.x >= bigWall.x - 100 && p.y < bigWall.y + bigWall.h - 100);
+    if (_mpHost) {
+    // Get nearest player target for this guard (multiplayer-aware)
+    const _gTarget = mpEnabled ? getNearestPlayerTarget(g.x + g.w/2, g.y + g.h/2) : p;
+    // Check if ANY player is climbing the big wall - guards follow!
+    let playerOnWall = _gTarget.climbingBigWall || (bigWall && _gTarget.x >= bigWall.x - 100 && _gTarget.y < bigWall.y + bigWall.h - 100);
+    if (!playerOnWall && mpEnabled) {
+      for (const _pid in roomPlayers) {
+        const _rp = roomPlayers[_pid];
+        if (_rp && _rp.alive && (_rp.climbingBigWall || (bigWall && _rp.x >= bigWall.x - 100 && _rp.y < bigWall.y + bigWall.h - 100))) {
+          playerOnWall = true; break;
+        }
+      }
+    }
 
     if (playerOnWall && bigWall && !g.climbing) {
       // Guard runs toward the wall
@@ -2810,16 +3088,15 @@ function update() {
     }
 
     if (g.climbing && bigWall) {
-      // Guard climbs the wall following the player
+      // Guard climbs the wall following nearest player
       g.x = bigWall.x - g.w - 5;
-      const targetY = Math.min(p.y + 80, GROUND_Y - g.h);
+      const targetY = Math.min(_gTarget.y + 80, GROUND_Y - g.h);
       if (g.y > targetY) {
         g.y -= 1.6;
       } else if (g.y < targetY - 20) {
         g.y += 0.5;
       }
       g.alert = true;
-      // Guards no longer shoot - only the boss shoots
     } else {
       // Normal patrol
       g.x += g.speed * g.dir;
@@ -2828,15 +3105,14 @@ function update() {
       }
       g.y = GROUND_Y - g.h;
 
-      // Alert if player nearby
-      const dist = Math.abs(p.x - g.x);
+      // Alert if nearest player nearby
+      const dist = Math.abs(_gTarget.x - g.x);
       if (dist < 150) {
         g.alert = true;
         g.alertTimer = 50;
-        if (p.x < g.x) g.dir = -1;
+        if (_gTarget.x < g.x) g.dir = -1;
         else g.dir = 1;
         g.speed = 1.8;
-        // Guards chase but don't shoot - only the boss shoots
       } else {
         if (g.alertTimer > 0) g.alertTimer--;
         else {
@@ -2849,8 +3125,9 @@ function update() {
     // Animation
     g.frameTimer++;
     if (g.frameTimer > 8) { g.frameTimer = 0; g.frame = (g.frame + 1) % 4; }
+    } // end _mpHost guard AI
 
-    // Damage player on touch (with iFrames)
+    // Damage player on touch (with iFrames) — ALL players
     if (p.iFrames <= 0 && rectsOverlap(p, g)) {
       p.hp--;
       p.iFrames = 40;
@@ -2866,13 +3143,16 @@ function update() {
     }
   }
 
-  // Remove dead guards
-  for (let i = guards.length - 1; i >= 0; i--) {
-    if (guards[i].dead) guards.splice(i, 1);
+  // Remove dead guards (single-player only — MP preserves array indices for sync)
+  if (!mpEnabled) {
+    for (let i = guards.length - 1; i >= 0; i--) {
+      if (guards[i].dead) guards.splice(i, 1);
+    }
   }
 
   // ── Boss Update ──
   if (boss && !boss.dead) {
+   if (_mpHost) {
     const bArenaW = 2400;
     const arenaLeft = bigWall.x + bigWall.w/2 - bArenaW/2;
     const arenaRight = arenaLeft + bArenaW;
@@ -2974,7 +3254,7 @@ function update() {
         // Charge attack every ~180 frames
         if (boss.attackTimer % 180 === 0 && Math.random() < 0.4) {
           boss.charging = true;
-          boss.chargeVx = (p.x < boss.x ? -1 : 1) * 8;
+          boss.chargeVx = (bossTarget.x < boss.x ? -1 : 1) * 8;
           spawnParticles(boss.x + boss.w/2, boss.y + boss.h/2, '#ff8800', 10);
         }
         
@@ -2983,7 +3263,7 @@ function update() {
         if (boss.shootCooldown <= 0) {
           boss.shootCooldown = 70 + Math.floor(Math.random() * 30);
           for (let angle = -0.3; angle <= 0.3; angle += 0.3) {
-            const baseDir = p.x < boss.x ? -1 : 1;
+            const baseDir = bossTarget.x < boss.x ? -1 : 1;
             bullets.push({ x: boss.x + boss.w/2, y: boss.y + boss.h/3, vx: baseDir * 4 * Math.cos(angle), vy: 4 * Math.sin(angle), life: 120 });
           }
           spawnParticles(boss.x + boss.w/2, boss.y + boss.h/3, '#ffaa00', 6);
@@ -3083,15 +3363,6 @@ function update() {
           spawnParticles(impactX, boss.y + boss.h * Math.random(), '#999', 2);
         }
       }
-      // Player knocked back by charge
-      if (p.iFrames <= 0 && rectsOverlap(p, boss)) {
-        p.hp -= 1;
-        p.iFrames = 60;
-        p.vx = boss.chargeVx * 0.8;
-        p.vy = -8;
-        shakeTimer = 12;
-        spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4444', 15);
-      }
     }
 
     // Slam landing
@@ -3105,20 +3376,12 @@ function update() {
             shakeTimer = 25;
             screenFlash = 12;
             screenFlashColor = '#ff440088';
+            boss._slamShock = 25; // Flag for ALL players to check outside gate
             // Shockwave rings
             bossVfx.push({ type: 'ring', x: boss.x + boss.w/2, y: boss.y + boss.h, radius: 5, maxRadius: 300, life: 30, maxLife: 30, color: '#ff4400' });
             bossVfx.push({ type: 'ring', x: boss.x + boss.w/2, y: boss.y + boss.h, radius: 5, maxRadius: 200, life: 25, maxLife: 25, color: '#ff8800' });
             // Ground crack lines
             bossVfx.push({ type: 'crack', x: boss.x + boss.w/2, y: boss.y + boss.h, life: 60, maxLife: 60 });
-            // Shockwave damage
-            const shockRange = 250;
-            if (Math.abs(p.x - boss.x) < shockRange && p.y > boss.y - 50 && p.iFrames <= 0) {
-              p.hp -= 1;
-              p.iFrames = 30;
-              p.vy = -12;
-              p.vx = (p.x < boss.x ? -1 : 1) * 8;
-              spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4444', 15);
-            }
             // Visual shockwave particles - way more
             for (let sx = -shockRange; sx <= shockRange; sx += 12) {
               spawnParticles(boss.x + boss.w/2 + sx, boss.y + boss.h, '#ff8800', 3);
@@ -3132,9 +3395,33 @@ function update() {
         }
       }
     }
+   } // end _mpHost boss AI
 
-    // Normal contact damage (when not charging)
-    if (!boss.charging && p.iFrames <= 0 && rectsOverlap(p, boss)) {
+    // Boss slam shockwave damage — ALL players
+    if (boss._slamShock > 0) {
+      boss._slamShock--;
+      if (boss._slamShock > 20) { // Only damage on first few frames
+        shakeTimer = Math.max(shakeTimer, boss._slamShock);
+        const shockRange2 = 250;
+        if (Math.abs(p.x - boss.x) < shockRange2 && p.y > boss.y - 50 && p.iFrames <= 0) {
+          p.hp -= 1;
+          p.iFrames = 30;
+          p.vy = -12;
+          p.vx = (p.x < boss.x ? -1 : 1) * 8;
+          spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4444', 15);
+        }
+      }
+    }
+
+    // Boss contact damage — ALL players (guest uses synced positions)
+    if (boss.charging && p.iFrames <= 0 && rectsOverlap(p, boss)) {
+      p.hp -= 1;
+      p.iFrames = 60;
+      p.vx = (boss.chargeVx || boss.dir * 8) * 0.8;
+      p.vy = -8;
+      shakeTimer = 12;
+      spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4444', 15);
+    } else if (!boss.charging && p.iFrames <= 0 && rectsOverlap(p, boss)) {
       p.hp -= 1;
       p.iFrames = 40;
       p.vx = (p.x < boss.x ? -1 : 1) * 5;
@@ -3160,6 +3447,7 @@ function update() {
   const mArenaFloorY = mArenaTopY + mArenaH;
   for (const m of bossMinions) {
     if (m.dead) continue;
+    if (_mpHost) {
     // Gravity for minions
     if (m.vy === undefined || m.vy === null) m.vy = 0;
     m.vy += GRAVITY;
@@ -3198,7 +3486,8 @@ function update() {
     if (m.x + m.w > mArenaRight - 20) m.x = mArenaRight - m.w - 20;
     m.frameTimer++;
     if (m.frameTimer > 8) { m.frameTimer = 0; m.frame = (m.frame + 1) % 4; }
-    // Damage player
+    } // end _mpHost boss minion AI
+    // Damage player — ALL players
     if (p.iFrames <= 0 && rectsOverlap(p, m)) {
       p.hp--;
       p.iFrames = 35;
@@ -3211,9 +3500,11 @@ function update() {
       }
     }
   }
-  // Remove dead minions
-  for (let i = bossMinions.length - 1; i >= 0; i--) {
-    if (bossMinions[i].dead) bossMinions.splice(i, 1);
+  // Remove dead minions (single-player only — MP preserves indices for sync)
+  if (!mpEnabled) {
+    for (let i = bossMinions.length - 1; i >= 0; i--) {
+      if (bossMinions[i].dead) bossMinions.splice(i, 1);
+    }
   }
 
   // ── Projectiles (player throws) ──
@@ -3234,6 +3525,65 @@ function update() {
 
     // Hit guards
     let hit = false;
+    // ── GUEST: simplified collision (VFX + send damage to host) ──
+    if (mpEnabled && !isHost) {
+      for (let gi = 0; gi < guards.length; gi++) {
+        const gg = guards[gi];
+        if (gg.dead) continue;
+        if (rectsOverlap(proj, gg)) {
+          spawnParticles(gg.x + gg.w/2, gg.y + gg.h/3, '#ffaa00', 8);
+          shakeTimer = 5;
+          mpSendDamage('guard', gi, 1);
+          hit = true; break;
+        }
+      }
+      if (!hit && boss && !boss.dead && rectsOverlap(proj, boss)) {
+        spawnParticles(boss.x + boss.w/2, boss.y + boss.h/3, '#ff6600', 12);
+        shakeTimer = 8;
+        mpSendDamage('boss', 0, 1);
+        hit = true;
+      }
+      if (!hit && epstein && !epstein.dead && rectsOverlap(proj, epstein)) {
+        spawnParticles(epstein.x + epstein.w/2, epstein.y + epstein.h/3, '#8844ff', 12);
+        shakeTimer = 8;
+        mpSendDamage('epstein', 0, 1);
+        hit = true;
+      }
+      if (!hit && fusionBoss && !fusionBoss.dead && rectsOverlap(proj, fusionBoss)) {
+        spawnParticles(fusionBoss.x + fusionBoss.w/2, fusionBoss.y + fusionBoss.h/3, '#ff8844', 12);
+        shakeTimer = 8;
+        mpSendDamage('fusion', 0, 1);
+        hit = true;
+      }
+      if (!hit && miniBosses.length > 0) {
+        for (let mi = 0; mi < miniBosses.length; mi++) {
+          const mmb = miniBosses[mi];
+          if (mmb.dead) continue;
+          if (mmb.name === 'HAWKING' && state === 'hawkingDeath') continue;
+          if (rectsOverlap(proj, mmb)) {
+            spawnParticles(mmb.x + mmb.w/2, mmb.y + mmb.h/3, mmb.color, 10);
+            shakeTimer = 6;
+            mpSendDamage('mini', mi, 1);
+            hit = true; break;
+          }
+        }
+      }
+      if (!hit) {
+        for (let bi = 0; bi < bossMinions.length; bi++) {
+          const bm2 = bossMinions[bi];
+          if (bm2.dead) continue;
+          if (rectsOverlap(proj, bm2)) {
+            spawnParticles(bm2.x + bm2.w/2, bm2.y + bm2.h/3, '#ffaa00', 8);
+            shakeTimer = 4;
+            mpSendDamage('bossMinion', bi, 1);
+            hit = true; break;
+          }
+        }
+      }
+      if (hit || proj.life <= 0) { projectiles.splice(i, 1); }
+      continue;
+    }
+    // ── HOST/SINGLE-PLAYER: full collision + damage + death handling ──
     for (const g of guards) {
       if (g.dead) continue;
       if (rectsOverlap(proj, g)) {
@@ -3590,6 +3940,7 @@ function update() {
 
   // ── Epstein Boss Update ──
   if (epstein && !epstein.dead && state === 'epsteinfight') {
+   if (_mpHost) {
     const bArenaW3 = 2400;
     const arenaLeft = bigWall.x + bigWall.w/2 - bArenaW3/2;
     const arenaRight = arenaLeft + bArenaW3;
@@ -3703,7 +4054,7 @@ function update() {
         // Teleport behind player
         spawnParticles(epstein.x + epstein.w/2, epstein.y + epstein.h/2, '#8844ff', 20);
         bossVfx.push({ type: 'ring', x: epstein.x+epstein.w/2, y: epstein.y+epstein.h/2, radius: 5, maxRadius: 100, life: 15, maxLife: 15, color: '#8844ff' });
-        epstein.x = p.x + (Math.random() > 0.5 ? 150 : -150);
+        epstein.x = epTarget.x + (Math.random() > 0.5 ? 150 : -150);
         epstein.x = Math.max(arenaLeft + 40, Math.min(arenaRight - epstein.w - 40, epstein.x));
         spawnParticles(epstein.x + epstein.w/2, epstein.y + epstein.h/2, '#ff44ff', 20);
         bossVfx.push({ type: 'ring', x: epstein.x+epstein.w/2, y: epstein.y+epstein.h/2, radius: 5, maxRadius: 120, life: 15, maxLife: 15, color: '#ff44ff' });
@@ -3712,7 +4063,9 @@ function update() {
       }
     }
 
-    // Contact damage
+   } // end _mpHost epstein AI
+
+    // Contact damage — ALL players
     if (p.iFrames <= 0 && rectsOverlap(p, epstein)) {
       p.hp -= 1;
       p.iFrames = 45;
@@ -3775,6 +4128,7 @@ function update() {
 
   // ── FUSION BOSS UPDATE ──
   if (fusionBoss && !fusionBoss.dead && state === 'fusionfight') {
+   if (_mpHost) {
     const bArenaW = 2400;
     const arenaLeft = bigWall.x + bigWall.w/2 - bArenaW/2;
     const arenaRight = arenaLeft + bArenaW;
@@ -3879,15 +4233,8 @@ function update() {
         screenFlash = 8;
         screenFlashColor = '#ff440044';
         bossVfx.push({ type: 'ring', x: fb.x+fb.w/2, y: fb.y+fb.h, radius: 10, maxRadius: 400, life: 25, maxLife: 25, color: '#ff4400' });
-        // Shockwave damages player if on ground nearby
-        if (p.onGround && Math.abs(p.x - fb.x) < 300) {
-          if (p.iFrames <= 0) {
-            p.hp--;
-            p.iFrames = 45;
-            p.vy = -10;
-            spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4400', 10);
-          }
-        }
+        // Set slam shock flag for ALL players to check outside gate
+        fusionBoss._slamShock = 25;
       }, 600);
     }
 
@@ -3909,14 +4256,30 @@ function update() {
       }
     }
 
-    // Contact damage
-    if (p.iFrames <= 0 && rectsOverlap(p, fb)) {
+   } // end _mpHost fusion AI
+
+    // Contact damage — ALL players
+    if (p.iFrames <= 0 && rectsOverlap(p, fusionBoss)) {
       p.hp -= 2;
       p.iFrames = 50;
-      p.vx = (p.x < fb.x ? -1 : 1) * 8;
+      p.vx = (p.x < fusionBoss.x ? -1 : 1) * 8;
       p.vy = -8;
       shakeTimer = 12;
       spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4400', 12);
+    }
+
+    // Fusion slam shockwave damage — ALL players
+    if (fusionBoss._slamShock > 0) {
+      fusionBoss._slamShock--;
+      if (fusionBoss._slamShock > 20) {
+        shakeTimer = Math.max(shakeTimer, fusionBoss._slamShock);
+        if (p.onGround && Math.abs(p.x - fusionBoss.x) < 300 && p.iFrames <= 0) {
+          p.hp--;
+          p.iFrames = 45;
+          p.vy = -10;
+          spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4400', 10);
+        }
+      }
     }
 
     if (p.hp <= 0) {
@@ -4030,6 +4393,7 @@ function update() {
       if (!mb.specialTimer) mb.specialTimer = 0;
       mb.specialTimer++;
 
+      if (_mpHost) {
       // Gravity
       mb.vy += GRAVITY * 0.8;
       mb.y += mb.vy;
@@ -4091,13 +4455,8 @@ function update() {
                 });
               }
             }
-            const shockDist = Math.abs(p.x - mb.x);
-            if (shockDist < 250 && p.iFrames <= 0 && Math.abs(p.y + p.h - (mb.y + mb.h)) < 60) {
-              p.hp -= 3;
-              p.iFrames = 45;
-              p.vy = -10;
-              spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4400', 12);
-            }
+            // Trump slam shockwave — flag for ALL players
+            mb._slamShock = 25;
           }, 350);
         }
         // Rage roar — speed boost + rapid fire burst every 400 frames
@@ -4136,7 +4495,7 @@ function update() {
             });
           }
           // Teleport to random arena position near player
-          const teleX = p.x + (Math.random() > 0.5 ? 1 : -1) * (120 + Math.random() * 200);
+          const teleX = mbTarget.x + (Math.random() > 0.5 ? 1 : -1) * (120 + Math.random() * 200);
           mb.x = Math.max(arenaLeft + 30, Math.min(arenaRight - mb.w - 30, teleX));
           mb.y = Math.max(arenaTop + 50, mb.y - 100 - Math.random() * 100);
           mb.vy = 0;
@@ -4193,7 +4552,7 @@ function update() {
         if (mb.specialTimer % 250 === 0) {
           bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y - 30, text: 'DRONE STRIKE!', life: 60, maxLife: 60, color: '#4488ff' });
           for (let ds = 0; ds < 6; ds++) {
-            const dropX = p.x - 150 + ds * 60 + (Math.random()-0.5)*30;
+            const dropX = mbTarget.x - 150 + ds * 60 + (Math.random()-0.5)*30;
             epsteinProjectiles.push({
               x: dropX, y: arenaTop + 20,
               vx: (Math.random()-0.5)*1.5, vy: 5 + Math.random()*2,
@@ -4224,9 +4583,9 @@ function update() {
         // Backstab teleport every 160 frames
         if (mb.specialTimer % 160 === 0) {
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#cc2222', 18);
-          const behindX = p.x + (p.dir > 0 ? -90 : p.w + 50);
+          const behindX = mbTarget.x + ((mbTarget.facing||1) > 0 ? -90 : (mbTarget.w||52) + 50);
           mb.x = Math.max(arenaLeft + 20, Math.min(arenaRight - mb.w - 20, behindX));
-          mb.y = p.y - 15;
+          mb.y = mbTarget.y - 15;
           mb.vy = 0;
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#cc2222', 18);
           bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y - 20, text: 'NOTHING HAPPENED', life: 50, maxLife: 50, color: '#cc2222' });
@@ -4234,7 +4593,7 @@ function update() {
           // Immediate backstab shot
           epsteinProjectiles.push({
             x: mb.x + mb.w/2, y: mb.y + mb.h/3,
-            vx: (p.x < mb.x ? -1 : 1) * 6, vy: 0,
+            vx: (mbTarget.x < mb.x ? -1 : 1) * 6, vy: 0,
             life: 60, rotation: 0, size: 28, imgIdx: 4,
           });
         }
@@ -4276,19 +4635,12 @@ function update() {
             imgIdx: 4, homing: true,
           });
         }
-        // Gravity well
+        // Gravity well — stores pull data for ALL players to check
         const gravInterval = isPhase2 ? 150 : (hawkingAlone ? 250 : 400);
         if (mb.specialTimer % gravInterval === 0) {
           bossVfx.push({ type: 'ring', x: mb.x+mb.w/2, y: mb.y+mb.h/2, radius: 300, maxRadius: 10, life: 40, maxLife: 40, color: '#44ff88' });
           bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y - 30, text: isPhase2 ? 'BLACK HOLE' : 'SINGULARITY', life: 60, maxLife: 60, color: '#44ff88' });
-          const pullDx = (mb.x + mb.w/2) - (p.x + p.w/2);
-          const pullDy = (mb.y + mb.h/2) - (p.y + p.h/2);
-          const pullDist = Math.sqrt(pullDx*pullDx + pullDy*pullDy) || 1;
-          const pullStr = isPhase2 ? 6 : 4;
-          if (pullDist < (isPhase2 ? 700 : 500)) {
-            p.vx += (pullDx / pullDist) * pullStr;
-            p.vy += (pullDy / pullDist) * (pullStr - 1);
-          }
+          mb._gravPull = { active: 40, str: isPhase2 ? 6 : 4, range: isPhase2 ? 700 : 500 };
           shakeTimer = isPhase2 ? 15 : 10;
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#44ff88', 25);
         }
@@ -4307,14 +4659,17 @@ function update() {
         if (isPhase2 && mb.specialTimer % 200 === 0) {
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#44ff88', 20);
           bossVfx.push({ type: 'ring', x: mb.x+mb.w/2, y: mb.y+mb.h/2, radius: 10, maxRadius: 200, life: 20, maxLife: 20, color: '#44ff88' });
-          mb.x = p.x + (Math.random() > 0.5 ? 200 : -200 - mb.w);
+          const _warpTarget = mpEnabled ? getNearestPlayerTarget(mb.x + mb.w/2, mb.y + mb.h/2) : p;
+          mb.x = _warpTarget.x + (Math.random() > 0.5 ? 200 : -200 - mb.w);
           mb.x = Math.max(arenaLeft + 20, Math.min(arenaRight - mb.w - 20, mb.x));
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#44ff88', 20);
           bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y-30, text: 'WORMHOLE', life: 40, maxLife: 40, color: '#44ff88' });
         }
       }
 
-      // Contact damage
+      } // end _mpHost mini-boss AI
+
+      // Contact damage — ALL players
       const contactDmg = (mb.name === 'HAWKING' && hawkingAlone) ? (hawkingPhase2 ? 3 : 2) : 1;
       if (p.iFrames <= 0 && rectsOverlap(p, mb)) {
         p.hp -= contactDmg;
@@ -4324,13 +4679,41 @@ function update() {
         shakeTimer = 8;
         spawnParticles(p.x + p.w/2, p.y + p.h/2, mb.color, 8);
       }
+
+      // Hawking gravity well pull — ALL players
+      if (mb.name === 'HAWKING' && mb._gravPull && mb._gravPull.active > 0) {
+        mb._gravPull.active--;
+        const gpDx = (mb.x + mb.w/2) - (p.x + p.w/2);
+        const gpDy = (mb.y + mb.h/2) - (p.y + p.h/2);
+        const gpDist = Math.sqrt(gpDx*gpDx + gpDy*gpDy) || 1;
+        if (gpDist < mb._gravPull.range) {
+          p.vx += (gpDx / gpDist) * mb._gravPull.str * 0.15;
+          p.vy += (gpDy / gpDist) * (mb._gravPull.str - 1) * 0.15;
+        }
+      }
+
+      // Trump/mini-boss slam shockwave — ALL players
+      if (mb._slamShock > 0) {
+        mb._slamShock--;
+        if (mb._slamShock > 20) {
+          shakeTimer = Math.max(shakeTimer, mb._slamShock);
+          const shockDist = Math.abs(p.x - mb.x);
+          if (shockDist < 250 && p.iFrames <= 0 && Math.abs(p.y + p.h - (mb.y + mb.h)) < 60) {
+            p.hp -= 3;
+            p.iFrames = 45;
+            p.vy = -10;
+            spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4400', 12);
+          }
+        }
+      }
     }
 
-    // Homing projectile tracking
+    // Homing projectile tracking — target nearest player
     for (const proj of epsteinProjectiles) {
       if (proj.homing && proj.life > 30) {
-        const hdx = p.x + p.w/2 - proj.x;
-        const hdy = p.y + p.h/2 - proj.y;
+        const _homingTarget = mpEnabled ? getNearestPlayerTarget(proj.x, proj.y) : p;
+        const hdx = _homingTarget.x + (_homingTarget.w||52)/2 - proj.x;
+        const hdy = _homingTarget.y + (_homingTarget.h||80)/2 - proj.y;
         const hdist = Math.sqrt(hdx*hdx + hdy*hdy) || 1;
         proj.vx += (hdx / hdist) * 0.15;
         proj.vy += (hdy / hdist) * 0.15;

@@ -1,0 +1,49 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": true,
+        ".write": "auth != null && auth.uid === $uid",
+        "friends": {
+          "$friendUid": {
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $friendUid)"
+          }
+        },
+        "friendRequests": {
+          "$fromUid": {
+            ".write": "auth != null && (auth.uid === $fromUid || auth.uid === $uid)"
+          }
+        },
+        "blocked": {
+          ".write": "auth != null && auth.uid === $uid"
+        },
+        "online": {
+          ".write": "auth != null && auth.uid === $uid"
+        },
+        "lastSeen": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+    "rooms": {
+      ".read": true,
+      "$roomId": {
+        ".write": true,
+        "players": {
+          "$playerId": {
+            ".write": true
+          }
+        },
+        "chat": {
+          ".write": true
+        },
+        "enemies": {
+          ".write": true
+        },
+        "state": {
+          ".write": true
+        }
+      }
+    }
+  }
+}
