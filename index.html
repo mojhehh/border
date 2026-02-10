@@ -3332,9 +3332,11 @@ function update() {
   // so double jumps aren't missed when down→up happens within one frame
   if (touchJumpQueued) p.prevUp = false;
 
-  // After reading touch state, reset to actual joystick-up state only
-  // This ensures prevUp can go false between jumps for proper rising edge detection
-  touchControls.up = moveJoystick.inJumpUp;
+  // After reading touch state, reset for rising edge detection.
+  // Reset inJumpUp so holding the stick up doesn't keep triggering jumps,
+  // but re-derive continuous 'up' from joystick position for wall climbing.
+  moveJoystick.inJumpUp = false;
+  touchControls.up = (moveJoystick.active && moveJoystick.dy < MOVE_JUMP_THRESHOLD);
   touchJumpQueued = false;
 
   // Horizontal movement
