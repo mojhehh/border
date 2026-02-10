@@ -297,6 +297,49 @@ let authSuccessMsg = '';      // green success messages
 let friendsBackTo = 'main';  // where to go when leaving friends screen
 let mpDeathSynced = false;    // prevent spamming death sync every frame
 let mpDamageQueueRef = null;  // Firebase ref for guest damage events
+let mpSpectating = false;     // true when local player is dead but spectating others
+let mpSpectateTarget = null;  // uid of the player being spectated
+let mpSpectateIndex = 0;      // index into alive player list for cycling
+
+// Check if other MP players are still alive
+function getAlivePlayerList() {
+  const alive = [];
+  const uid = myUid();
+  for (const pid in roomPlayers) {
+    if (pid === uid) continue;
+    const rp = roomPlayers[pid];
+    if (rp && rp.alive && rp.hp > 0) alive.push({ uid: pid, ...rp });
+  }
+  return alive;
+}
+
+// Handle player death — spectate in MP, game over in solo
+function handlePlayerDeath() {
+  const p = player;
+  p.alive = false;
+  p.hp = 0;
+  p.iFrames = 99999; // prevent all further damage checks
+  shakeTimer = 15;
+  spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4444', 25);
+  restartCooldown = 40;
+  if (mpEnabled) {
+    syncMyPositionImmediate();
+    mpDeathSynced = true;
+    const alive = getAlivePlayerList();
+    if (alive.length > 0) {
+      // Enter spectator mode
+      mpSpectating = true;
+      mpSpectateIndex = 0;
+      mpSpectateTarget = alive[0].uid;
+    } else {
+      // All players dead
+      state = 'dead';
+      mpSpectating = false;
+    }
+  } else {
+    state = 'dead';
+  }
+}
 
 // ── Text Input System ──  
 let activeTextInput = null;   // which input is active: 'username'|'password'|'confirm'|'chat'|'roomcode'|'friendadd'|null
@@ -651,6 +694,9 @@ async function leaveRoom() {
   mpEnemySyncTimer = 0;
   mpEnemyData = {};
   mpDeathSynced = false;
+  mpSpectating = false;
+  mpSpectateTarget = null;
+  mpSpectateIndex = 0;
   menuState = 'multiplayer';
   mpMenuSelection = 0;
 }
@@ -777,6 +823,7 @@ function syncEnemyData() {
       x: Math.round(mb.x), y: Math.round(mb.y), w: mb.w, h: mb.h,
       hp: mb.hp, maxHp: mb.maxHp, dead: mb.dead, dir: mb.dir,
       name: mb.name, color: mb.color, frame: mb.frame, speed: mb.speed, vy: mb.vy,
+      imgKey: mb.imgKey,
       _slamShock: mb._slamShock || 0,
       _gravPull: mb._gravPull || null
     }));
@@ -882,6 +929,7 @@ function applyEnemyData() {
       miniBosses[i].hp = sm.hp; miniBosses[i].maxHp = sm.maxHp; miniBosses[i].dead = sm.dead;
       miniBosses[i].dir = sm.dir; miniBosses[i].name = sm.name; miniBosses[i].color = sm.color;
       miniBosses[i].frame = sm.frame; miniBosses[i].speed = sm.speed;
+      if (sm.imgKey) miniBosses[i].imgKey = sm.imgKey;
       miniBosses[i]._slamShock = sm._slamShock || 0;
       miniBosses[i]._gravPull = sm._gravPull || null;
     }
@@ -916,7 +964,7 @@ function applyEnemyData() {
   }
   // Apply game state + cutscene/dialogue sync from host
   if (d.gameState) {
-    const syncStates = ['cutscene','bossfight','bossdialogue','phonecall','epsteinfight','fusioncutscene','fusionfight','splitfight','hawkingRefusal','hawkingDeath','won'];
+    const syncStates = ['cutscene','bossfight','bossdialogue','phonecall','epsteinfight','fusioncutscene','fusionfight','splitfight','hawkingRefusal','hawkingDeath'];
     if (syncStates.includes(d.gameState) && state !== d.gameState) {
       const oldState = state;
       // First time entering cutscene — set up cutscene.active so rendering works
@@ -1576,6 +1624,22 @@ window.addEventListener('keydown', e => {
     return;
   }
   
+  // Spectator controls — cycle through alive players
+  if (mpSpectating) {
+    const alive = getAlivePlayerList();
+    if (alive.length > 0) {
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+        mpSpectateIndex = (mpSpectateIndex - 1 + alive.length) % alive.length;
+        mpSpectateTarget = alive[mpSpectateIndex].uid;
+      }
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+        mpSpectateIndex = (mpSpectateIndex + 1) % alive.length;
+        mpSpectateTarget = alive[mpSpectateIndex].uid;
+      }
+    }
+    return; // block all other input while spectating
+  }
+
   if ((e.code === 'Space' || e.code === 'Enter') && (state === 'cutscene' || state === 'bossdialogue')) {
     if (mpEnabled && !isHost) { mpSendCutsceneEvent('advance'); }
     else { advanceCutscene(); }
@@ -2036,6 +2100,20 @@ canvas.addEventListener('touchstart', e => {
 
     // Gameplay touch controls — dual joystick + jump button
     if (state === 'playing' || state === 'intro' || state === 'bossfight' || state === 'epsteinfight' || state === 'fusionfight' || state === 'splitfight') {
+      // Spectator touch — tap left/right half to cycle players
+      if (mpSpectating) {
+        const alive = getAlivePlayerList();
+        if (alive.length > 0) {
+          if (cx < W / 2) {
+            mpSpectateIndex = (mpSpectateIndex - 1 + alive.length) % alive.length;
+          } else {
+            mpSpectateIndex = (mpSpectateIndex + 1) % alive.length;
+          }
+          mpSpectateTarget = alive[mpSpectateIndex].uid;
+        }
+        return;
+      }
+
       // Jump button (right side, above aim)
       if (isInJumpButton(cx, cy)) {
         jumpTouchId = t.identifier;
@@ -2422,6 +2500,9 @@ function startGame() {
   cameraX = 0;
   cameraY = 0;
   mpDeathSynced = false;
+  mpSpectating = false;
+  mpSpectateTarget = null;
+  mpSpectateIndex = 0;
   // Boss starts hidden - spawns after cutscene at wall top
   boss = null;
   bossMinions = [];
@@ -2526,6 +2607,7 @@ function advanceCutscene() {
 
 // ── Throw Projectile ──
 function throwProjectile() {
+  if (!player.alive) return;
   if (state === 'hawkingDeath' || state === 'hawkingRefusal') return;
   const p = player;
   if (p.throwCooldown > 0 && !cheats.noCooldown) return;
@@ -3006,7 +3088,8 @@ function update() {
     spawnParticles(p.x + p.w/2, p.y + p.h/2, '#44ff88', 3);
   }
 
-  // Input
+  // Input — skip if dead (spectating)
+  if (p.alive) {
   const left = keys['ArrowLeft'] || keys['KeyA'] || touchControls.left;
   const right = keys['ArrowRight'] || keys['KeyD'] || touchControls.right;
   const up = keys['ArrowUp'] || keys['KeyW'] || keys['Space'] || touchControls.up;
@@ -3173,6 +3256,7 @@ function update() {
     p.trail.push({ x: p.x + p.w / 2, y: p.y + p.h / 2, life: 10 });
   }
   p.trail = p.trail.filter(t => { t.life--; return t.life > 0; });
+  } // end if (p.alive) — player input/physics
 
   // ── Guards ──
   const _mpHost = !mpEnabled || isHost;
@@ -3253,11 +3337,7 @@ function update() {
       shakeTimer = 10;
       spawnParticles(p.x + p.w / 2, p.y + p.h / 2, '#ff4444', 10);
       if (p.hp <= 0) {
-        state = 'dead';
-        p.alive = false;
-        shakeTimer = 15;
-        spawnParticles(p.x + p.w / 2, p.y + p.h / 2, '#ff4444', 20);
-        restartCooldown = 40;
+        handlePlayerDeath();
       }
     }
   }
@@ -3551,11 +3631,7 @@ function update() {
 
     // Boss death check
     if (p.hp <= 0) {
-      state = 'dead';
-      p.alive = false;
-      shakeTimer = 15;
-      spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4444', 25);
-      restartCooldown = 40;
+      handlePlayerDeath();
     }
   }
 
@@ -3613,9 +3689,7 @@ function update() {
       shakeTimer = 6;
       spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4444', 8);
       if (p.hp <= 0) {
-        state = 'dead'; p.alive = false; shakeTimer = 15;
-        spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4444', 20);
-        restartCooldown = 40;
+        handlePlayerDeath();
       }
     }
   }
@@ -3628,7 +3702,7 @@ function update() {
 
   // ── Projectiles (player throws) ──
   if (p.throwCooldown > 0) p.throwCooldown--;
-  if (p.iFrames > 0) p.iFrames--;
+  if (p.iFrames > 0 && p.alive) p.iFrames--;
 
   // Auto-fire while touch aim joystick is active
   if (touchAim.active && p.throwCooldown <= 0 && p.alive) {
@@ -3916,11 +3990,7 @@ function update() {
       spawnParticles(p.x + p.w / 2, p.y + p.h / 2, '#ff4444', 8);
       bullets.splice(i, 1);
       if (p.hp <= 0) {
-        state = 'dead';
-        p.alive = false;
-        shakeTimer = 15;
-        spawnParticles(p.x + p.w / 2, p.y + p.h / 2, '#ff4444', 20);
-        restartCooldown = 40;
+        handlePlayerDeath();
       }
       continue;
     }
@@ -3967,6 +4037,33 @@ function update() {
   
   // Faster lerp in arena for responsive tracking
   const camSpeed = inArenaState ? 0.15 : 0.1;
+  
+  // Spectator camera — follow spectated player
+  if (mpSpectating && mpSpectateTarget && roomPlayers[mpSpectateTarget]) {
+    const sp = roomPlayers[mpSpectateTarget];
+    // Check if target is still alive
+    if (!sp.alive || sp.hp <= 0) {
+      // Find next alive player
+      const alive = getAlivePlayerList();
+      if (alive.length > 0) {
+        mpSpectateIndex = mpSpectateIndex % alive.length;
+        mpSpectateTarget = alive[mpSpectateIndex].uid;
+      } else {
+        // All players dead
+        mpSpectating = false;
+        state = 'dead';
+      }
+    }
+    if (mpSpectating && roomPlayers[mpSpectateTarget]) {
+      const sp2 = roomPlayers[mpSpectateTarget];
+      targetCamX = sp2.x + 26 - W / 2;
+      if (inArenaState) {
+        const targetCamY2 = sp2.y - H * 0.5 + 40;
+        cameraY += (targetCamY2 - cameraY) * 0.12;
+      }
+    }
+  }
+  
   cameraX += (targetCamX - cameraX) * camSpeed;
   if (cameraX < 0) cameraX = 0;
   if (cameraX > levelWidth - W) cameraX = levelWidth - W;
@@ -4195,9 +4292,7 @@ function update() {
     }
 
     if (p.hp <= 0) {
-      state = 'dead'; p.alive = false; shakeTimer = 15;
-      spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4444', 25);
-      restartCooldown = 40;
+      handlePlayerDeath();
     }
   }
 
@@ -4216,9 +4311,7 @@ function update() {
       spawnParticles(p.x + p.w/2, p.y + p.h/2, '#8844ff', 8);
       epsteinProjectiles.splice(i, 1);
       if (p.hp <= 0) {
-        state = 'dead'; p.alive = false; shakeTimer = 15;
-        spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4444', 20);
-        restartCooldown = 40;
+        handlePlayerDeath();
       }
       continue;
     }
@@ -4402,9 +4495,7 @@ function update() {
     }
 
     if (p.hp <= 0) {
-      state = 'dead'; p.alive = false; shakeTimer = 15;
-      spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4444', 25);
-      restartCooldown = 40;
+      handlePlayerDeath();
     }
   }
 
@@ -4843,9 +4934,7 @@ function update() {
     }
 
     if (p.hp <= 0) {
-      state = 'dead'; p.alive = false; shakeTimer = 15;
-      spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4444', 25);
-      restartCooldown = 40;
+      handlePlayerDeath();
     }
 
     // Check if all mini-bosses dead → VICTORY
@@ -11662,6 +11751,36 @@ function draw() {
     ctx.font = '14px monospace';
     const blink = Math.sin(Date.now() / 300) > 0;
     if (blink) ctx.fillText('[ Press SPACE → Main Menu ]', W / 2, H / 2 + 60);
+  }
+
+  // Spectator overlay
+  if (mpSpectating) {
+    ctx.fillStyle = '#00000066';
+    ctx.fillRect(0, 0, W, 50);
+    ctx.fillRect(0, H - 40, W, 40);
+
+    // Top bar — "SPECTATING" label + player name
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ff6666';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText('☠ YOU DIED — SPECTATING ☠', W / 2, 18);
+
+    const aliveList = getAlivePlayerList();
+    let targetName = '???';
+    if (mpSpectateTarget && roomPlayers[mpSpectateTarget]) {
+      targetName = roomPlayers[mpSpectateTarget].name || mpSpectateTarget.substring(0, 6);
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText(targetName, W / 2, 40);
+
+    // Bottom bar — controls hint + alive count
+    ctx.fillStyle = '#aaaaaa';
+    ctx.font = '12px monospace';
+    ctx.fillText('← A / D → to switch players', W / 2, H - 22);
+    ctx.fillStyle = '#88ff88';
+    ctx.font = '11px monospace';
+    ctx.fillText(`${aliveList.length} player${aliveList.length !== 1 ? 's' : ''} alive`, W / 2, H - 8);
   }
 
   ctx.restore();
