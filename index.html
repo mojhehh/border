@@ -212,9 +212,10 @@ let settings = {
   colorblind: false,
 };
 let tutorialPage = 0;
-let tutorialDone = false; // persisted to Firebase
+let tutorialDone = localStorage.getItem('tutorialDone') === 'true'; // check local first
 function completeTutorial() {
   tutorialDone = true;
+  localStorage.setItem('tutorialDone', 'true');
   if (currentUser) {
     db.ref('users/' + currentUser.uid + '/tutorialDone').set(true);
   }
@@ -507,9 +508,12 @@ auth.onAuthStateChanged(user => {
     db.ref('users/' + user.uid + '/online').set(true);
     db.ref('users/' + user.uid + '/online').onDisconnect().set(false);
     db.ref('users/' + user.uid + '/lastSeen').onDisconnect().set(firebase.database.ServerValue.TIMESTAMP);
-    // Load tutorial completion
+    // Load tutorial completion from Firebase (sync across devices)
     db.ref('users/' + user.uid + '/tutorialDone').once('value', snap => {
-      if (snap.val() === true) tutorialDone = true;
+      if (snap.val() === true) {
+        tutorialDone = true;
+        localStorage.setItem('tutorialDone', 'true');
+      }
     });
     loadFriendsList();
   }
