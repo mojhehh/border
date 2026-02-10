@@ -3328,6 +3328,10 @@ function update() {
   const right = keys['ArrowRight'] || keys['KeyD'] || touchControls.right;
   const up = keys['ArrowUp'] || keys['KeyW'] || keys['Space'] || touchControls.up;
 
+  // If a touch jump was queued between frames (quick flick), force rising edge
+  // so double jumps aren't missed when down→up happens within one frame
+  if (touchJumpQueued) p.prevUp = false;
+
   // After reading touch state, reset to actual joystick-up state only
   // This ensures prevUp can go false between jumps for proper rising edge detection
   touchControls.up = moveJoystick.inJumpUp;
