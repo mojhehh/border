@@ -1422,7 +1422,7 @@ async function unblockUser(targetUid) {
 // ── END FIREBASE / MULTIPLAYER SYSTEM ──
 // ══════════════════════════════════════════════════════
 
-let touchControls = { left: false, right: false, up: false, throw: false };
+let touchControls = { left: false, right: false, up: false };
 
 // Touch aim joystick state (right side)
 let touchAim = { active: false, cx: W - 140, cy: H - 180, dx: 0, dy: 0, angle: 0 };
@@ -1430,17 +1430,16 @@ const AIM_CENTER_X = W - 140;
 const AIM_CENTER_Y = H - 180;
 const AIM_RADIUS = 70;
 const AIM_DEAD_ZONE = 8;
-let touchFireTimer = 0;
 
 // Touch movement joystick state (left side)
 const MOVE_CENTER_X = 140;
 const MOVE_CENTER_Y = H - 180;
 const MOVE_RADIUS = 70;
-const MOVE_DEAD_ZONE = 15;
+const MOVE_DEAD_ZONE = 10;
 let moveJoystick = { active: false, dx: 0, dy: 0, touchId: null };
 
 // Jump button (right side, above aim joystick)
-const JUMP_BTN = { x: W - 250, y: H - 310, r: 50 };
+const JUMP_BTN = { x: W - 250, y: H - 310, r: 60 };
 let jumpTouchId = null;
 
 // Shared touch button renderer — called from each game state's HUD
@@ -2020,6 +2019,9 @@ canvas.addEventListener('click', e => {
   if (state === 'hawkingRefusal' && cx > W - 120 && cy < 50) {
     hawkingRefusalTimer = 669; return;
   }
+  if (state === 'hawkingDeath' && cx > W - 120 && cy < 50) {
+    hawkingDeathTimer = 899; return;
+  }
   if (state === 'bossdialogue' && cx > W - 120 && cy < 50) {
     if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { bossDialogue.index = bossDialogue.texts.length; advanceCutscene(); } return;
   }
@@ -2036,11 +2038,12 @@ canvas.addEventListener('click', e => {
   // Win/lose retry buttons via mouse click
   if ((state === 'won' || state === 'dead') && restartCooldown <= 0) {
     const btnY = state === 'won' ? H/2 + 30 : H/2 + 20;
-    if (cy > btnY && cy < btnY + 36) {
-      if (cx > W/2 - 150 && cx < W/2 - 20) {
+    const btnW2 = 160, btnH2 = 48;
+    if (cy > btnY && cy < btnY + btnH2) {
+      if (cx > W/2 - btnW2 - 10 && cx < W/2 - 10) {
         // Retry
         if (mpEnabled) { mpVoteRetry(); if (isHost) { const tc = Object.keys(roomPlayers).length; const rc = Object.keys(mpRetryVotes).length; if (rc >= tc) mpTriggerRetry(); } } else { startGame(); }
-      } else if (cx > W/2 + 20 && cx < W/2 + 150) {
+      } else if (cx > W/2 + 10 && cx < W/2 + btnW2 + 10) {
         // Leave
         if (mpEnabled) { leaveRoom(); } state = 'menu'; menuState = 'main'; menuSelection = 0;
       }
@@ -2054,7 +2057,6 @@ window.addEventListener('keydown', e => {
 });
 
 // Touch controls — track active touches by ID
-let activeTouches = {}; // touchId -> 'left'|'right'|'up'
 let aimTouchId = null; // separate tracking for aim joystick
 
 // Touch button hit zones (canvas coords) — left side only for movement
@@ -2068,12 +2070,12 @@ function isInMoveZone(cx, cy) {
 function isInJumpButton(cx, cy) {
   const dx = cx - JUMP_BTN.x;
   const dy = cy - JUMP_BTN.y;
-  return (dx * dx + dy * dy) <= (JUMP_BTN.r + 15) * (JUMP_BTN.r + 15);
+  return (dx * dx + dy * dy) <= (JUMP_BTN.r + 20) * (JUMP_BTN.r + 20);
 }
 
 function isInAimZone(cx, cy) {
-  // Right half, but not the jump button
-  return cx >= W * 0.5 && !isInJumpButton(cx, cy);
+  // Right side (matches move zone boundary), but not the jump button
+  return cx >= W * 0.45 && !isInJumpButton(cx, cy);
 }
 
 function updateAimFromTouch(cx, cy) {
@@ -2088,7 +2090,6 @@ function updateAimFromTouch(cx, cy) {
 
 let touchJumpQueued = false; // survives between frames so quick taps aren't lost
 function updateTouchControlsFromActive() {
-  touchControls.throw = aimTouchId !== null;
   // Movement from joystick
   if (moveJoystick.active) {
     const dist = Math.sqrt(moveJoystick.dx * moveJoystick.dx + moveJoystick.dy * moveJoystick.dy);
@@ -2219,8 +2220,9 @@ canvas.addEventListener('touchstart', e => {
         if (isHost && cx > colR && cx < colR + colW) {
           const settY = H * 0.26;
           for (let i = 0; i < 8; i++) {
-            const y = settY + i * 26;
-            if (cy > y - 14 && cy < y + 10) {
+            const SETT_SP = 34;
+            const y = settY + i * SETT_SP;
+            if (cy > y - 16 && cy < y + SETT_SP - 18) {
               mpSettingsSelection = i;
               if (i === 0) {
                 const diffs = ['easy','normal','hard','insane'];
@@ -2238,8 +2240,8 @@ canvas.addEventListener('touchstart', e => {
             }
           }
         }
-        if (isHost && cy > H * 0.85) { startMultiplayerGame(); return; }
-        if (cx < 140 && cy < 50) { leaveRoom(); return; }
+        if (isHost && cy > H * 0.84) { startMultiplayerGame(); return; }
+        if (cx < 160 && cy < 60) { leaveRoom(); return; }
       } else if (menuState === 'friends') {
         const tabW = W / 4;
         if (cy > H * 0.25 && cy < H * 0.33) { friendTab = Math.min(3, Math.floor(cx / tabW)); friendMenuSelection = 0; return; }
@@ -2296,11 +2298,12 @@ canvas.addEventListener('touchstart', e => {
     if ((state === 'won' || state === 'dead') && restartCooldown <= 0) {
       // Touch retry/leave buttons — detect which button was tapped
       const btnY = state === 'won' ? H/2 + 30 : H/2 + 20;
-      if (cy > btnY && cy < btnY + 36) {
-        if (cx > W/2 - 150 && cx < W/2 - 20) {
+      const btnW = 160, btnH = 48;
+      if (cy > btnY && cy < btnY + btnH) {
+        if (cx > W/2 - btnW - 10 && cx < W/2 - 10) {
           // Retry button
           if (mpEnabled) { mpVoteRetry(); if (isHost) { const tc = Object.keys(roomPlayers).length; const rc = Object.keys(mpRetryVotes).length; if (rc >= tc) mpTriggerRetry(); } } else { startGame(); }
-        } else if (cx > W/2 + 20 && cx < W/2 + 150) {
+        } else if (cx > W/2 + 10 && cx < W/2 + btnW + 10) {
           // Leave button
           if (mpEnabled) { leaveRoom(); } state = 'menu'; menuState = 'main'; menuSelection = 0;
         }
@@ -2354,7 +2357,6 @@ function clearTouch(id) {
   if (id === aimTouchId) { aimTouchId = null; touchAim.active = false; touchAim.dx = 0; touchAim.dy = 0; }
   if (id === moveJoystick.touchId) { moveJoystick.touchId = null; moveJoystick.active = false; moveJoystick.dx = 0; moveJoystick.dy = 0; }
   if (id === jumpTouchId) { jumpTouchId = null; }
-  delete activeTouches[id];
 }
 
 canvas.addEventListener('touchend', e => {
@@ -7656,7 +7658,7 @@ function draw() {
     ctx.fillStyle = '#ffffff55';
     ctx.font = '10px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('← → Move  |  ↑/Space Jump  |  Hold ↑ Climb  |  Click/F Throw  |  ¡Cuidado!', W / 2, H - 10);
+    ctx.fillText(_isTouchDev ? '¡Cuidado! Use on-screen controls' : '← → Move  |  ↑/Space Jump  |  Hold ↑ Climb  |  Click/F Throw  |  ¡Cuidado!', W / 2, H - 10);
 
     // Boss HP bar on HUD (if boss alive and player near)
     if (boss && !boss.dead) {
@@ -7765,7 +7767,7 @@ function draw() {
     ctx.fillStyle = '#ffffff55';
     ctx.font = '10px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('Defeat Trump to cross!  |  Click/F Throw  |  \u2190 \u2192 Move  |  \u2191/Space Jump', W / 2, H - 10);
+    ctx.fillText(_isTouchDev ? 'Defeat Trump to cross!' : 'Defeat Trump to cross!  |  Click/F Throw  |  \u2190 \u2192 Move  |  \u2191/Space Jump', W / 2, H - 10);
   }
 
   // ── Epstein Fight HUD ──
@@ -7852,7 +7854,7 @@ function draw() {
     ctx.fillStyle = '#ffffff55';
     ctx.font = '10px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('Defeat Epstein!  |  Click/F Throw  |  \u2190 \u2192 Move  |  \u2191/Space Jump', W / 2, H - 10);
+    ctx.fillText(_isTouchDev ? 'Defeat Epstein!' : 'Defeat Epstein!  |  Click/F Throw  |  \u2190 \u2192 Move  |  \u2191/Space Jump', W / 2, H - 10);
   }
 
   // ── Fusion Cutscene Drawing ──
@@ -8050,7 +8052,7 @@ function draw() {
     ctx.fillStyle = '#ffffff55';
     ctx.font = '10px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('Defeat TRUMPSTEIN!  |  Click/F Throw  |  \u2190 \u2192 Move  |  \u2191/Space Jump', W / 2, H - 10);
+    ctx.fillText(_isTouchDev ? 'Defeat TRUMPSTEIN!' : 'Defeat TRUMPSTEIN!  |  Click/F Throw  |  \u2190 \u2192 Move  |  \u2191/Space Jump', W / 2, H - 10);
   }
 
   // ── Split Fight HUD ──
@@ -10295,7 +10297,7 @@ function draw() {
     ctx.fillStyle = '#ffffff55';
     ctx.font = '10px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('Defeat them all!  |  Click/F Throw  |  \u2190 \u2192 Move  |  \u2191/Space Jump', W / 2, H - 10);
+    ctx.fillText(_isTouchDev ? 'Defeat them all!' : 'Defeat them all!  |  Click/F Throw  |  \u2190 \u2192 Move  |  \u2191/Space Jump', W / 2, H - 10);
   }
 
   // ── Cutscene Drawing ──
@@ -10371,7 +10373,7 @@ function draw() {
         if (blink) {
           ctx.fillStyle = '#888';
           ctx.font = '14px monospace';
-          ctx.fillText('[ Click / Press SPACE to continue ]', W / 2, H - 40);
+          ctx.fillText(_isTouchDev ? '[ Tap to continue ]' : '[ Click / Press SPACE to continue ]', W / 2, H - 40);
         }
       }
 
@@ -10408,7 +10410,7 @@ function draw() {
             ctx.fillStyle = '#888';
             ctx.font = '12px monospace';
             ctx.textAlign = 'right';
-            ctx.fillText('[ Click / SPACE \u25ba ]', W - 55, boxY + boxH - 14);
+            ctx.fillText(_isTouchDev ? '[ Tap \u25ba ]' : '[ Click / SPACE \u25ba ]', W - 55, boxY + boxH - 14);
           }
         }
       }
@@ -10522,7 +10524,7 @@ function draw() {
           ctx.fillStyle = '#888';
           ctx.font = '12px monospace';
           ctx.textAlign = 'right';
-          ctx.fillText('[ Click / SPACE ▸ ]', boxX + boxW - 15, boxY + boxH - 12);
+          ctx.fillText(_isTouchDev ? '[ Tap ▸ ]' : '[ Click / SPACE ▸ ]', boxX + boxW - 15, boxY + boxH - 12);
         }
       }
     }
@@ -10646,7 +10648,7 @@ function draw() {
         ctx.globalAlpha = hintAlpha * 0.6;
         ctx.font = '13px monospace';
         ctx.fillStyle = '#888';
-        ctx.fillText('Arrow Keys / WASD to move · Space / Up to jump · F to throw', W/2, H/2 + 60);
+        ctx.fillText(_isTouchDev ? 'Use on-screen controls to play' : 'Arrow Keys / WASD to move · Space / Up to jump · F to throw', W/2, H/2 + 60);
         ctx.globalAlpha = 1;
       }
     }
@@ -10682,7 +10684,7 @@ function draw() {
         ctx.globalAlpha = skipAlpha;
         ctx.font = '12px monospace';
         ctx.fillStyle = '#aaa';
-        ctx.fillText('Press SPACE to skip', W/2, H * 0.9);
+        ctx.fillText(_isTouchDev ? 'Tap to skip' : 'Press SPACE to skip', W/2, H * 0.9);
         ctx.globalAlpha = 1;
       }
     }
@@ -10724,6 +10726,9 @@ function draw() {
       }
     }
     
+    // Touch controls during intro (phase 3+ when player can move)
+    if (introPhase >= 3) drawTouchButtons();
+
     // Cinematic letterbox bars for all phases
     const barH2 = introPhase >= 3 ? 50 : (introPhase >= 1 ? 35 : 0);
     if (barH2 > 0) {
@@ -11074,7 +11079,7 @@ function draw() {
       
       ctx.fillStyle = '#555';
       ctx.font = '11px monospace';
-      ctx.fillText('Click / Tap / Arrow Keys + ENTER', W/2, H * 0.89);
+      ctx.fillText(_isTouchDev ? 'Tap to select' : 'Click / Tap / Arrow Keys + ENTER', W/2, H * 0.89);
       
       ctx.fillStyle = '#333';
       ctx.font = '10px monospace';
@@ -11129,7 +11134,7 @@ function draw() {
         ctx.fillText(joinRoomInput + cursor, W/2, H/2 + 16);
         ctx.fillStyle = '#888';
         ctx.font = '12px monospace';
-        ctx.fillText('Type 6-letter code + ENTER', W/2, H/2 + 48);
+        ctx.fillText(_isTouchDev ? 'Type 6-letter code' : 'Type 6-letter code + ENTER', W/2, H/2 + 48);
       }
       
       if (!playerUsername) {
@@ -11158,7 +11163,7 @@ function draw() {
       
       ctx.fillStyle = '#555';
       ctx.font = '12px monospace';
-      ctx.fillText('ESC to go back', W/2, H * 0.92);
+      ctx.fillText(_isTouchDev ? '< Tap to go back' : 'ESC to go back', W/2, H * 0.92);
       
     } else if (menuState === 'account') {
       // ── ACCOUNT SCREEN (Login / Register) ──
@@ -11255,7 +11260,7 @@ function draw() {
       ctx.textAlign = 'center';
       ctx.fillStyle = '#555';
       ctx.font = '12px monospace';
-      ctx.fillText('ESC to go back', W/2, H * 0.94);
+      ctx.fillText(_isTouchDev ? '< Tap to go back' : 'ESC to go back', W/2, H * 0.94);
       
     } else if (menuState === 'lobby') {
       // ── LOBBY SCREEN ──
@@ -11339,6 +11344,7 @@ function draw() {
       }
       
       const settY = H * 0.26;
+      const SETT_SPACING = _isTouchDev ? 34 : 26;
       const settItems = [
         { label: 'Difficulty', value: settings.difficulty.toUpperCase(), key: 'difficulty' },
         { label: 'Double Jump', value: settings.doubleJump ? 'ON' : 'OFF', key: 'doubleJump' },
@@ -11350,8 +11356,13 @@ function draw() {
         { label: 'No Cooldown', value: cheats.noCooldown ? 'ON' : 'OFF', key: 'noCooldown' },
       ];
       for (let i = 0; i < settItems.length; i++) {
-        const y = settY + i * 26;
+        const y = settY + i * SETT_SPACING;
         const sel = isHost && mpSettingsSelection === i;
+        // Touch-friendly row background
+        if (_isTouchDev && isHost) {
+          ctx.fillStyle = sel ? '#ffffff18' : (i % 2 === 0 ? '#ffffff08' : '#ffffff04');
+          ctx.fillRect(colR, y - 12, colW, SETT_SPACING - 2);
+        }
         ctx.fillStyle = sel ? '#ffcc44' : '#aaa';
         ctx.font = `${sel ? 'bold ' : ''}12px monospace`;
         ctx.fillText(settItems[i].label + ':', colR + 4, y);
@@ -11398,7 +11409,7 @@ function draw() {
         ctx.fillText('Login to use friends!', W/2, H * 0.5);
         ctx.fillStyle = '#555';
         ctx.font = '12px monospace';
-        ctx.fillText('ESC to go back', W/2, H * 0.9);
+        ctx.fillText(_isTouchDev ? '< Tap to go back' : 'ESC to go back', W/2, H * 0.9);
       } else {
         // Tabs
         const tabs = ['FRIENDS', 'REQUESTS', 'BLOCKED', 'ADD'];
@@ -11518,7 +11529,7 @@ function draw() {
         
         ctx.fillStyle = '#555';
         ctx.font = '12px monospace';
-        ctx.fillText('ESC to go back | \u2190 \u2192 tabs', W/2, H * 0.92);
+        ctx.fillText(_isTouchDev ? 'Tap tabs to switch' : 'ESC to go back | \u2190 \u2192 tabs', W/2, H * 0.92);
       }
       
     } else if (menuState === 'difficulty') {
@@ -11578,7 +11589,7 @@ function draw() {
       
       ctx.fillStyle = '#555';
       ctx.font = '12px monospace';
-      ctx.fillText('Click / ENTER to select -- ESC to go back', W/2, H * 0.88);
+      ctx.fillText(_isTouchDev ? 'Tap to select' : 'Click / ENTER to select -- ESC to go back', W/2, H * 0.88);
       
     } else if (menuState === 'settings') {
       // ── SETTINGS SCREEN ──
@@ -11635,7 +11646,7 @@ function draw() {
       
       ctx.fillStyle = '#555';
       ctx.font = '12px monospace';
-      ctx.fillText('Click / ENTER to toggle -- ESC Back', W/2, H * 0.88);
+      ctx.fillText(_isTouchDev ? 'Tap to toggle' : 'Click / ENTER to toggle -- ESC Back', W/2, H * 0.88);
       
     } else if (menuState === 'controls') {
       // ── CONTROLS SCREEN ──
@@ -11680,7 +11691,7 @@ function draw() {
       
       ctx.fillStyle = '#666';
       ctx.font = '12px monospace';
-      ctx.fillText('Click anywhere / ESC / ENTER to go back', W/2, H * 0.88);
+      ctx.fillText(_isTouchDev ? 'Tap anywhere to go back' : 'Click anywhere / ESC / ENTER to go back', W/2, H * 0.88);
       
     } else if (menuState === 'credits') {
       // ── CREDITS SCREEN ──
@@ -11720,7 +11731,7 @@ function draw() {
       
       ctx.fillStyle = '#666';
       ctx.font = '12px monospace';
-      ctx.fillText('Click anywhere / ESC / ENTER to go back', W/2, H * 0.88);
+      ctx.fillText(_isTouchDev ? 'Tap anywhere to go back' : 'Click anywhere / ESC / ENTER to go back', W/2, H * 0.88);
     } else if (menuState === 'cheats') {
       // ── CHEATS SCREEN ──
       ctx.fillStyle = '#ff4444';
@@ -11848,7 +11859,7 @@ function draw() {
       ctx.fillStyle = '#555';
       ctx.font = '11px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('ESC to go back', W/2, H * 0.97);
+      ctx.fillText(_isTouchDev ? '< Tap to go back' : 'ESC to go back', W/2, H * 0.97);
     }
   }
 
@@ -11967,19 +11978,19 @@ function draw() {
     const blink3 = Math.sin(Date.now() / 300) > 0;
     if (blink3) {
       if (tutorialPage < 4) {
-        ctx.fillText('[ SPACE / ENTER → Next ]', W/2, H * 0.82);
+        ctx.fillText(_isTouchDev ? '[ TAP → Next ]' : '[ SPACE / ENTER → Next ]', W/2, H * 0.82);
       } else {
-        ctx.fillText('[ SPACE / ENTER → START GAME! ]', W/2, H * 0.82);
+        ctx.fillText(_isTouchDev ? '[ TAP → START GAME! ]' : '[ SPACE / ENTER → START GAME! ]', W/2, H * 0.82);
       }
     }
     if (tutorialPage > 0) {
       ctx.fillStyle = '#888';
       ctx.font = '13px monospace';
-      ctx.fillText('← Previous', W/2 - 160, H * 0.82);
+      ctx.fillText(_isTouchDev ? '← Tap left side' : '← Previous', W/2 - 160, H * 0.82);
     }
     ctx.fillStyle = '#555';
     ctx.font = '11px monospace';
-    ctx.fillText('ESC to skip tutorial', W/2, H * 0.9);
+    ctx.fillText(_isTouchDev ? 'Tap to skip tutorial' : 'ESC to skip tutorial', W/2, H * 0.9);
   }
 
   if (state === 'won') {
@@ -12006,25 +12017,26 @@ function draw() {
     // Retry / Leave buttons
     if (restartCooldown <= 0) {
       const btnY = H / 2 + 30;
+      const btnW = 160, btnH = 48;
       // Retry button
       const retryHover = mpRetrySelection === 0;
       ctx.fillStyle = retryHover ? '#44ff8844' : '#ffffff11';
-      ctx.fillRect(W/2 - 150, btnY, 130, 36);
+      ctx.fillRect(W/2 - btnW - 10, btnY, btnW, btnH);
       ctx.strokeStyle = retryHover ? '#44ff88' : '#888';
       ctx.lineWidth = 2;
-      ctx.strokeRect(W/2 - 150, btnY, 130, 36);
+      ctx.strokeRect(W/2 - btnW - 10, btnY, btnW, btnH);
       ctx.fillStyle = retryHover ? '#44ff88' : '#ccc';
-      ctx.font = 'bold 16px monospace';
-      ctx.fillText('RETRY', W/2 - 85, btnY + 24);
+      ctx.font = 'bold 18px monospace';
+      ctx.fillText('RETRY', W/2 - btnW/2 - 10, btnY + 31);
 
       // Leave button
       const leaveHover = mpRetrySelection === 1;
       ctx.fillStyle = leaveHover ? '#ff444444' : '#ffffff11';
-      ctx.fillRect(W/2 + 20, btnY, 130, 36);
+      ctx.fillRect(W/2 + 10, btnY, btnW, btnH);
       ctx.strokeStyle = leaveHover ? '#ff4444' : '#888';
-      ctx.strokeRect(W/2 + 20, btnY, 130, 36);
+      ctx.strokeRect(W/2 + 10, btnY, btnW, btnH);
       ctx.fillStyle = leaveHover ? '#ff4444' : '#ccc';
-      ctx.fillText('LEAVE', W/2 + 85, btnY + 24);
+      ctx.fillText('LEAVE', W/2 + btnW/2 + 10, btnY + 31);
 
       // MP retry votes
       if (mpEnabled) {
@@ -12032,10 +12044,10 @@ function draw() {
         const retryCount = Object.keys(mpRetryVotes).length;
         ctx.fillStyle = '#88ccff';
         ctx.font = '12px monospace';
-        ctx.fillText(`Retry votes: ${retryCount}/${totalPlayers}`, W/2, btnY + 58);
+        ctx.fillText(`Retry votes: ${retryCount}/${totalPlayers}`, W/2, btnY + 68);
         if (mpRetryVotes[myUid()]) {
           ctx.fillStyle = '#88ff88';
-          ctx.fillText('✓ You voted to retry', W/2, btnY + 76);
+          ctx.fillText('✓ You voted to retry', W/2, btnY + 86);
         }
       }
     }
@@ -12065,25 +12077,26 @@ function draw() {
     // Retry / Leave buttons
     if (restartCooldown <= 0) {
       const btnY = H / 2 + 20;
+      const btnW = 160, btnH = 48;
       // Retry button
       const retryHover = mpRetrySelection === 0;
       ctx.fillStyle = retryHover ? '#44ff8844' : '#ffffff11';
-      ctx.fillRect(W/2 - 150, btnY, 130, 36);
+      ctx.fillRect(W/2 - btnW - 10, btnY, btnW, btnH);
       ctx.strokeStyle = retryHover ? '#44ff88' : '#888';
       ctx.lineWidth = 2;
-      ctx.strokeRect(W/2 - 150, btnY, 130, 36);
+      ctx.strokeRect(W/2 - btnW - 10, btnY, btnW, btnH);
       ctx.fillStyle = retryHover ? '#44ff88' : '#ccc';
-      ctx.font = 'bold 16px monospace';
-      ctx.fillText('RETRY', W/2 - 85, btnY + 24);
+      ctx.font = 'bold 18px monospace';
+      ctx.fillText('RETRY', W/2 - btnW/2 - 10, btnY + 31);
 
       // Leave button
       const leaveHover = mpRetrySelection === 1;
       ctx.fillStyle = leaveHover ? '#ff444444' : '#ffffff11';
-      ctx.fillRect(W/2 + 20, btnY, 130, 36);
+      ctx.fillRect(W/2 + 10, btnY, btnW, btnH);
       ctx.strokeStyle = leaveHover ? '#ff4444' : '#888';
-      ctx.strokeRect(W/2 + 20, btnY, 130, 36);
+      ctx.strokeRect(W/2 + 10, btnY, btnW, btnH);
       ctx.fillStyle = leaveHover ? '#ff4444' : '#ccc';
-      ctx.fillText('LEAVE', W/2 + 85, btnY + 24);
+      ctx.fillText('LEAVE', W/2 + btnW/2 + 10, btnY + 31);
 
       // MP retry votes
       if (mpEnabled) {
@@ -12091,10 +12104,10 @@ function draw() {
         const retryCount = Object.keys(mpRetryVotes).length;
         ctx.fillStyle = '#88ccff';
         ctx.font = '12px monospace';
-        ctx.fillText(`Retry votes: ${retryCount}/${totalPlayers}`, W/2, btnY + 58);
+        ctx.fillText(`Retry votes: ${retryCount}/${totalPlayers}`, W/2, btnY + 68);
         if (mpRetryVotes[myUid()]) {
           ctx.fillStyle = '#88ff88';
-          ctx.fillText('✓ You voted to retry', W/2, btnY + 76);
+          ctx.fillText('✓ You voted to retry', W/2, btnY + 86);
         }
       }
     }
@@ -12104,7 +12117,7 @@ function draw() {
   if (mpSpectating) {
     ctx.fillStyle = '#00000066';
     ctx.fillRect(0, 0, W, 50);
-    ctx.fillRect(0, H - 40, W, 40);
+    ctx.fillRect(0, H - 48, W, 48);
 
     // Top bar — "SPECTATING" label + player name
     ctx.textAlign = 'center';
@@ -12122,12 +12135,24 @@ function draw() {
     ctx.fillText(targetName, W / 2, 40);
 
     // Bottom bar — controls hint + alive count
+    if (_isTouchDev && aliveList.length > 1) {
+      // Draw tappable arrow buttons for touch users
+      ctx.fillStyle = '#ffffff22';
+      ctx.fillRect(0, H - 48, 90, 48);
+      ctx.fillRect(W - 90, H - 48, 90, 48);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 28px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('◀', 45, H - 16);
+      ctx.fillText('▶', W - 45, H - 16);
+    }
+    ctx.textAlign = 'center';
     ctx.fillStyle = '#aaaaaa';
     ctx.font = '12px monospace';
-    ctx.fillText('← A / D → to switch players', W / 2, H - 22);
+    ctx.fillText(_isTouchDev ? 'TAP ARROWS TO SWITCH' : '← A / D → to switch players', W / 2, H - 30);
     ctx.fillStyle = '#88ff88';
     ctx.font = '11px monospace';
-    ctx.fillText(`${aliveList.length} player${aliveList.length !== 1 ? 's' : ''} alive`, W / 2, H - 8);
+    ctx.fillText(`${aliveList.length} player${aliveList.length !== 1 ? 's' : ''} alive`, W / 2, H - 12);
   }
 
   ctx.restore();
