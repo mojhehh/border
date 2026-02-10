@@ -300,6 +300,10 @@ let mpDamageQueueRef = null;  // Firebase ref for guest damage events
 let mpSpectating = false;     // true when local player is dead but spectating others
 let mpSpectateTarget = null;  // uid of the player being spectated
 let mpSpectateIndex = 0;      // index into alive player list for cycling
+let mpRetryVotes = {};        // { uid: true } — players who want to retry
+let mpRetrySelection = 0;     // 0 = retry, 1 = leave (for win/lose screen)
+let mpMatchSettings = null;   // { difficulty, cheats } from host lobby
+let mpSettingsSelection = 0;  // lobby settings cursor
 
 // Check if other MP players are still alive
 function getAlivePlayerList() {
@@ -606,12 +610,41 @@ function setupRoomListeners(code, uid) {
       mpGameStarted = true;
       startGame();
     }
+    if (st === 'playing' && mpGameStarted && (state === 'won' || state === 'dead')) {
+      // Retry triggered — restart game
+      mpRetryVotes = {};
+      startGame();
+    }
+    if (st === 'restarting') {
+      // Pre-restart signal — clear votes
+      mpRetryVotes = {};
+    }
+  });
+  
+  // Listen to retry votes
+  roomR.child('retry').on('value', snap => {
+    mpRetryVotes = snap.val() || {};
   });
   
   // Listen to enemy data (non-host)
   if (!isHost) {
     roomR.child('enemies').on('value', snap => {
       mpEnemyData = snap.val() || {};
+    });
+    // Listen to match settings from host
+    roomR.child('matchSettings').on('value', snap => {
+      const ms = snap.val();
+      if (ms) {
+        mpMatchSettings = ms;
+        // Apply host's settings
+        if (ms.difficulty) settings.difficulty = ms.difficulty;
+        if (ms.cheats) {
+          for (const k in ms.cheats) {
+            if (k in cheats) cheats[k] = ms.cheats[k];
+          }
+        }
+        if (typeof ms.doubleJump === 'boolean') settings.doubleJump = ms.doubleJump;
+      }
     });
   }
   
@@ -677,6 +710,8 @@ async function leaveRoom() {
     roomRef.child('host').off(); // room deletion listener
     roomRef.child('damageQueue').off();
     roomRef.child('cutsceneAdvance').off();
+    roomRef.child('retry').off();
+    roomRef.child('matchSettings').off();
     roomRef.off(); // remove room-level listeners too
   }
   currentRoom = null;
@@ -697,6 +732,9 @@ async function leaveRoom() {
   mpSpectating = false;
   mpSpectateTarget = null;
   mpSpectateIndex = 0;
+  mpRetryVotes = {};
+  mpRetrySelection = 0;
+  mpMatchSettings = null;
   menuState = 'multiplayer';
   mpMenuSelection = 0;
 }
@@ -706,6 +744,12 @@ async function startMultiplayerGame() {
   chatOpen = false;
   chatInput = '';
   activeTextInput = null;
+  // Sync match settings to all players
+  await db.ref('rooms/' + currentRoom + '/matchSettings').set({
+    difficulty: settings.difficulty,
+    cheats: cheats,
+    doubleJump: settings.doubleJump,
+  });
   await db.ref('rooms/' + currentRoom + '/state').set('playing');
   mpGameStarted = true;
   startGame();
@@ -964,7 +1008,7 @@ function applyEnemyData() {
   }
   // Apply game state + cutscene/dialogue sync from host
   if (d.gameState) {
-    const syncStates = ['cutscene','bossfight','bossdialogue','phonecall','epsteinfight','fusioncutscene','fusionfight','splitfight','hawkingRefusal','hawkingDeath'];
+    const syncStates = ['cutscene','bossfight','bossdialogue','phonecall','epsteinfight','fusioncutscene','fusionfight','splitfight','hawkingRefusal','hawkingDeath','won','dead'];
     if (syncStates.includes(d.gameState) && state !== d.gameState) {
       const oldState = state;
       // First time entering cutscene — set up cutscene.active so rendering works
@@ -997,6 +1041,11 @@ function applyEnemyData() {
       }
       if (d.gameState === 'splitfight' && oldState !== 'splitfight') {
         player.maxHp = 50; player.hp = player.maxHp;
+      }
+      // Stop spectating on win/lose
+      if (d.gameState === 'won' || d.gameState === 'dead') {
+        mpSpectating = false;
+        restartCooldown = 60;
       }
       state = d.gameState;
     }
@@ -1065,10 +1114,31 @@ function mpHandleDamageEvent(dmg) {
     spawnParticles(mb.x + mb.w/2, mb.y + mb.h/3, mb.color || '#ffffff', 10);
     shakeTimer = 6;
     if (mb.hp <= 0) {
-      mb.dead = true;
-      spawnParticles(mb.x+mb.w/2, mb.y+mb.h/2, mb.color||'#ffffff', 25);
-      bossVfx.push({ type: 'ring', x: mb.x+mb.w/2, y: mb.y+mb.h/2, radius: 10, maxRadius: 250, life: 30, maxLife: 30, color: mb.color||'#ffffff' });
-      bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y-20, text: mb.name+' DOWN!', life: 120, maxLife: 120, color: mb.color||'#fff' });
+      // Hawking first death — trigger refusal cutscene
+      if (mb.name === 'HAWKING' && !hawkingPhase2) {
+        mb.hp = 1;
+        hawkingRefusalTimer = 0; hawkingRefusalPhase = 0;
+        mb._savedX = mb.x; mb._savedY = mb.y;
+        state = 'hawkingRefusal';
+        epsteinProjectiles = []; bossMinions = []; bossVfx = [];
+        screenFlash = 40; screenFlashColor = '#44ff88'; shakeTimer = 30;
+        spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#44ff88', 40);
+      } else if (mb.name === 'HAWKING' && hawkingPhase2) {
+        // Hawking FINAL death — epic death scene
+        mb.hp = 1;
+        hawkingDeathTimer = 0; hawkingDeathPhase = 0;
+        mb._deathX = mb.x + mb.w/2; mb._deathY = mb.y + mb.h/2;
+        state = 'hawkingDeath';
+        projectiles = []; epsteinProjectiles = []; bossMinions = []; bossVfx = [];
+        screenFlash = 60; screenFlashColor = '#44ff88'; shakeTimer = 40;
+        spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#44ff88', 60);
+        spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#ffffff', 40);
+      } else {
+        mb.dead = true;
+        spawnParticles(mb.x+mb.w/2, mb.y+mb.h/2, mb.color||'#ffffff', 25);
+        bossVfx.push({ type: 'ring', x: mb.x+mb.w/2, y: mb.y+mb.h/2, radius: 10, maxRadius: 250, life: 30, maxLife: 30, color: mb.color||'#ffffff' });
+        bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y-20, text: mb.name+' DOWN!', life: 120, maxLife: 120, color: mb.color||'#fff' });
+      }
     }
   } else if (dmg.target === 'bossMinion' && typeof dmg.index === 'number' && dmg.index < bossMinions.length && !bossMinions[dmg.index].dead) {
     const bm = bossMinions[dmg.index];
@@ -1090,6 +1160,47 @@ function mpSendDamage(target, index, amount) {
 function mpSendCutsceneEvent(type) {
   if (!mpEnabled || isHost || !currentRoom) return;
   db.ref('rooms/' + currentRoom + '/cutsceneAdvance').push({ type: type });
+}
+
+// MP Retry — vote to retry after win/lose
+function mpVoteRetry() {
+  if (!mpEnabled || !currentRoom) return;
+  const uid = myUid();
+  db.ref('rooms/' + currentRoom + '/retry/' + uid).set(true);
+  mpRetryVotes[uid] = true;
+}
+
+// Host triggers retry — resets game for all players
+function mpTriggerRetry() {
+  if (!mpEnabled || !isHost || !currentRoom) return;
+  // Clear retry votes
+  db.ref('rooms/' + currentRoom + '/retry').remove();
+  mpRetryVotes = {};
+  // Signal all players to restart
+  db.ref('rooms/' + currentRoom + '/state').set('restarting');
+  // Brief delay then set playing
+  setTimeout(() => {
+    if (currentRoom) {
+      // Re-sync match settings on retry
+      db.ref('rooms/' + currentRoom + '/matchSettings').set({
+        difficulty: settings.difficulty,
+        cheats: cheats,
+        doubleJump: settings.doubleJump,
+      });
+      db.ref('rooms/' + currentRoom + '/state').set('playing');
+      db.ref('rooms/' + currentRoom + '/enemies').set({});
+    }
+  }, 300);
+}
+
+// Host syncs settings live to lobby
+function mpSyncLobbySettings() {
+  if (!mpEnabled || !isHost || !currentRoom) return;
+  db.ref('rooms/' + currentRoom + '/matchSettings').set({
+    difficulty: settings.difficulty,
+    cheats: cheats,
+    doubleJump: settings.doubleJump,
+  });
 }
 
 // Get nearest player target for bosses (multiplayer-aware)
@@ -1561,6 +1672,28 @@ window.addEventListener('keydown', e => {
       if (e.code === 'Escape') { leaveRoom(); }
       if (e.code === 'Enter' && !chatOpen) { chatOpen = true; activeTextInput = 'chat'; chatInput = ''; }
       if (e.code === 'Space' && !chatOpen && isHost) { startMultiplayerGame(); }
+      // Host settings navigation
+      if (isHost && !chatOpen) {
+        const settCount = 8;
+        if (e.code === 'ArrowUp' || e.code === 'KeyW') { mpSettingsSelection = (mpSettingsSelection - 1 + settCount) % settCount; }
+        if (e.code === 'ArrowDown' || e.code === 'KeyS') { mpSettingsSelection = (mpSettingsSelection + 1) % settCount; }
+        if (e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code === 'KeyA' || e.code === 'KeyD') {
+          const dir = (e.code === 'ArrowRight' || e.code === 'KeyD') ? 1 : -1;
+          if (mpSettingsSelection === 0) {
+            const diffs = ['easy','normal','hard','insane'];
+            let idx = diffs.indexOf(settings.difficulty);
+            idx = (idx + dir + diffs.length) % diffs.length;
+            settings.difficulty = diffs[idx];
+          } else if (mpSettingsSelection === 1) { settings.doubleJump = !settings.doubleJump; }
+          else if (mpSettingsSelection === 2) { cheats.godMode = !cheats.godMode; }
+          else if (mpSettingsSelection === 3) { cheats.oneHitKill = !cheats.oneHitKill; }
+          else if (mpSettingsSelection === 4) { cheats.infiniteJumps = !cheats.infiniteJumps; }
+          else if (mpSettingsSelection === 5) { cheats.speedBoost = !cheats.speedBoost; }
+          else if (mpSettingsSelection === 6) { cheats.bigProjectiles = !cheats.bigProjectiles; }
+          else if (mpSettingsSelection === 7) { cheats.noCooldown = !cheats.noCooldown; }
+          mpSyncLobbySettings();
+        }
+      }
     } else if (menuState === 'friends') {
       if (e.code === 'Escape' || e.code === 'Backspace') {
         if (friendsBackTo === 'multiplayer') { menuState = 'multiplayer'; mpMenuSelection = 0; }
@@ -1643,10 +1776,31 @@ window.addEventListener('keydown', e => {
   if ((e.code === 'Space' || e.code === 'Enter') && (state === 'cutscene' || state === 'bossdialogue')) {
     if (mpEnabled && !isHost) { mpSendCutsceneEvent('advance'); }
     else { advanceCutscene(); }
-  } else if ((e.code === 'Space' || e.code === 'Enter') && (state === 'won' || state === 'dead')) {
-    if (restartCooldown <= 0) {
-      if (mpEnabled) { leaveRoom(); }
-      state = 'menu'; menuState = 'main'; menuSelection = 0;
+  } else if ((state === 'won' || state === 'dead') && restartCooldown <= 0) {
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') { mpRetrySelection = 0; }
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') { mpRetrySelection = 1; }
+    if (e.code === 'Space' || e.code === 'Enter') {
+      if (mpRetrySelection === 0) {
+        // Retry
+        if (mpEnabled) {
+          mpVoteRetry();
+          // Host with all votes → trigger retry
+          if (isHost) {
+            const totalPlayers = Object.keys(roomPlayers).length;
+            const retryCount = Object.keys(mpRetryVotes).length;
+            if (retryCount >= totalPlayers) {
+              mpTriggerRetry();
+            }
+          }
+        } else {
+          // Solo retry
+          startGame();
+        }
+      } else {
+        // Leave
+        if (mpEnabled) { leaveRoom(); }
+        state = 'menu'; menuState = 'main'; menuSelection = 0;
+      }
     }
   }
   if ((e.code === 'Space' || e.code === 'Enter') && state === 'intro' && introPhase >= 3) {
@@ -1879,7 +2033,19 @@ canvas.addEventListener('click', e => {
     if (mpEnabled && !isHost) { mpSendCutsceneEvent('advance'); } else { advanceCutscene(); } return;
   }
   if ((state === 'playing' || state === 'bossfight' || state === 'epsteinfight' || state === 'fusionfight' || state === 'splitfight') && player.alive) throwProjectile();
-  if (state === 'won' || state === 'dead') { if (restartCooldown <= 0) { if (mpEnabled) { leaveRoom(); } state = 'menu'; menuState = 'main'; menuSelection = 0; } }
+  // Win/lose retry buttons via mouse click
+  if ((state === 'won' || state === 'dead') && restartCooldown <= 0) {
+    const btnY = state === 'won' ? H/2 + 30 : H/2 + 20;
+    if (cy > btnY && cy < btnY + 36) {
+      if (cx > W/2 - 150 && cx < W/2 - 20) {
+        // Retry
+        if (mpEnabled) { mpVoteRetry(); if (isHost) { const tc = Object.keys(roomPlayers).length; const rc = Object.keys(mpRetryVotes).length; if (rc >= tc) mpTriggerRetry(); } } else { startGame(); }
+      } else if (cx > W/2 + 20 && cx < W/2 + 150) {
+        // Leave
+        if (mpEnabled) { leaveRoom(); } state = 'menu'; menuState = 'main'; menuSelection = 0;
+      }
+    }
+  }
 });
 
 // Keyboard fullscreen toggle (F11)
@@ -2040,8 +2206,39 @@ canvas.addEventListener('touchstart', e => {
         if (cy > btnY + 55 && cy < btnY + 90) { playAsGuest(); return; }
         if (cy > H * 0.88) { authError = ''; menuState = 'multiplayer'; return; }
       } else if (menuState === 'lobby') {
-        if (cy > H * 0.58 && cy < H * 0.87) { chatOpen = true; activeTextInput = 'chat'; chatInput = ''; return; }
-        if (isHost && cy > H * 0.87) { startMultiplayerGame(); return; }
+        // Chat area touch (left column)
+        const colL = W/2 - 250;
+        const colR = W/2 + 10;
+        const colW = 230;
+        const chatBoxY = H * 0.42;
+        const chatBoxH = H * 0.40;
+        if (cx > colL && cx < colL + colW && cy > chatBoxY && cy < chatBoxY + chatBoxH) {
+          chatOpen = true; activeTextInput = 'chat'; chatInput = ''; return;
+        }
+        // Host match settings touch (right column)
+        if (isHost && cx > colR && cx < colR + colW) {
+          const settY = H * 0.26;
+          for (let i = 0; i < 8; i++) {
+            const y = settY + i * 26;
+            if (cy > y - 14 && cy < y + 10) {
+              mpSettingsSelection = i;
+              if (i === 0) {
+                const diffs = ['easy','normal','hard','insane'];
+                let idx = diffs.indexOf(settings.difficulty);
+                settings.difficulty = diffs[(idx + 1) % diffs.length];
+              } else if (i === 1) { settings.doubleJump = !settings.doubleJump; }
+              else if (i === 2) { cheats.godMode = !cheats.godMode; }
+              else if (i === 3) { cheats.oneHitKill = !cheats.oneHitKill; }
+              else if (i === 4) { cheats.infiniteJumps = !cheats.infiniteJumps; }
+              else if (i === 5) { cheats.speedBoost = !cheats.speedBoost; }
+              else if (i === 6) { cheats.bigProjectiles = !cheats.bigProjectiles; }
+              else if (i === 7) { cheats.noCooldown = !cheats.noCooldown; }
+              mpSyncLobbySettings();
+              return;
+            }
+          }
+        }
+        if (isHost && cy > H * 0.85) { startMultiplayerGame(); return; }
         if (cx < 140 && cy < 50) { leaveRoom(); return; }
       } else if (menuState === 'friends') {
         const tabW = W / 4;
@@ -2096,7 +2293,20 @@ canvas.addEventListener('touchstart', e => {
     if (state === 'cutscene' || state === 'bossdialogue') {
       if (mpEnabled && !isHost) { mpSendCutsceneEvent('advance'); } else { advanceCutscene(); } return;
     }
-    if (state === 'won' || state === 'dead') { if (restartCooldown <= 0) { if (mpEnabled) { leaveRoom(); } state = 'menu'; menuState = 'main'; menuSelection = 0; } return; }
+    if ((state === 'won' || state === 'dead') && restartCooldown <= 0) {
+      // Touch retry/leave buttons — detect which button was tapped
+      const btnY = state === 'won' ? H/2 + 30 : H/2 + 20;
+      if (cy > btnY && cy < btnY + 36) {
+        if (cx > W/2 - 150 && cx < W/2 - 20) {
+          // Retry button
+          if (mpEnabled) { mpVoteRetry(); if (isHost) { const tc = Object.keys(roomPlayers).length; const rc = Object.keys(mpRetryVotes).length; if (rc >= tc) mpTriggerRetry(); } } else { startGame(); }
+        } else if (cx > W/2 + 20 && cx < W/2 + 150) {
+          // Leave button
+          if (mpEnabled) { leaveRoom(); } state = 'menu'; menuState = 'main'; menuSelection = 0;
+        }
+      }
+      return;
+    }
 
     // Gameplay touch controls — dual joystick + jump button
     if (state === 'playing' || state === 'intro' || state === 'bossfight' || state === 'epsteinfight' || state === 'fusionfight' || state === 'splitfight') {
@@ -2503,6 +2713,8 @@ function startGame() {
   mpSpectating = false;
   mpSpectateTarget = null;
   mpSpectateIndex = 0;
+  mpRetryVotes = {};
+  mpRetrySelection = 0;
   // Boss starts hidden - spawns after cutscene at wall top
   boss = null;
   bossMinions = [];
@@ -2702,6 +2914,27 @@ function update() {
       syncMyPositionImmediate();
     }
     if (player.alive) mpDeathSynced = false;
+    
+    // Host checks if ALL players are dead → game over for everyone
+    if (isHost && !player.alive && state !== 'dead' && state !== 'won' && state !== 'menu') {
+      const anyAlive = Object.keys(roomPlayers).some(pid => {
+        const rp = roomPlayers[pid];
+        return rp && rp.alive && rp.hp > 0;
+      });
+      if (!anyAlive) {
+        state = 'dead';
+        mpSpectating = false;
+        restartCooldown = 60;
+      }
+    }
+    // Host auto-triggers retry when all votes are in
+    if (isHost && (state === 'won' || state === 'dead') && restartCooldown <= 0) {
+      const totalPlayers = Object.keys(roomPlayers).length;
+      const retryCount = Object.keys(mpRetryVotes).length;
+      if (retryCount > 0 && retryCount >= totalPlayers) {
+        mpTriggerRetry();
+      }
+    }
   }
   textCursorBlink = (textCursorBlink + 1) % 60;
   
@@ -3235,6 +3468,7 @@ function update() {
   if (bigWall && p.x > bigWall.x + bigWall.w && p.y < bigWall.y + 40 && boss && boss.dead) {
     state = 'won';
     p.won = true;
+    mpSpectating = false;
     spawnParticles(p.x, p.y, '#ffdd44', 40);
     spawnParticles(p.x, p.y, '#ff6644', 30);
     restartCooldown = 60;
@@ -4937,9 +5171,9 @@ function update() {
       handlePlayerDeath();
     }
 
-    // Check if all mini-bosses dead → VICTORY
-    const allDead = miniBosses.every(mb => mb.dead);
-    if (allDead) {
+    // Check if all mini-bosses dead → VICTORY (skip if Hawking cutscenes are handling it)
+    const allDead = miniBosses.length > 0 && miniBosses.every(mb => mb.dead);
+    if (allDead && state === 'splitfight') {
       bossDeathTimer = 0;
       screenFlash = 60;
       screenFlashColor = '#ffffff';
@@ -4958,6 +5192,7 @@ function update() {
       arenaPlats = [];
       state = 'won';
       player.won = true;
+      mpSpectating = false;
       spawnParticles(player.x, player.y, '#ffdd44', 50);
       spawnParticles(player.x, player.y, '#ff6644', 40);
       restartCooldown = 60;
@@ -5185,6 +5420,7 @@ function update() {
       arenaPlats = [];
       state = 'won';
       player.won = true;
+      mpSpectating = false;
       spawnParticles(player.x, player.y, '#ffdd44', 50);
       spawnParticles(player.x, player.y, '#ff6644', 40);
       restartCooldown = 60;
@@ -11025,81 +11261,124 @@ function draw() {
       // ── LOBBY SCREEN ──
       ctx.fillStyle = '#44bbff';
       ctx.font = 'bold 26px monospace';
-      ctx.fillText('LOBBY', W/2, H * 0.12);
+      ctx.fillText('LOBBY', W/2, H * 0.08);
       
       // Room code
       ctx.fillStyle = '#ffcc44';
-      ctx.font = 'bold 22px monospace';
-      ctx.fillText('Room: ' + (currentRoom || '???'), W/2, H * 0.20);
+      ctx.font = 'bold 18px monospace';
+      ctx.fillText('Room: ' + (currentRoom || '???'), W/2, H * 0.14);
+      
+      // === LEFT COLUMN: Players + Chat ===
+      const colL = W/2 - 250;
+      const colR = W/2 + 10;
+      const colW = 230;
       
       // Players list
       const pids = Object.keys(roomPlayers);
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold 16px monospace';
-      ctx.fillText('PLAYERS (' + pids.length + '/4)', W/2, H * 0.28);
-      const pListY = H * 0.33;
+      ctx.font = 'bold 13px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('PLAYERS (' + pids.length + '/4)', colL, H * 0.20);
+      const pListY = H * 0.24;
       for (let i = 0; i < pids.length; i++) {
         const rp = roomPlayers[pids[i]];
-        const y = pListY + i * 28;
+        const y = pListY + i * 22;
         const isMe = pids[i] === myUid();
         ctx.fillStyle = isMe ? '#ffcc44' : '#ccc';
-        ctx.font = `${isMe ? 'bold ' : ''}14px monospace`;
-        ctx.fillText((rp.username || 'Player') + (isMe ? ' (you)' : ''), W/2, y);
+        ctx.font = `${isMe ? 'bold ' : ''}12px monospace`;
+        ctx.fillText((rp.username || 'Player') + (isMe ? ' (you)' : ''), colL + 4, y);
       }
       
-      // Chat area
-      ctx.fillStyle = '#ffffff11';
-      ctx.fillRect(W/2 - 250, H * 0.58, 500, H * 0.28);
-      ctx.strokeStyle = '#444';
+      // Chat area (left column, below players)
+      const chatBoxY = H * 0.42;
+      const chatBoxH = H * 0.40;
+      ctx.fillStyle = '#ffffff08';
+      ctx.fillRect(colL, chatBoxY, colW, chatBoxH);
+      ctx.strokeStyle = '#333';
       ctx.lineWidth = 1;
-      ctx.strokeRect(W/2 - 250, H * 0.58, 500, H * 0.28);
+      ctx.strokeRect(colL, chatBoxY, colW, chatBoxH);
       
-      ctx.fillStyle = '#888';
-      ctx.font = 'bold 12px monospace';
-      ctx.fillText('CHAT (tap to type)', W/2, H * 0.57);
+      ctx.fillStyle = '#666';
+      ctx.font = 'bold 10px monospace';
+      ctx.fillText('CHAT (tap to type)', colL + 4, chatBoxY - 4);
       
-      // Chat messages
-      const chatStartY = H * 0.62;
-      const maxChatVisible = 6;
+      const chatStartY = chatBoxY + 16;
+      const maxChatVisible = Math.floor((chatBoxH - 30) / 16);
       const chatSlice = roomChat.slice(-maxChatVisible);
       for (let i = 0; i < chatSlice.length; i++) {
         const msg = chatSlice[i];
         ctx.fillStyle = '#88ccff';
-        ctx.font = 'bold 11px monospace';
-        ctx.textAlign = 'left';
-        ctx.fillText(msg.username + ':', W/2 - 240, chatStartY + i * 18);
+        ctx.font = 'bold 10px monospace';
+        ctx.fillText(msg.username + ':', colL + 4, chatStartY + i * 16);
         ctx.fillStyle = '#ccc';
-        ctx.font = '11px monospace';
-        ctx.fillText(msg.text, W/2 - 240 + (msg.username.length + 1) * 7, chatStartY + i * 18);
-        ctx.textAlign = 'center';
+        ctx.font = '10px monospace';
+        ctx.fillText(msg.text, colL + 4 + (msg.username.length + 1) * 7, chatStartY + i * 16);
       }
       
       // Chat input
       if (chatOpen || activeTextInput === 'chat') {
         ctx.fillStyle = '#222';
-        ctx.fillRect(W/2 - 240, H * 0.85, 480, 24);
+        ctx.fillRect(colL + 2, chatBoxY + chatBoxH - 22, colW - 4, 20);
         ctx.strokeStyle = '#ffcc44';
-        ctx.strokeRect(W/2 - 240, H * 0.85, 480, 24);
+        ctx.strokeRect(colL + 2, chatBoxY + chatBoxH - 22, colW - 4, 20);
         ctx.fillStyle = '#fff';
-        ctx.font = '12px monospace';
-        ctx.textAlign = 'left';
-        ctx.fillText(chatInput + (textCursorBlink < 30 ? '|' : ''), W/2 - 235, H * 0.85 + 16);
-        ctx.textAlign = 'center';
+        ctx.font = '11px monospace';
+        ctx.fillText(chatInput + (textCursorBlink < 30 ? '|' : ''), colL + 6, chatBoxY + chatBoxH - 7);
       }
+      
+      // === RIGHT COLUMN: Match Settings ===
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#ffcc44';
+      ctx.font = 'bold 13px monospace';
+      ctx.fillText('MATCH SETTINGS', colR, H * 0.20);
+      
+      if (!isHost) {
+        ctx.fillStyle = '#888';
+        ctx.font = '10px monospace';
+        ctx.fillText('(Host controls)', colR, H * 0.23);
+      }
+      
+      const settY = H * 0.26;
+      const settItems = [
+        { label: 'Difficulty', value: settings.difficulty.toUpperCase(), key: 'difficulty' },
+        { label: 'Double Jump', value: settings.doubleJump ? 'ON' : 'OFF', key: 'doubleJump' },
+        { label: 'God Mode', value: cheats.godMode ? 'ON' : 'OFF', key: 'godMode' },
+        { label: 'One Hit Kill', value: cheats.oneHitKill ? 'ON' : 'OFF', key: 'oneHitKill' },
+        { label: 'Infinite Jumps', value: cheats.infiniteJumps ? 'ON' : 'OFF', key: 'infiniteJumps' },
+        { label: 'Speed Boost', value: cheats.speedBoost ? 'ON' : 'OFF', key: 'speedBoost' },
+        { label: 'Big Projectiles', value: cheats.bigProjectiles ? 'ON' : 'OFF', key: 'bigProjectiles' },
+        { label: 'No Cooldown', value: cheats.noCooldown ? 'ON' : 'OFF', key: 'noCooldown' },
+      ];
+      for (let i = 0; i < settItems.length; i++) {
+        const y = settY + i * 26;
+        const sel = isHost && mpSettingsSelection === i;
+        ctx.fillStyle = sel ? '#ffcc44' : '#aaa';
+        ctx.font = `${sel ? 'bold ' : ''}12px monospace`;
+        ctx.fillText(settItems[i].label + ':', colR + 4, y);
+        // Value (right-aligned)
+        const valColor = settItems[i].value === 'ON' ? '#88ff88' : settItems[i].value === 'OFF' ? '#ff6666' : '#ffffff';
+        ctx.fillStyle = sel ? '#ffffff' : valColor;
+        ctx.font = `bold 12px monospace`;
+        ctx.textAlign = 'right';
+        ctx.fillText(settItems[i].value, colR + colW - 4, y);
+        ctx.textAlign = 'left';
+      }
+      
+      ctx.textAlign = 'center';
       
       // Start / Leave buttons
       if (isHost) {
         ctx.fillStyle = '#88ff8833';
-        ctx.fillRect(W/2 - 100, H * 0.90, 200, 32);
+        ctx.fillRect(W/2 - 100, H * 0.88, 200, 32);
         ctx.strokeStyle = '#88ff88';
-        ctx.strokeRect(W/2 - 100, H * 0.90, 200, 32);
+        ctx.strokeRect(W/2 - 100, H * 0.88, 200, 32);
         ctx.fillStyle = '#88ff88';
         ctx.font = 'bold 16px monospace';
-        ctx.fillText('START GAME', W/2, H * 0.90 + 22);
+        ctx.fillText('START GAME', W/2, H * 0.88 + 22);
       } else {
         ctx.fillStyle = '#888';
         ctx.font = '14px monospace';
-        ctx.fillText('Waiting for host to start...', W/2, H * 0.93);
+        ctx.fillText('Waiting for host to start...', W/2, H * 0.91);
       }
       
       // Leave button
@@ -11704,53 +11983,121 @@ function draw() {
   }
 
   if (state === 'won') {
-    ctx.fillStyle = '#00000088';
+    ctx.fillStyle = '#000000bb';
     ctx.fillRect(0, 0, W, H);
 
     ctx.fillStyle = '#44ff88';
     ctx.font = 'bold 40px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('¡LO LOGRASTE!', W / 2, H / 2 - 40);
+    ctx.fillText('¡LO LOGRASTE!', W / 2, H / 2 - 60);
 
     ctx.fillStyle = '#ffdd44';
     ctx.font = '18px monospace';
-    ctx.fillText('You made it across the border! ¡Bienvenido!', W / 2, H / 2 + 10);
+    ctx.fillText('You made it across the border! ¡Bienvenido!', W / 2, H / 2 - 25);
 
     if (settings.showTimer) {
       ctx.fillStyle = '#aaa';
       ctx.font = '14px monospace';
       const mins = Math.floor(gameTimer / 3600);
       const secs = Math.floor((gameTimer % 3600) / 60);
-      ctx.fillText(`Time: ${mins}:${secs.toString().padStart(2, '0')}`, W / 2, H / 2 + 35);
+      ctx.fillText(`Time: ${mins}:${secs.toString().padStart(2, '0')}`, W / 2, H / 2 + 5);
     }
 
-    ctx.fillStyle = '#aaa';
-    ctx.font = '14px monospace';
-    const blink = Math.sin(Date.now() / 300) > 0;
-    if (blink) ctx.fillText('[ Press SPACE → Main Menu ]', W / 2, H / 2 + 65);
+    // Retry / Leave buttons
+    if (restartCooldown <= 0) {
+      const btnY = H / 2 + 30;
+      // Retry button
+      const retryHover = mpRetrySelection === 0;
+      ctx.fillStyle = retryHover ? '#44ff8844' : '#ffffff11';
+      ctx.fillRect(W/2 - 150, btnY, 130, 36);
+      ctx.strokeStyle = retryHover ? '#44ff88' : '#888';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(W/2 - 150, btnY, 130, 36);
+      ctx.fillStyle = retryHover ? '#44ff88' : '#ccc';
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText('RETRY', W/2 - 85, btnY + 24);
+
+      // Leave button
+      const leaveHover = mpRetrySelection === 1;
+      ctx.fillStyle = leaveHover ? '#ff444444' : '#ffffff11';
+      ctx.fillRect(W/2 + 20, btnY, 130, 36);
+      ctx.strokeStyle = leaveHover ? '#ff4444' : '#888';
+      ctx.strokeRect(W/2 + 20, btnY, 130, 36);
+      ctx.fillStyle = leaveHover ? '#ff4444' : '#ccc';
+      ctx.fillText('LEAVE', W/2 + 85, btnY + 24);
+
+      // MP retry votes
+      if (mpEnabled) {
+        const totalPlayers = Object.keys(roomPlayers).length;
+        const retryCount = Object.keys(mpRetryVotes).length;
+        ctx.fillStyle = '#88ccff';
+        ctx.font = '12px monospace';
+        ctx.fillText(`Retry votes: ${retryCount}/${totalPlayers}`, W/2, btnY + 58);
+        if (mpRetryVotes[myUid()]) {
+          ctx.fillStyle = '#88ff88';
+          ctx.fillText('✓ You voted to retry', W/2, btnY + 76);
+        }
+      }
+    }
   }
 
   if (state === 'dead') {
-    ctx.fillStyle = '#00000088';
+    ctx.fillStyle = '#000000bb';
     ctx.fillRect(0, 0, W, H);
 
     ctx.fillStyle = '#ff4444';
     ctx.font = 'bold 36px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('¡ATRAPADO!', W / 2, H / 2 - 30);
+    ctx.fillText('¡ATRAPADO!', W / 2, H / 2 - 60);
 
     ctx.fillStyle = '#ccc';
     ctx.font = '16px monospace';
-    ctx.fillText('La migra te atrapó! Border patrol got you!', W / 2, H / 2 + 10);
+    if (mpEnabled) {
+      ctx.fillText('All players have been caught!', W / 2, H / 2 - 25);
+    } else {
+      ctx.fillText('La migra te atrapó! Border patrol got you!', W / 2, H / 2 - 25);
+    }
 
     ctx.fillStyle = '#888';
     ctx.font = '12px monospace';
-    ctx.fillText(`Difficulty: ${settings.difficulty.toUpperCase()}`, W / 2, H / 2 + 35);
+    ctx.fillText(`Difficulty: ${settings.difficulty.toUpperCase()}`, W / 2, H / 2 + 0);
 
-    ctx.fillStyle = '#aaa';
-    ctx.font = '14px monospace';
-    const blink = Math.sin(Date.now() / 300) > 0;
-    if (blink) ctx.fillText('[ Press SPACE → Main Menu ]', W / 2, H / 2 + 60);
+    // Retry / Leave buttons
+    if (restartCooldown <= 0) {
+      const btnY = H / 2 + 20;
+      // Retry button
+      const retryHover = mpRetrySelection === 0;
+      ctx.fillStyle = retryHover ? '#44ff8844' : '#ffffff11';
+      ctx.fillRect(W/2 - 150, btnY, 130, 36);
+      ctx.strokeStyle = retryHover ? '#44ff88' : '#888';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(W/2 - 150, btnY, 130, 36);
+      ctx.fillStyle = retryHover ? '#44ff88' : '#ccc';
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText('RETRY', W/2 - 85, btnY + 24);
+
+      // Leave button
+      const leaveHover = mpRetrySelection === 1;
+      ctx.fillStyle = leaveHover ? '#ff444444' : '#ffffff11';
+      ctx.fillRect(W/2 + 20, btnY, 130, 36);
+      ctx.strokeStyle = leaveHover ? '#ff4444' : '#888';
+      ctx.strokeRect(W/2 + 20, btnY, 130, 36);
+      ctx.fillStyle = leaveHover ? '#ff4444' : '#ccc';
+      ctx.fillText('LEAVE', W/2 + 85, btnY + 24);
+
+      // MP retry votes
+      if (mpEnabled) {
+        const totalPlayers = Object.keys(roomPlayers).length;
+        const retryCount = Object.keys(mpRetryVotes).length;
+        ctx.fillStyle = '#88ccff';
+        ctx.font = '12px monospace';
+        ctx.fillText(`Retry votes: ${retryCount}/${totalPlayers}`, W/2, btnY + 58);
+        if (mpRetryVotes[myUid()]) {
+          ctx.fillStyle = '#88ff88';
+          ctx.fillText('✓ You voted to retry', W/2, btnY + 76);
+        }
+      }
+    }
   }
 
   // Spectator overlay
@@ -11768,7 +12115,7 @@ function draw() {
     const aliveList = getAlivePlayerList();
     let targetName = '???';
     if (mpSpectateTarget && roomPlayers[mpSpectateTarget]) {
-      targetName = roomPlayers[mpSpectateTarget].name || mpSpectateTarget.substring(0, 6);
+      targetName = roomPlayers[mpSpectateTarget].username || mpSpectateTarget.substring(0, 6);
     }
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 16px monospace';
