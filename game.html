@@ -1821,16 +1821,19 @@ canvas.addEventListener('mousemove', e => {
 
 // Fullscreen toggle
 function toggleFullscreen() {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen().catch(() => {});
+  const el = document.documentElement;
+  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  if (!fsEl) {
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
   } else {
-    document.exitFullscreen().catch(() => {});
+    if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
   }
 }
 // Force a repaint after fullscreen transition
-document.addEventListener('fullscreenchange', () => {
-  setTimeout(resizeCanvas, 100);
-});
+document.addEventListener('fullscreenchange', () => { setTimeout(resizeCanvas, 100); });
+document.addEventListener('webkitfullscreenchange', () => { setTimeout(resizeCanvas, 100); });
 
 canvas.addEventListener('click', e => {
   const { x: cx, y: cy } = clientToCanvas(e.clientX, e.clientY);
@@ -2113,6 +2116,12 @@ canvas.addEventListener('touchstart', e => {
   mouseActive = false;
   for (const t of e.changedTouches) {
     const { x: cx, y: cy } = clientToCanvas(t.clientX, t.clientY);
+
+    // Fullscreen button (top-right, always available)
+    if (cx > W - 48 && cy < 48) {
+      toggleFullscreen();
+      return;
+    }
 
     // Menu touch support
     if (state === 'menu') {
@@ -12218,7 +12227,7 @@ function draw() {
   }
 
   // Fullscreen button (always visible, top-right) — 44x44 for touch
-  const isFS = !!document.fullscreenElement;
+  const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
   ctx.save();
   ctx.globalAlpha = 0.5;
   ctx.fillStyle = '#000';
