@@ -40,7 +40,7 @@ canvas {
 </div>
 <canvas id="game"></canvas>
 <!-- Hidden input for iOS/iPad virtual keyboard -->
-<input id="hiddenInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="position:fixed;left:0;top:0;width:100%;height:40px;opacity:0.01;font-size:16px;z-index:9999;pointer-events:none;" />
+<input id="hiddenInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="position:fixed;left:0;bottom:0;width:100%;height:40px;opacity:0.01;font-size:16px;z-index:9999;pointer-events:none;" />
 
 <!-- Firebase SDK (compat for non-module script) -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -228,6 +228,32 @@ let settings = {
   colorblind: false,
 };
 
+// ── iPad/Touch Performance Mode Prompt ──
+let _perfPromptShown = localStorage.getItem('perfPromptDismissed') === 'true';
+let _showPerfPrompt = false;
+// Detect iPad/mobile and offer performance mode on first visit
+(function checkPerfPrompt() {
+  if (_perfPromptShown) return;
+  const isTouch = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+  const isIpad = /iPad|Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
+  const isMobile = /iPhone|Android|webOS|iPod/i.test(navigator.userAgent);
+  if (isTouch || isIpad || isMobile) {
+    _showPerfPrompt = true;
+  }
+})();
+function _acceptPerfMode() {
+  settings.particles = false;
+  settings.screenShake = false;
+  _showPerfPrompt = false;
+  _perfPromptShown = true;
+  localStorage.setItem('perfPromptDismissed', 'true');
+}
+function _declinePerfMode() {
+  _showPerfPrompt = false;
+  _perfPromptShown = true;
+  localStorage.setItem('perfPromptDismissed', 'true');
+}
+
 // ── TOUCH CONTROL LAYOUT SYSTEM ──
 const TOUCH_PRESETS = {
   default: { name: 'Default', moveX: 140, moveY: 600, moveR: 70, aimX: 1140, aimY: 600, aimR: 70 },
@@ -271,13 +297,23 @@ function completeTutorial() {
 let gameTimer = 0; // track play time
 
 // Difficulty multipliers
+function getPlayerCountMult() {
+  if (!mpEnabled) return 1;
+  const count = Math.max(1, Object.keys(roomPlayers).length);
+  // 1 player = 1x, 2 players = 1.8x, 3 = 2.4x, 4 = 3x
+  if (count === 1) return 1;
+  if (count === 2) return 1.8;
+  if (count === 3) return 2.4;
+  return 3;
+}
 function getDiffMult() {
+  const pm = getPlayerCountMult();
   switch(settings.difficulty) {
-    case 'easy': return { dmg: 0.5, enemyHp: 0.7, enemySpeed: 0.8, playerHp: 20, projSpeed: 0.7 };
-    case 'normal': return { dmg: 1, enemyHp: 1, enemySpeed: 1, playerHp: 15, projSpeed: 1 };
-    case 'hard': return { dmg: 1.5, enemyHp: 1.3, enemySpeed: 1.2, playerHp: 12, projSpeed: 1.2 };
-    case 'insane': return { dmg: 2, enemyHp: 1.6, enemySpeed: 1.4, playerHp: 8, projSpeed: 1.5 };
-    default: return { dmg: 1, enemyHp: 1, enemySpeed: 1, playerHp: 15, projSpeed: 1 };
+    case 'easy': return { dmg: 0.6 * pm, enemyHp: 0.8 * pm, enemySpeed: 0.85, playerHp: 20, projSpeed: 0.75 };
+    case 'normal': return { dmg: 1.2 * pm, enemyHp: 1.2 * pm, enemySpeed: 1.05, playerHp: 15, projSpeed: 1.05 };
+    case 'hard': return { dmg: 1.8 * pm, enemyHp: 1.5 * pm, enemySpeed: 1.25, playerHp: 12, projSpeed: 1.25 };
+    case 'insane': return { dmg: 2.5 * pm, enemyHp: 2.0 * pm, enemySpeed: 1.5, playerHp: 8, projSpeed: 1.5 };
+    default: return { dmg: 1.2 * pm, enemyHp: 1.2 * pm, enemySpeed: 1.05, playerHp: 15, projSpeed: 1.05 };
   }
 }
 
@@ -1254,6 +1290,21 @@ function applyEnemyData() {
         mpSpectating = false;
         restartCooldown = 60;
       }
+      // Guest winCutscene setup — revive player, teleport past wall, set office position
+      if (d.gameState === 'winCutscene' && oldState !== 'winCutscene') {
+        player.alive = true;
+        player.hp = player.maxHp;
+        player.won = true;
+        player.iFrames = 99999;
+        winCutsceneTimer = 0;
+        if (bigWall) {
+          player.x = bigWall.x + bigWall.w + 30;
+          player.y = bigWall.y - player.h;
+        }
+        player.vy = 0; player.vx = 0;
+        winCutsceneOfficeX = player.x + 750;
+        guards = []; bullets = []; projectiles = []; epsteinProjectiles = []; bossMinions = [];
+      }
       state = d.gameState;
     }
   }
@@ -2098,6 +2149,14 @@ document.addEventListener('webkitfullscreenchange', () => { setTimeout(resizeCan
 canvas.addEventListener('click', e => {
   const { x: cx, y: cy } = clientToCanvas(e.clientX, e.clientY);
   
+  // Performance mode prompt buttons (highest priority when visible)
+  if (_showPerfPrompt && window._perfYesBtn && window._perfNoBtn) {
+    const yb = window._perfYesBtn, nb = window._perfNoBtn;
+    if (cx >= yb.x && cx <= yb.x + yb.w && cy >= yb.y && cy <= yb.y + yb.h) { _acceptPerfMode(); return; }
+    if (cx >= nb.x && cx <= nb.x + nb.w && cy >= nb.y && cy <= nb.y + nb.h) { _declinePerfMode(); return; }
+    return; // block all clicks while prompt is up
+  }
+
   // Fullscreen button (top-right corner, always available — 46px for touch)
   if (cx > W - 48 && cy < 48) {
     toggleFullscreen();
@@ -2431,6 +2490,14 @@ canvas.addEventListener('touchstart', e => {
   mouseActive = false;
   for (const t of e.changedTouches) {
     const { x: cx, y: cy } = clientToCanvas(t.clientX, t.clientY);
+
+    // Performance mode prompt buttons (highest priority when visible)
+    if (_showPerfPrompt && window._perfYesBtn && window._perfNoBtn) {
+      const yb = window._perfYesBtn, nb = window._perfNoBtn;
+      if (cx >= yb.x && cx <= yb.x + yb.w && cy >= yb.y && cy <= yb.y + yb.h) { _acceptPerfMode(); return; }
+      if (cx >= nb.x && cx <= nb.x + nb.w && cy >= nb.y && cy <= nb.y + nb.h) { _declinePerfMode(); return; }
+      return; // block all touches while prompt is up
+    }
 
     // Fullscreen button (top-right, always available)
     if (cx > W - 48 && cy < 48) {
@@ -2857,6 +2924,7 @@ function buildLevel() {
   });
 
   // Guards patrolling
+  const dmGuards = getDiffMult();
   const guardSpots = [
     { x: 500, range: 100 },
     { x: 850, range: 90 },
@@ -2872,14 +2940,14 @@ function buildLevel() {
       w: 56, h: 84,
       startX: g.x,
       range: g.range,
-      speed: 1.0 + Math.random() * 0.6,
+      speed: (1.2 + Math.random() * 0.7) * dmGuards.enemySpeed,
       dir: Math.random() > 0.5 ? 1 : -1,
       alert: false,
       alertTimer: 0,
       frame: 0,
       frameTimer: 0,
-      hp: 3,
-      maxHp: 3,
+      hp: Math.ceil(4 * dmGuards.enemyHp),
+      maxHp: Math.ceil(4 * dmGuards.enemyHp),
       climbing: false,
       shootCooldown: 60 + Math.floor(Math.random() * 60),
       dead: false,
@@ -3506,13 +3574,15 @@ function update() {
         const arenaTop2 = bigWall.y + 40;
         const arenaH2 = 800;
         const arenaBottom2 = arenaTop2 + arenaH2;
+        const dmBoss = getDiffMult();
+        const bossBaseHp = Math.ceil(45 * dmBoss.enemyHp);
         boss = {
           x: bigWall.x + bigWall.w / 2 - 60,
           y: arenaBottom2 - 160,
           w: 120,
           h: 160,
-          hp: 35,
-          maxHp: 35,
+          hp: bossBaseHp,
+          maxHp: bossBaseHp,
           dir: -1,
           frame: 0,
           frameTimer: 0,
@@ -3529,7 +3599,7 @@ function update() {
           slamming: false,
           slamTimer: 0,
           summonCooldown: 300,
-          speed: 1.5,
+          speed: 1.5 * dmBoss.enemySpeed,
           vy: 0,
         };
         bossMinions = [];
@@ -3604,12 +3674,14 @@ function update() {
       const arenaLeft2 = bigWall.x + bigWall.w/2 - bArenaW2/2;
       const arenaTop2 = bigWall.y + 40;
       const arenaFloor2 = arenaTop2 + 800;
+      const dmEps = getDiffMult();
+      const epsBaseHp = Math.ceil(35 * dmEps.enemyHp);
       epstein = {
         x: arenaLeft2 + bArenaW2/2 - 50,
         y: arenaTop2 + 30,
         w: 100, h: 140,
-        hp: 25, maxHp: 25,
-        dir: -1, speed: 2.5,
+        hp: epsBaseHp, maxHp: epsBaseHp,
+        dir: -1, speed: 2.8 * dmEps.enemySpeed,
         frame: 0, frameTimer: 0,
         dead: false, phase: 1,
         phaseTriggered2: false,
@@ -3691,11 +3763,13 @@ function update() {
       screenFlash = 60;
       screenFlashColor = '#ffffff';
       shakeTimer = 50;
+      const dmFus = getDiffMult();
+      const fusBaseHp = Math.ceil(65 * dmFus.enemyHp);
       fusionBoss = {
         x: centerX - 75, y: centerY - 100,
         w: 150, h: 200,
-        hp: 50, maxHp: 50,
-        dir: -1, speed: 3,
+        hp: fusBaseHp, maxHp: fusBaseHp,
+        dir: -1, speed: 3.3 * dmFus.enemySpeed,
         frame: 0, frameTimer: 0,
         dead: false, phase: 1,
         phaseTriggered2: false,
@@ -3910,6 +3984,9 @@ function update() {
     state = 'winCutscene';
     winCutsceneTimer = 0;
     p.won = true;
+    p.alive = true;
+    p.hp = p.maxHp;
+    p.iFrames = 99999;
     mpSpectating = false;
     spawnParticles(p.x, p.y, '#ffdd44', 40);
     spawnParticles(p.x, p.y, '#ff6644', 30);
@@ -4302,14 +4379,14 @@ function update() {
     }
 
     // Boss contact damage — ALL players (guest uses synced positions)
-    if (boss.charging && p.alive && p.iFrames <= 0 && rectsOverlap(p, boss)) {
+    if (boss.charging && p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, boss)) {
       p.hp -= 1;
       p.iFrames = 60;
       p.vx = (boss.chargeVx || boss.dir * 8) * 0.8;
       p.vy = -8;
       shakeTimer = 12;
       spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4444', 15);
-    } else if (!boss.charging && p.alive && p.iFrames <= 0 && rectsOverlap(p, boss)) {
+    } else if (!boss.charging && p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, boss)) {
       p.hp -= 1;
       p.iFrames = 40;
       p.vx = (p.x < boss.x ? -1 : 1) * 5;
@@ -4974,7 +5051,7 @@ function update() {
    } // end _mpHost epstein AI
 
     // Contact damage — ALL players
-    if (p.alive && p.iFrames <= 0 && rectsOverlap(p, epstein)) {
+    if (p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, epstein)) {
       p.hp -= 1;
       p.iFrames = 45;
       p.vx = (p.x < epstein.x ? -1 : 1) * 6;
@@ -5163,7 +5240,7 @@ function update() {
    } // end _mpHost fusion AI
 
     // Contact damage — ALL players
-    if (p.alive && p.iFrames <= 0 && rectsOverlap(p, fusionBoss)) {
+    if (p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, fusionBoss)) {
       p.hp -= 2;
       p.iFrames = 50;
       p.vx = (p.x < fusionBoss.x ? -1 : 1) * 8;
@@ -5657,6 +5734,9 @@ function update() {
       state = 'winCutscene';
       winCutsceneTimer = 0;
       player.won = true;
+      player.alive = true;
+      player.hp = player.maxHp;
+      player.iFrames = 99999;
       mpSpectating = false;
       spawnParticles(player.x, player.y, '#ffdd44', 50);
       spawnParticles(player.x, player.y, '#ff6644', 40);
@@ -5897,6 +5977,9 @@ function update() {
       state = 'winCutscene';
       winCutsceneTimer = 0;
       player.won = true;
+      player.alive = true;
+      player.hp = player.maxHp;
+      player.iFrames = 99999;
       mpSpectating = false;
       spawnParticles(player.x, player.y, '#ffdd44', 50);
       spawnParticles(player.x, player.y, '#ff6644', 40);
@@ -8704,9 +8787,9 @@ function draw() {
 
     // BOSS HP — full width cinematic bar below player HP
     if (boss && !boss.dead) {
-      const bossHudW = Math.min(500, W * 0.6);
+      const bossHudW = Math.min(500, W * 0.6, W - 260);
       const bHpPct = boss.hp / boss.maxHp;
-      const barX = W/2 - bossHudW/2;
+      const barX = Math.max(240, W/2 - bossHudW/2);
       const bossHudY = 44;
 
       // Background
@@ -8793,9 +8876,9 @@ function draw() {
 
     // EPSTEIN HP — cinematic bar at top center (purple themed)
     if (epstein && !epstein.dead) {
-      const eHudW = Math.min(500, W * 0.5);
+      const eHudW = Math.min(500, W * 0.5, W - 260);
       const eHpPct = epstein.hp / epstein.maxHp;
-      const barX = W/2 - eHudW/2;
+      const barX = Math.max(240, W/2 - eHudW/2);
 
       ctx.fillStyle = '#000000cc';
       ctx.fillRect(barX - 5, 5, eHudW + 10, 38);
@@ -8996,9 +9079,9 @@ function draw() {
 
     // TRUMPSTEIN HP — dual color bar
     if (fusionBoss && !fusionBoss.dead) {
-      const fHudW = Math.min(550, W * 0.55);
+      const fHudW = Math.min(550, W * 0.55, W - 260);
       const fHpPct = fusionBoss.hp / fusionBoss.maxHp;
-      const barX = W/2 - fHudW/2;
+      const barX = Math.max(240, W/2 - fHudW/2);
 
       ctx.fillStyle = '#000000cc';
       ctx.fillRect(barX - 5, 5, fHudW + 10, 40);
@@ -11255,8 +11338,9 @@ function draw() {
     // Mini-boss HP bars at top — show remaining count
     const alive = miniBosses.filter(m => !m.dead);
     const total = miniBosses.length;
+    const miniBossW = Math.min(400, W - 260);
     ctx.fillStyle = '#000000cc';
-    ctx.fillRect(W/2 - 200, 5, 400, 38);
+    ctx.fillRect(Math.max(240, W/2 - miniBossW/2), 5, miniBossW, 38);
     ctx.fillStyle = '#ff8844';
     ctx.font = 'bold 13px monospace';
     ctx.textAlign = 'center';
@@ -12281,9 +12365,9 @@ function draw() {
       ctx.fillText(rcText, W/2, H * 0.09 + 20);
       
       // === LEFT COLUMN: Players + Chat ===
-      const colL = W/2 - 250;
-      const colR = W/2 + 10;
-      const colW = 230;
+      const colW = Math.min(230, (W - 30) / 2);
+      const colL = W/2 - colW - 5;
+      const colR = W/2 + 5;
       
       // Players list
       const pids = Object.keys(roomPlayers);
@@ -13280,7 +13364,7 @@ function draw() {
   ctx.restore();
 
   // ── OVERLAY HUD (outside camera transform) ──
-  // FPS counter
+  // FPS counter — positioned below HP bar to avoid overlap
   if (settings.showFPS) {
     if (!window._fpsData) window._fpsData = { frames: 0, last: Date.now(), fps: 60 };
     window._fpsData.frames++;
@@ -13290,13 +13374,14 @@ function draw() {
       window._fpsData.frames = 0;
       window._fpsData.last = now;
     }
+    const fpsY = (state === 'playing' || state === 'bossfight' || state === 'epsteinfight' || state === 'fusionfight' || state === 'splitfight') ? 52 : 16;
     ctx.fillStyle = '#88ff88';
     ctx.font = '11px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`FPS: ${window._fpsData.fps}`, 10, 16);
+    ctx.fillText(`FPS: ${window._fpsData.fps}`, 10, fpsY);
   }
   
-  // Game timer display
+  // Game timer display — positioned below boss bar / fullscreen btn to avoid overlap
   if (settings.showTimer && (state === 'playing' || state === 'bossfight' || state === 'epsteinfight' || state === 'fusionfight' || state === 'splitfight')) {
     const mins = Math.floor(gameTimer / 3600);
     const secs = Math.floor((gameTimer % 3600) / 60);
@@ -13304,7 +13389,7 @@ function draw() {
     ctx.fillStyle = '#ffffff88';
     ctx.font = '12px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText(`${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`, W - 10, 16);
+    ctx.fillText(`${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`, W - 50, 52);
   }
   
   // Double jump indicator during gameplay
@@ -13316,25 +13401,26 @@ function draw() {
     ctx.fillText(`Jumps: ${'●'.repeat(player.jumpsLeft)}${'○'.repeat(player.maxJumps - player.jumpsLeft)}`, _isTouchDev ? getMoveCenterX() - 30 : 10, _isTouchDev ? getMoveCenterY() - getMoveRadius() - 35 : H - 15);
   }
 
-  // Cheats active indicator
+  // Cheats active indicator — positioned to avoid boss HP bars
   const activeCheats = Object.entries(cheats).filter(([k,v]) => v);
   if (activeCheats.length > 0 && state !== 'menu') {
     ctx.save();
     ctx.globalAlpha = 0.7;
+    const cheatsY = (state === 'bossfight' || state === 'epsteinfight' || state === 'fusionfight' || state === 'splitfight') ? 88 : 46;
     ctx.fillStyle = '#ff000088';
-    ctx.fillRect(W - 160, 46, 116, 14 + activeCheats.length * 13);
+    ctx.fillRect(W - 160, cheatsY, 116, 14 + activeCheats.length * 13);
     ctx.strokeStyle = '#ff4444';
     ctx.lineWidth = 1;
-    ctx.strokeRect(W - 160, 46, 116, 14 + activeCheats.length * 13);
+    ctx.strokeRect(W - 160, cheatsY, 116, 14 + activeCheats.length * 13);
     ctx.fillStyle = '#ff4444';
     ctx.font = 'bold 10px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText('CHEATS ON', W - 48, 57);
+    ctx.fillText('CHEATS ON', W - 48, cheatsY + 11);
     ctx.font = '9px monospace';
     ctx.fillStyle = '#ffaa44';
     const cheatShort = {godMode:'GOD',oneHitKill:'1HIT',infiniteJumps:'INF-J',speedBoost:'SPD',bigProjectiles:'BIG-P',noCooldown:'NO-CD'};
     activeCheats.forEach(([k], i) => {
-      ctx.fillText(cheatShort[k] || k, W - 48, 69 + i * 13);
+      ctx.fillText(cheatShort[k] || k, W - 48, cheatsY + 23 + i * 13);
     });
     ctx.restore();
   }
@@ -13388,6 +13474,52 @@ function draw() {
       ctx.fillStyle = t.color;
       ctx.fillText(t.text, W / 2 - tw / 2, ty + 2);
     }
+    ctx.restore();
+  }
+
+  // ── Performance Mode Prompt (iPad/mobile) ──
+  if (_showPerfPrompt) {
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+    const boxW = Math.min(420, W - 40);
+    const boxH = 220;
+    const bx = W/2 - boxW/2, by = H/2 - boxH/2;
+    ctx.fillStyle = '#1a1a2e';
+    ctx.beginPath(); ctx.roundRect(bx, by, boxW, boxH, 16); ctx.fill();
+    ctx.strokeStyle = '#f0c040';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(bx, by, boxW, boxH, 16); ctx.stroke();
+    ctx.fillStyle = '#f0c040';
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('📱 Performance Mode', W/2, by + 40);
+    ctx.fillStyle = '#ccc';
+    ctx.font = '14px monospace';
+    ctx.fillText('We detected you\'re on a', W/2, by + 75);
+    ctx.fillText('mobile/tablet device.', W/2, by + 95);
+    ctx.fillText('Turn on Performance Mode?', W/2, by + 120);
+    ctx.fillStyle = '#888';
+    ctx.font = '11px monospace';
+    ctx.fillText('(Disables particles & screen shake)', W/2, by + 142);
+    // YES button
+    const yBtnX = W/2 - 110, yBtnY = by + 160, btnW = 100, btnH = 36;
+    ctx.fillStyle = '#22aa44';
+    ctx.beginPath(); ctx.roundRect(yBtnX, yBtnY, btnW, btnH, 8); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 15px monospace';
+    ctx.fillText('YES', yBtnX + btnW/2, yBtnY + 24);
+    // NO button
+    const nBtnX = W/2 + 10;
+    ctx.fillStyle = '#aa2222';
+    ctx.beginPath(); ctx.roundRect(nBtnX, yBtnY, btnW, btnH, 8); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillText('NO', nBtnX + btnW/2, yBtnY + 24);
+    // Store button rects for click handling
+    window._perfYesBtn = { x: yBtnX, y: yBtnY, w: btnW, h: btnH };
+    window._perfNoBtn = { x: nBtnX, y: yBtnY, w: btnW, h: btnH };
     ctx.restore();
   }
 }
