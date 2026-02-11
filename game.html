@@ -4400,6 +4400,7 @@ function update() {
 
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const proj = projectiles[i];
+    if (!proj) continue;
     proj.x += proj.vx;
     proj.y += proj.vy;
     proj.vy += 0.12;
@@ -5648,6 +5649,11 @@ function update() {
       player.y = bigWall.y - player.h;
       player.vy = 0; player.vx = 0;
       arenaPlats = [];
+      guards = [];
+      bullets = [];
+      projectiles = [];
+      epsteinProjectiles = [];
+      bossMinions = [];
       state = 'winCutscene';
       winCutsceneTimer = 0;
       player.won = true;
@@ -5883,6 +5889,11 @@ function update() {
       }
       player.vy = 0; player.vx = 0;
       arenaPlats = [];
+      guards = [];
+      bullets = [];
+      projectiles = [];
+      epsteinProjectiles = [];
+      bossMinions = [];
       state = 'winCutscene';
       winCutsceneTimer = 0;
       player.won = true;
