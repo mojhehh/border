@@ -53,25 +53,30 @@ const ctx = canvas.getContext('2d');
 
 // ── Load Images ──
 const playerImg = new Image();
-playerImg.src = 'player.jpg';
+playerImg.src = 'player_new.png';
+const PLAYER_IMG_SCALE = 1.4; // draw image wider than hitbox to center cutout
 const guardImg = new Image();
-guardImg.src = 'guard.jpg';
+guardImg.src = 'guard_new.png';
 const projectileImg = new Image();
-projectileImg.src = 'projectile.webp';
+projectileImg.src = 'projectile.png';
 const bossImg = new Image();
-bossImg.src = 'boss.jpg';
+bossImg.src = 'trump5.png';
+const bossIntroImg = new Image();
+bossIntroImg.src = 'trump_intro.png';
 const epsteinImg = new Image();
-epsteinImg.src = 'guard.webp';
+epsteinImg.src = 'TheBigE.png';
 const epsteinFilesImg = new Image();
 epsteinFilesImg.src = 'classifed folder.png';
 const hawkingImg = new Image();
-hawkingImg.src = 'guard2.avif';
+hawkingImg.src = 'mrstephen.png';
+const hawkingGoldImg = new Image();
+hawkingGoldImg.src = 'goldenstephen.png';
 const clintonImg = new Image();
-clintonImg.src = 'guard3.webp';
+clintonImg.src = 'guard3_new.png';
 const muskImg = new Image();
-muskImg.src = 'guard4.webp';
+muskImg.src = 'guard4_new.png';
 const girlImg = new Image();
-girlImg.src = 'girl.jpg';
+girlImg.src = 'girl.png';
 const epProjectileImgs = []; // filled after load
 function setupEpImgs() { epProjectileImgs.push(epsteinFilesImg, hawkingImg, clintonImg, muskImg, girlImg); }
 setTimeout(setupEpImgs, 500);
@@ -144,7 +149,7 @@ const JUMP_FORCE = -12.5;
 const WALL_CLIMB_SPEED = 3.8;
 
 // ── Game State ──
-let state = 'menu'; // menu | tutorial | intro | playing | cutscene | bossfight | bossdialogue | phonecall | epsteinfight | fusioncutscene | fusionfight | splitfight | hawkingRefusal | won | dead | arena | lobby
+let state = 'menu'; // menu | tutorial | intro | playing | cutscene | bossfight | bossdialogue | phonecall | epsteinfight | fusioncutscene | fusionfight | splitfight | hawkingRefusal | hawkingDeath | winCutscene | won | dead | arena | lobby
 let cameraX = 0;
 let cameraY = 0;
 let levelWidth = 4000;
@@ -183,6 +188,8 @@ let hawkingRefusalPhase = 0; // 0=black, 1=heart appears, 2=heart cracks, 3=hear
 let hawkingPhase2 = false; // true after refusal — Hawking is MASSIVE
 let hawkingDeathTimer = 0; // epic death scene timer
 let hawkingDeathPhase = 0; // phase of the death scene
+let winCutsceneTimer = 0; // final win cutscene timer
+let winCutsceneOfficeX = 0; // world X position of the citizenship office
 // Cinematic intro
 let introTimer = 0;
 let introPhase = 0; // 0=black, 1=title drop, 2=subtitle, 3=camera sweep, 4=zoom to player, 5=GO!
@@ -839,8 +846,9 @@ function setupRoomListeners(code, uid) {
           if (state === 'cutscene') { cutscene.phase = 3; cutscene.fadeAlpha = 1; cutscene.timer = 0; }
           else if (state === 'fusioncutscene') { fusionCutsceneTimer = 1; }
           else if (state === 'phonecall') { phonecallTimer = 1; }
-          else if (state === 'hawkingRefusal') { hawkingRefusalTimer = 669; }
+          else if (state === 'hawkingRefusal') { hawkingRefusalTimer = 1129; }
           else if (state === 'hawkingDeath') { hawkingDeathTimer = 899; }
+          else if (state === 'winCutscene') { winCutsceneTimer = 699; }
           else if (state === 'bossdialogue') { bossDialogue.index = bossDialogue.texts.length; advanceCutscene(); }
         }
       }
@@ -1104,6 +1112,7 @@ function syncEnemyData() {
   enemies.hawkP2 = hawkingPhase2;
   enemies.hawkRefT = hawkingRefusalTimer;
   enemies.hawkDeathT = hawkingDeathTimer;
+  enemies.winCutT = winCutsceneTimer;
 
   db.ref('rooms/' + currentRoom + '/enemies').set(enemies);
 }
@@ -1206,7 +1215,7 @@ function applyEnemyData() {
   }
   // Apply game state + cutscene/dialogue sync from host
   if (d.gameState) {
-    const syncStates = ['cutscene','bossfight','bossdialogue','phonecall','epsteinfight','fusioncutscene','fusionfight','splitfight','hawkingRefusal','hawkingDeath','won','dead'];
+    const syncStates = ['cutscene','bossfight','bossdialogue','phonecall','epsteinfight','fusioncutscene','fusionfight','splitfight','hawkingRefusal','hawkingDeath','winCutscene','won','dead'];
     if (syncStates.includes(d.gameState) && state !== d.gameState) {
       const oldState = state;
       // First time entering cutscene — set up cutscene.active so rendering works
@@ -1241,7 +1250,7 @@ function applyEnemyData() {
         player.maxHp = 50; player.hp = player.maxHp;
       }
       // Stop spectating on win/lose
-      if (d.gameState === 'won' || d.gameState === 'dead') {
+      if (d.gameState === 'won' || d.gameState === 'dead' || d.gameState === 'winCutscene') {
         mpSpectating = false;
         restartCooldown = 60;
       }
@@ -1267,6 +1276,7 @@ function applyEnemyData() {
   if (d.hawkP2 !== undefined) hawkingPhase2 = d.hawkP2;
   if (typeof d.hawkRefT === 'number') hawkingRefusalTimer = d.hawkRefT;
   if (typeof d.hawkDeathT === 'number') hawkingDeathTimer = d.hawkDeathT;
+  if (typeof d.winCutT === 'number') winCutsceneTimer = d.winCutT;
 }
 
 // Handle guest damage event on host
@@ -1332,8 +1342,8 @@ function mpHandleDamageEvent(dmg) {
         mb._deathX = mb.x + mb.w/2; mb._deathY = mb.y + mb.h/2;
         state = 'hawkingDeath';
         projectiles = []; epsteinProjectiles = []; bossMinions = []; bossVfx = [];
-        screenFlash = 60; screenFlashColor = '#44ff88'; shakeTimer = 40;
-        spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#44ff88', 60);
+        screenFlash = 60; screenFlashColor = '#ffd700'; shakeTimer = 40;
+        spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#ffd700', 60);
         spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#ffffff', 40);
       } else {
         mb.dead = true;
@@ -1443,12 +1453,16 @@ function drawOtherPlayers() {
     // Semi-transparent other player
     ctx.save();
     ctx.globalAlpha = rp.iFrames > 0 ? 0.4 : 0.85;
+    const rpDrawW = 52 * PLAYER_IMG_SCALE;
+    const rpDrawH = 80 * PLAYER_IMG_SCALE;
+    const rpOffX = (52 - rpDrawW) / 2;
+    const rpOffY = 80 - rpDrawH;
     if (rp.facing < 0) {
       ctx.translate(px + 52, py - runBounce);
       ctx.scale(-1, 1);
-      ctx.drawImage(playerImg, 0, 0, 52, 80);
+      ctx.drawImage(playerImg, -rpOffX, rpOffY, rpDrawW, rpDrawH);
     } else {
-      ctx.drawImage(playerImg, px, py - runBounce, 52, 80);
+      ctx.drawImage(playerImg, px + rpOffX, py + rpOffY - runBounce, rpDrawW, rpDrawH);
     }
     ctx.restore();
     
@@ -1969,12 +1983,17 @@ window.addEventListener('keydown', e => {
   }
   if (e.code === 'Escape' && state === 'hawkingRefusal') {
     if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); }
-    else { hawkingRefusalTimer = 669; }
+    else { hawkingRefusalTimer = 1129; }
     return;
   }
   if (e.code === 'Escape' && state === 'hawkingDeath') {
     if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); }
     else { hawkingDeathTimer = 899; }
+    return;
+  }
+  if (e.code === 'Escape' && state === 'winCutscene') {
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); }
+    else { winCutsceneTimer = 699; }
     return;
   }
   if (e.code === 'Escape' && state === 'bossdialogue') {
@@ -2324,10 +2343,13 @@ canvas.addEventListener('click', e => {
     if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { fusionCutsceneTimer = 1; } return;
   }
   if (state === 'hawkingRefusal' && cx > W - 120 && cy < 50) {
-    if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { hawkingRefusalTimer = 669; } return;
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { hawkingRefusalTimer = 1129; } return;
   }
   if (state === 'hawkingDeath' && cx > W - 120 && cy < 50) {
     if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { hawkingDeathTimer = 899; } return;
+  }
+  if (state === 'winCutscene' && cx > W - 120 && cy < 50) {
+    if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { winCutsceneTimer = 699; } return;
   }
   if (state === 'bossdialogue' && cx > W - 120 && cy < 50) {
     if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { bossDialogue.index = bossDialogue.texts.length; advanceCutscene(); } return;
@@ -2645,12 +2667,13 @@ canvas.addEventListener('touchstart', e => {
     }
 
     // Skip button touch (top-right area)
-    if ((state === 'cutscene' || state === 'phonecall' || state === 'fusioncutscene' || state === 'bossdialogue' || state === 'hawkingRefusal' || state === 'hawkingDeath') && cx > W - 140 && cy < 60) {
+    if ((state === 'cutscene' || state === 'phonecall' || state === 'fusioncutscene' || state === 'bossdialogue' || state === 'hawkingRefusal' || state === 'hawkingDeath' || state === 'winCutscene') && cx > W - 140 && cy < 60) {
       if (state === 'cutscene') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { cutscene.phase = 3; cutscene.fadeAlpha = 1; cutscene.timer = 0; } }
       else if (state === 'phonecall') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { phonecallTimer = 1; } }
       else if (state === 'fusioncutscene') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { fusionCutsceneTimer = 1; } }
-      else if (state === 'hawkingRefusal') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { hawkingRefusalTimer = 669; } }
+      else if (state === 'hawkingRefusal') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { hawkingRefusalTimer = 1129; } }
       else if (state === 'hawkingDeath') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { hawkingDeathTimer = 899; } }
+      else if (state === 'winCutscene') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { winCutsceneTimer = 699; } }
       else if (state === 'bossdialogue') { if (mpEnabled && !isHost) { mpSendCutsceneEvent('skip'); } else { bossDialogue.index = bossDialogue.texts.length; advanceCutscene(); } }
       return;
     }
@@ -2912,6 +2935,8 @@ function skipToFinalBoss() {
   hawkingRefusalPhase = 0;
   hawkingDeathTimer = 0;
   hawkingDeathPhase = 0;
+  winCutsceneTimer = 0;
+  winCutsceneOfficeX = 0;
   bossIntroTimer = 0;
   bossDialogue = { active: false, texts: [], index: 0, timer: 0 };
   gameTimer = 0;
@@ -3009,6 +3034,8 @@ function watchCutscene() {
   hawkingRefusalPhase = 0;
   hawkingDeathTimer = 0;
   hawkingDeathPhase = 0;
+  winCutsceneTimer = 0;
+  winCutsceneOfficeX = 0;
   bossIntroTimer = 0;
   bossDialogue = { active: false, texts: [], index: 0, timer: 0 };
   gameTimer = 0;
@@ -3112,6 +3139,8 @@ function startGame() {
   hawkingRefusalPhase = 0;
   hawkingDeathTimer = 0;
   hawkingDeathPhase = 0;
+  winCutsceneTimer = 0;
+  winCutsceneOfficeX = 0;
   bossIntroTimer = 0;
   bossDialogue = { active: false, texts: [], index: 0, timer: 0 };
   
@@ -3705,7 +3734,7 @@ function update() {
     return;
   }
 
-  if (state !== 'playing' && state !== 'bossfight' && state !== 'epsteinfight' && state !== 'fusionfight' && state !== 'splitfight' && state !== 'hawkingRefusal' && state !== 'hawkingDeath') return;
+  if (state !== 'playing' && state !== 'bossfight' && state !== 'epsteinfight' && state !== 'fusionfight' && state !== 'splitfight' && state !== 'hawkingRefusal' && state !== 'hawkingDeath' && state !== 'winCutscene') return;
 
   gameTimer++;
   const p = player;
@@ -3713,7 +3742,7 @@ function update() {
   // Slow passive HP regeneration (1 HP every 10 seconds = 600 frames)
   if (p.alive && p.hp < p.maxHp && gameTimer % 600 === 0) {
     p.hp++;
-    spawnParticles(p.x + p.w/2, p.y + p.h/2, '#44ff88', 3);
+    spawnParticles(p.x + p.w/2, p.y + p.h/2, hawkingPhase2 ? '#ffd700' : '#44ff88', 3);
   }
 
   // Input — skip if dead (spectating)
@@ -3877,8 +3906,9 @@ function update() {
   }
 
   // Win condition: player goes over the big wall AND boss is dead
-  if (bigWall && p.x > bigWall.x + bigWall.w && p.y < bigWall.y + 40 && boss && boss.dead) {
-    state = 'won';
+  if (state !== 'winCutscene' && state !== 'won' && bigWall && p.x > bigWall.x + bigWall.w && p.y < bigWall.y + 40 && boss && boss.dead) {
+    state = 'winCutscene';
+    winCutsceneTimer = 0;
     p.won = true;
     mpSpectating = false;
     spawnParticles(p.x, p.y, '#ffdd44', 40);
@@ -3982,7 +4012,7 @@ function update() {
     } // end _mpHost guard AI
 
     // Damage player on touch (with iFrames) — ALL players
-    if (p.alive && p.iFrames <= 0 && rectsOverlap(p, g)) {
+    if (p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, g)) {
       p.hp--;
       p.iFrames = 40;
       shakeTimer = 10;
@@ -4342,7 +4372,7 @@ function update() {
     if (m.frameTimer > 8) { m.frameTimer = 0; m.frame = (m.frame + 1) % 4; }
     } // end _mpHost boss minion AI
     // Damage player — ALL players
-    if (p.alive && p.iFrames <= 0 && rectsOverlap(p, m)) {
+    if (p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, m)) {
       p.hp--;
       p.iFrames = 35;
       shakeTimer = 6;
@@ -4538,9 +4568,10 @@ function update() {
           // Hawking is invulnerable until other 4 are dead
           const othersAlive = miniBosses.filter(m => !m.dead && m.name !== 'HAWKING').length;
           if (mb.name === 'HAWKING' && othersAlive > 0) {
-            // Deflect! Green shield flash
-            spawnParticles(mb.x + mb.w/2, mb.y + mb.h/3, '#44ff88', 6);
-            bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y - 20, text: 'SHIELDED', life: 40, maxLife: 40, color: '#44ff88' });
+            // Deflect! Shield flash (gold if phase 2)
+            const shieldCol = hawkingPhase2 ? '#ffd700' : '#44ff88';
+            spawnParticles(mb.x + mb.w/2, mb.y + mb.h/3, shieldCol, 6);
+            bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y - 20, text: 'SHIELDED', life: 40, maxLife: 40, color: shieldCol });
             hit = true;
             break;
           }
@@ -4580,9 +4611,9 @@ function update() {
               bossMinions = [];
               bossVfx = [];
               screenFlash = 60;
-              screenFlashColor = '#44ff88';
+              screenFlashColor = '#ffd700';
               shakeTimer = 40;
-              spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#44ff88', 60);
+              spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#ffd700', 60);
               spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#ffffff', 40);
               hit = true;
               break;
@@ -4599,10 +4630,11 @@ function update() {
             if (nowOthersAlive === 0) {
               const hawk = miniBosses.find(m => m.name === 'HAWKING' && !m.dead);
               if (hawk) {
-                bossVfx.push({ type: 'text', x: hawk.x+hawk.w/2, y: hawk.y - 40, text: 'NOW IT\'S JUST US.', life: 180, maxLife: 180, color: '#44ff88' });
-                bossVfx.push({ type: 'ring', x: hawk.x+hawk.w/2, y: hawk.y+hawk.h/2, radius: 10, maxRadius: 500, life: 50, maxLife: 50, color: '#44ff88' });
+                const hawkCol = hawkingPhase2 ? '#ffd700' : '#44ff88';
+                bossVfx.push({ type: 'text', x: hawk.x+hawk.w/2, y: hawk.y - 40, text: 'NOW IT\'S JUST US.', life: 180, maxLife: 180, color: hawkCol });
+                bossVfx.push({ type: 'ring', x: hawk.x+hawk.w/2, y: hawk.y+hawk.h/2, radius: 10, maxRadius: 500, life: 50, maxLife: 50, color: hawkCol });
                 screenFlash = 30;
-                screenFlashColor = '#44ff88';
+                screenFlashColor = hawkCol;
                 shakeTimer = 20;
               }
             }
@@ -4642,7 +4674,7 @@ function update() {
     b.life--;
 
     // Hit player
-    if (p.iFrames <= 0 && p.alive && rectsOverlap({ x: b.x - 5, y: b.y - 5, w: 10, h: 10 }, p)) {
+    if (p.iFrames <= 0 && p.alive && !p.won && rectsOverlap({ x: b.x - 5, y: b.y - 5, w: 10, h: 10 }, p)) {
       p.hp--;
       p.iFrames = 40;
       shakeTimer = 8;
@@ -5227,7 +5259,7 @@ function update() {
       screenFlashColor = '#ffffff';
       shakeTimer = 60;
       // Explosion rings for each mini-boss color
-      const splitColors = ['#ff4400','#8844ff','#4488ff','#cc2222','#44ff88'];
+      const splitColors = ['#ff4400','#8844ff','#4488ff','#cc2222', hawkingPhase2 ? '#ffd700' : '#44ff88'];
       for (let sc = 0; sc < splitColors.length; sc++) {
         bossVfx.push({ type: 'ring', x: cx, y: cy, radius: 5 + sc*20, maxRadius: 400 + sc*150, life: 70 + sc*10, maxLife: 70 + sc*10, color: splitColors[sc] });
       }
@@ -5495,7 +5527,7 @@ function update() {
               life: 140, rotation: angle, size: isPhase2 ? 24 : 20, imgIdx: 0,
             });
           }
-          spawnParticles(mb.x + mb.w/2, mb.y + mb.h/3, '#44ff88', 10);
+          spawnParticles(mb.x + mb.w/2, mb.y + mb.h/3, hawkingPhase2 ? '#ffd700' : '#44ff88', 10);
           // Aimed homing shot
           epsteinProjectiles.push({
             x: mb.x + mb.w/2, y: mb.y + mb.h/3,
@@ -5507,11 +5539,11 @@ function update() {
         // Gravity well — stores pull data for ALL players to check
         const gravInterval = isPhase2 ? 150 : (hawkingAlone ? 250 : 400);
         if (mb.specialTimer % gravInterval === 0) {
-          bossVfx.push({ type: 'ring', x: mb.x+mb.w/2, y: mb.y+mb.h/2, radius: 300, maxRadius: 10, life: 40, maxLife: 40, color: '#44ff88' });
-          bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y - 30, text: isPhase2 ? 'BLACK HOLE' : 'SINGULARITY', life: 60, maxLife: 60, color: '#44ff88' });
+          bossVfx.push({ type: 'ring', x: mb.x+mb.w/2, y: mb.y+mb.h/2, radius: 300, maxRadius: 10, life: 40, maxLife: 40, color: hawkingPhase2 ? '#ffd700' : '#44ff88' });
+          bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y - 30, text: isPhase2 ? 'BLACK HOLE' : 'SINGULARITY', life: 60, maxLife: 60, color: hawkingPhase2 ? '#ffd700' : '#44ff88' });
           mb._gravPull = { active: 40, str: isPhase2 ? 6 : 4, range: isPhase2 ? 700 : 500 };
           shakeTimer = isPhase2 ? 15 : 10;
-          spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#44ff88', 25);
+          spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, hawkingPhase2 ? '#ffd700' : '#44ff88', 25);
         }
         // Phase 2 exclusive: Hawking radiation — random projectile rain
         if (isPhase2 && mb.specialTimer % 80 === 0) {
@@ -5526,13 +5558,13 @@ function update() {
         }
         // Phase 2 exclusive: Wormhole teleport every 200 frames
         if (isPhase2 && mb.specialTimer % 200 === 0) {
-          spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#44ff88', 20);
-          bossVfx.push({ type: 'ring', x: mb.x+mb.w/2, y: mb.y+mb.h/2, radius: 10, maxRadius: 200, life: 20, maxLife: 20, color: '#44ff88' });
+          spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#ffd700', 20);
+          bossVfx.push({ type: 'ring', x: mb.x+mb.w/2, y: mb.y+mb.h/2, radius: 10, maxRadius: 200, life: 20, maxLife: 20, color: '#ffd700' });
           const _warpTarget = mpEnabled ? getNearestPlayerTarget(mb.x + mb.w/2, mb.y + mb.h/2) : p;
           mb.x = _warpTarget.x + (Math.random() > 0.5 ? 200 : -200 - mb.w);
           mb.x = Math.max(arenaLeft + 20, Math.min(arenaRight - mb.w - 20, mb.x));
-          spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#44ff88', 20);
-          bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y-30, text: 'WORMHOLE', life: 40, maxLife: 40, color: '#44ff88' });
+          spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#ffd700', 20);
+          bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y-30, text: 'WORMHOLE', life: 40, maxLife: 40, color: '#ffd700' });
         }
       }
 
@@ -5616,7 +5648,8 @@ function update() {
       player.y = bigWall.y - player.h;
       player.vy = 0; player.vx = 0;
       arenaPlats = [];
-      state = 'won';
+      state = 'winCutscene';
+      winCutsceneTimer = 0;
       player.won = true;
       mpSpectating = false;
       spawnParticles(player.x, player.y, '#ffdd44', 50);
@@ -5640,10 +5673,12 @@ function update() {
     // 280-340: Halves float apart, dimming, particles scatter
     // 340-400: Screen fully dark, halves almost gone... then STOP
     // 400-460: "But it refused." text appears letter by letter
-    // 460-520: Heart halves SLAM back together, green flash
-    // 520-600: Heart pulses BRIGHTER, STRONGER, green energy
-    // 600-660: MASSIVE white flash
-    // 660+: Return to splitfight with Phase 2 Hawking
+    // 460-520: Heart halves SLAM back together, GOLD flash
+    // 520-620: Heart pulses BRIGHTER, STRONGER, gold energy radiating
+    // 620-780: Close-up normal Hawking face, lingering, dramatic
+    // 780-920: Screen shakes violently + golden energy cracks + flash builds
+    // 920-1120: Golden Hawking revealed — slow, intimidating, aura radiating
+    // 1120+: Return to splitfight with Phase 2 Hawking
     if (t === 1) hawkingRefusalPhase = 0;
     if (t === 60) hawkingRefusalPhase = 1;
     if (t === 120) hawkingRefusalPhase = 2;
@@ -5654,10 +5689,13 @@ function update() {
     if (t === 400) hawkingRefusalPhase = 7;
     if (t === 460) hawkingRefusalPhase = 8;
     if (t === 520) hawkingRefusalPhase = 9;
-    if (t === 600) hawkingRefusalPhase = 10;
+    if (t === 620) hawkingRefusalPhase = 10;
+    if (t === 780) hawkingRefusalPhase = 11;
+    if (t === 920) hawkingRefusalPhase = 12;
+    if (t === 1120) hawkingRefusalPhase = 13;
 
     // At the end — return to splitfight with Phase 2 Hawking
-    if (t === 670) {
+    if (t === 1130) {
       hawkingPhase2 = true;
       state = 'splitfight';
       const hawk = miniBosses.find(m => m.name === 'HAWKING');
@@ -5672,6 +5710,7 @@ function update() {
         hawk.dead = false;
         hawk.shootCooldown = 30;
         hawk.specialTimer = 0;
+        hawk.color = '#ffd700'; // GOLD theme
         // Reposition center arena
         const bArenaW = 2400;
         const arenaLeft = bigWall.x + bigWall.w/2 - bArenaW/2;
@@ -5683,10 +5722,10 @@ function update() {
       // Restore player HP a bit
       player.hp = Math.min(player.maxHp, player.hp + 15);
       screenFlash = 80;
-      screenFlashColor = '#ffffff';
+      screenFlashColor = '#ffd700';
       shakeTimer = 60;
-      bossVfx.push({ type: 'text', x: W/2, y: H/2 - 100, text: 'HAWKING TRANSCENDED', life: 180, maxLife: 180, color: '#44ff88' });
-      bossVfx.push({ type: 'ring', x: W/2, y: H/2, radius: 10, maxRadius: 800, life: 50, maxLife: 50, color: '#44ff88' });
+      bossVfx.push({ type: 'text', x: W/2, y: H/2 - 100, text: 'HAWKING TRANSCENDED', life: 180, maxLife: 180, color: '#ffd700' });
+      bossVfx.push({ type: 'ring', x: W/2, y: H/2, radius: 10, maxRadius: 800, life: 50, maxLife: 50, color: '#ffd700' });
     }
   }
 
@@ -5704,7 +5743,7 @@ function update() {
     if (dt < 80) {
       // Slow-mo particles dripping from Hawking
       if (dt % 4 === 0) {
-        spawnParticles(hx + (Math.random()-0.5)*80, hy + (Math.random()-0.5)*80, '#44ff88', 3);
+        spawnParticles(hx + (Math.random()-0.5)*80, hy + (Math.random()-0.5)*80, '#ffd700', 3);
       }
       // Screen shake gets worse
       if (dt > 30) shakeTimer = Math.max(shakeTimer, 3 + Math.floor((dt-30)/10));
@@ -5725,18 +5764,18 @@ function update() {
             x: hx, y: hy - (dt-80)*1.2,
             vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
             life: 40 + Math.random() * 40,
-            color: ['#44ff88','#88ffcc','#22cc66','#ffffff','#44ffff'][Math.floor(Math.random()*5)],
+            color: ['#ffd700','#ffcc00','#ffaa00','#ffffff','#ffe066'][Math.floor(Math.random()*5)],
             size: 2 + Math.random() * 5,
           });
         }
       }
       // Growing shockwaves
       if (dt % 20 === 0) {
-        bossVfx.push({ type: 'ring', x: hx, y: hy - (dt-80)*1.2, radius: 5, maxRadius: 300 + riseProg * 200, life: 35, maxLife: 35, color: '#44ff88' });
+        bossVfx.push({ type: 'ring', x: hx, y: hy - (dt-80)*1.2, radius: 5, maxRadius: 300 + riseProg * 200, life: 35, maxLife: 35, color: '#ffd700' });
       }
       shakeTimer = Math.max(shakeTimer, 5 + Math.floor(riseProg * 15));
       // Screen flashes
-      if (dt % 30 === 0) { screenFlash = 8; screenFlashColor = '#44ff88'; }
+      if (dt % 30 === 0) { screenFlash = 8; screenFlashColor = '#ffd700'; }
     }
 
     // Phase 3 (200-400): REALITY CRACKS — space-time tears around Hawking
@@ -5751,7 +5790,7 @@ function update() {
             x: hx, y: hy - 150,
             vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 2,
             life: 50 + Math.random() * 60,
-            color: ['#44ff88','#ffffff','#ffdd44','#4488ff','#ff44ff'][Math.floor(Math.random()*5)],
+            color: ['#ffd700','#ffffff','#ffdd44','#4488ff','#ff44ff'][Math.floor(Math.random()*5)],
             size: 3 + Math.random() * 6,
           });
         }
@@ -5777,12 +5816,12 @@ function update() {
             x: hx + (Math.random()-0.5) * 60 * disProg, y: hy - 150 + (Math.random()-0.5) * 60 * disProg,
             vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 1,
             life: 80 + Math.random() * 80,
-            color: ['#44ff88','#88ffcc','#ffffff','#ffdd44','#44ffff','#aaffaa'][Math.floor(Math.random()*6)],
+            color: ['#ffd700','#ffcc00','#ffffff','#ffdd44','#ffe066','#ffaa00'][Math.floor(Math.random()*6)],
             size: 1 + Math.random() * 4,
           });
         }
       }
-      if (dt >= 400 && dt <= 401) { screenFlash = 40; screenFlashColor = '#44ff88'; shakeTimer = 40; }
+      if (dt >= 400 && dt <= 401) { screenFlash = 40; screenFlashColor = '#ffd700'; shakeTimer = 40; }
       if (dt >= 450 && dt <= 451) { screenFlash = 30; screenFlashColor = '#ffffff'; }
       // Hide Hawking sprite progressively (handled in draw)
     }
@@ -5795,7 +5834,7 @@ function update() {
           x: Math.random() * W, y: Math.random() * H,
           vx: (Math.random()-0.5) * 0.5, vy: -Math.random() * 0.5 - 0.2,
           life: 60 + Math.random() * 40,
-          color: ['#44ff8844','#ffffff44','#ffdd4444'][Math.floor(Math.random()*3)],
+          color: ['#ffd70044','#ffffff44','#ffdd4444'][Math.floor(Math.random()*3)],
           size: 1 + Math.random() * 2,
         });
       }
@@ -5814,7 +5853,7 @@ function update() {
           x: hx, y: hy - 150,
           vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 3,
           life: 80 + Math.random() * 80,
-          color: ['#44ff88','#ffffff','#ffdd44','#44ffff','#88ffcc'][Math.floor(Math.random()*5)],
+          color: ['#ffd700','#ffffff','#ffdd44','#ffe066','#ffcc00'][Math.floor(Math.random()*5)],
           size: 2 + Math.random() * 8,
         });
       }
@@ -5844,7 +5883,8 @@ function update() {
       }
       player.vy = 0; player.vx = 0;
       arenaPlats = [];
-      state = 'won';
+      state = 'winCutscene';
+      winCutsceneTimer = 0;
       player.won = true;
       mpSpectating = false;
       spawnParticles(player.x, player.y, '#ffdd44', 50);
@@ -5853,6 +5893,42 @@ function update() {
     }
     // Cap timer to prevent runaway
     if (hawkingDeathTimer > 910) hawkingDeathTimer = 910;
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // WIN CUTSCENE — Player walks to citizenship office, THE END
+  // ════════════════════════════════════════════════════════════════
+  if (state === 'winCutscene') {
+    winCutsceneTimer++;
+    const wt = winCutsceneTimer;
+    
+    // Set office position once at start
+    if (wt === 1) {
+      winCutsceneOfficeX = player.x + 750;
+    }
+    
+    // Phase 1 (0-300): Player auto-walks right toward office
+    if (wt < 300) {
+      player.x += 2.5;
+      player.runFrame = (player.runFrame || 0) + 0.3;
+      player.facing = 1;
+    }
+    
+    // Phase 2: Player stops at office door
+    if (wt === 300) {
+      player.runFrame = 0;
+    }
+    
+    // Camera always follows player during cutscene
+    cameraX = player.x - W * 0.3;
+    if (cameraX < 0) cameraX = 0;
+    if (cameraX > levelWidth - W) cameraX = levelWidth - W;
+    
+    // Phase 3 (700+): Transition to won state with buttons
+    if (wt >= 700) {
+      state = 'won';
+      restartCooldown = 0;
+    }
   }
   
   // Update boss VFX
@@ -6520,9 +6596,21 @@ function draw() {
       ctx.drawImage(minionImg, mx, my - bounce, m.w, m.h);
     }
     ctx.restore();
-    // Tint
-    ctx.fillStyle = m.isEpstein ? 'rgba(136, 68, 255, 0.2)' : 'rgba(255, 80, 0, 0.2)';
-    ctx.fillRect(mx, my - bounce, m.w, m.h);
+    // Glow aura (shadow-based, no blocky rect)
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.shadowColor = m.isEpstein ? '#8844ff' : '#ff5000';
+    ctx.shadowBlur = 20;
+    if (m.dir < 0) {
+      ctx.translate(mx + m.w, my - bounce);
+      ctx.scale(-1, 1);
+      ctx.drawImage(minionImg, 0, 0, m.w, m.h);
+    } else {
+      ctx.drawImage(minionImg, mx, my - bounce, m.w, m.h);
+    }
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+    ctx.restore();
     // HP bar
     const mHpPct = m.hp / m.maxHp;
     ctx.fillStyle = '#000000aa';
@@ -6562,10 +6650,22 @@ function draw() {
     }
     ctx.restore();
 
-    // Red tint when alert
+    // Red glow when alert (shadow-based, no blocky rect)
     if (g.alert) {
-      ctx.fillStyle = 'rgba(255, 0, 0, 0.25)';
-      ctx.fillRect(gx, gy - bounce, g.w, g.h);
+      ctx.save();
+      ctx.globalAlpha = 0.2;
+      ctx.shadowColor = '#ff0000';
+      ctx.shadowBlur = 25;
+      if (g.dir < 0) {
+        ctx.translate(gx + g.w, gy - bounce);
+        ctx.scale(-1, 1);
+        ctx.drawImage(guardImg, 0, 0, g.w, g.h);
+      } else {
+        ctx.drawImage(guardImg, gx, gy - bounce, g.w, g.h);
+      }
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      ctx.restore();
     }
 
     // HP bar above guard
@@ -6726,11 +6826,20 @@ function draw() {
     }
     ctx.restore();
 
-    // Phase tint overlay with pulsing
-    const tintPulse = Math.sin(t * 4) * 0.05 + 0.15;
-    const tintColor = boss.phase === 3 ? `rgba(255, 0, 0, ${tintPulse + 0.15})` : boss.phase === 2 ? `rgba(255, 140, 0, ${tintPulse + 0.05})` : `rgba(255, 140, 0, ${tintPulse})`;
-    ctx.fillStyle = tintColor;
-    ctx.fillRect(bx, by - bounce, boss.w, boss.h);
+    // Phase glow aura (re-draw image with shadowBlur instead of blocky fillRect)
+    ctx.save();
+    ctx.globalAlpha = tintPulse;
+    ctx.shadowColor = boss.phase === 3 ? '#ff0000' : '#ff8800';
+    ctx.shadowBlur = 20 + boss.phase * 10;
+    if (boss.dir < 0) {
+      ctx.translate(bx + boss.w, by - bounce);
+      ctx.scale(-1, 1);
+      ctx.drawImage(bossImg, 0, 0, boss.w, boss.h);
+    } else {
+      ctx.drawImage(bossImg, bx, by - bounce, boss.w, boss.h);
+    }
+    ctx.shadowBlur = 0;
+    ctx.restore();
 
     // Glowing eyes effect (phase 2+)
     if (boss.phase >= 2) {
@@ -6819,14 +6928,18 @@ function draw() {
     ctx.ellipse(px + p.w / 2, GROUND_Y, p.w * 0.7, 5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Player image
+    // Player image (centered on hitbox)
+    const pDrawW = p.w * PLAYER_IMG_SCALE;
+    const pDrawH = p.h * PLAYER_IMG_SCALE;
+    const pOffX = (p.w - pDrawW) / 2;
+    const pOffY = p.h - pDrawH;
     ctx.save();
     if (p.facing < 0) {
       ctx.translate(px + p.w, py - runBounce);
       ctx.scale(-1, 1);
-      ctx.drawImage(playerImg, 0, 0, p.w, p.h);
+      ctx.drawImage(playerImg, -pOffX, pOffY, pDrawW, pDrawH);
     } else {
-      ctx.drawImage(playerImg, px, py - runBounce, p.w, p.h);
+      ctx.drawImage(playerImg, px + pOffX, py + pOffY - runBounce, pDrawW, pDrawH);
     }
     ctx.restore();
 
@@ -6846,10 +6959,20 @@ function draw() {
       ctx.fillText('wall slide', px + p.w / 2, py - 10);
     }
 
-    // Player flash when iFrames
+    // Player flash when iFrames (shadow-based for transparent cutout)
     if (p.iFrames > 0 && Math.floor(p.iFrames / 4) % 2 === 0) {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.fillRect(px, py - runBounce, p.w, p.h);
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 30;
+      const drawW = p.w * PLAYER_IMG_SCALE;
+      const drawH = p.h * PLAYER_IMG_SCALE;
+      const pOffX = (p.w - drawW) / 2;
+      const pOffY = p.h - drawH;
+      ctx.drawImage(playerImg, px + pOffX, py - runBounce + pOffY, drawW, drawH);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      ctx.restore();
     }
   }
 
@@ -6931,16 +7054,20 @@ function draw() {
     }
     ctx.restore();
 
-    // Purple tint overlay
-    ctx.fillStyle = 'rgba(136, 68, 255, 0.15)';
-    ctx.fillRect(ex, ey - bounce, epstein.w, epstein.h);
-
-    // Glowing eyes
-    ctx.fillStyle = `rgba(200, 100, 255, ${0.6 + Math.sin(t*5)*0.3})`;
-    ctx.beginPath();
-    ctx.arc(ex + epstein.w*0.35, ey + epstein.h*0.2 - bounce, 4, 0, Math.PI*2);
-    ctx.arc(ex + epstein.w*0.65, ey + epstein.h*0.2 - bounce, 4, 0, Math.PI*2);
-    ctx.fill();
+    // Purple glow aura (re-draw with shadowBlur instead of blocky fillRect)
+    ctx.save();
+    ctx.globalAlpha = 0.2;
+    ctx.shadowColor = '#8844ff';
+    ctx.shadowBlur = 25;
+    if (epstein.dir < 0) {
+      ctx.translate(ex + epstein.w, ey - bounce);
+      ctx.scale(-1, 1);
+      ctx.drawImage(epsteinImg, 0, 0, epstein.w, epstein.h);
+    } else {
+      ctx.drawImage(epsteinImg, ex, ey - bounce, epstein.w, epstein.h);
+    }
+    ctx.shadowBlur = 0;
+    ctx.restore();
 
     // Phase label
     const epPhaseLabels = { 1: '★ EPSTEIN ★', 2: '★★ UNHINGED ★★' };
@@ -7068,22 +7195,29 @@ function draw() {
     }
     ctx.stroke();
 
-    // Red + purple tint overlay
-    ctx.fillStyle = 'rgba(255, 68, 0, 0.08)';
-    ctx.fillRect(fx, fy - bounce, fb.w/2, fb.h);
-    ctx.fillStyle = 'rgba(136, 68, 255, 0.08)';
-    ctx.fillRect(fx + fb.w/2, fy - bounce, fb.w/2, fb.h);
-
-    // Glowing eyes (3 — one in center forehead for fused look)
-    ctx.fillStyle = `rgba(255, 100, 50, ${0.7 + Math.sin(t*6)*0.3})`;
+    // Glow overlay (shadow-based, follows cutout shape)
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    ctx.shadowColor = '#ff4400';
+    ctx.shadowBlur = 25;
+    // Left half glow (red/orange)
+    ctx.save();
     ctx.beginPath();
-    ctx.arc(fx + fb.w*0.3, fy + fb.h*0.18 - bounce, 5, 0, Math.PI*2);
-    ctx.arc(fx + fb.w*0.7, fy + fb.h*0.18 - bounce, 5, 0, Math.PI*2);
-    ctx.fill();
-    ctx.fillStyle = `rgba(200, 50, 255, ${0.5 + Math.sin(t*7)*0.3})`;
+    ctx.rect(fx, fy - bounce, fb.w/2, fb.h);
+    ctx.clip();
+    ctx.drawImage(bossImg, fx, fy - bounce, fb.w, fb.h);
+    ctx.restore();
+    // Right half glow (purple)
+    ctx.shadowColor = '#8844ff';
+    ctx.save();
     ctx.beginPath();
-    ctx.arc(fx + fb.w*0.5, fy + fb.h*0.12 - bounce, 4, 0, Math.PI*2);
-    ctx.fill();
+    ctx.rect(fx + fb.w/2, fy - bounce, fb.w/2, fb.h);
+    ctx.clip();
+    ctx.drawImage(epsteinImg, fx, fy - bounce, fb.w, fb.h);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    ctx.restore();
 
     // Name label
     ctx.fillStyle = '#ff884488';
@@ -7129,14 +7263,14 @@ function draw() {
     ctx.arc(mx + mb.w/2, my + mb.h/2, auraRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Hawking Phase 2 — extra cosmic effects
+    // Hawking Phase 2 — extra cosmic effects (GOLD theme)
     if (mb.name === 'HAWKING' && hawkingPhase2) {
       // Orbiting energy rings
       for (let ring = 0; ring < 3; ring++) {
         ctx.save();
         ctx.translate(mx + mb.w/2, my + mb.h/2);
         ctx.rotate(t * (0.5 + ring * 0.3) + ring * Math.PI/3);
-        ctx.strokeStyle = `rgba(68,255,136,${0.2 + Math.sin(t*2 + ring)*0.1})`;
+        ctx.strokeStyle = `rgba(255,215,0,${0.2 + Math.sin(t*2 + ring)*0.1})`;
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.ellipse(0, 0, mb.w/2 + 30 + ring*15, mb.h/4 + ring*8, 0, 0, Math.PI * 2);
@@ -7149,7 +7283,7 @@ function draw() {
         const orbitR = mb.w/2 + 40;
         const opx = mx + mb.w/2 + Math.cos(orbitAngle) * orbitR;
         const opy = my + mb.h/2 + Math.sin(orbitAngle) * orbitR * 0.5;
-        ctx.fillStyle = '#44ff88';
+        ctx.fillStyle = '#ffd700';
         ctx.globalAlpha = 0.5 + Math.sin(t*3 + op)*0.3;
         ctx.beginPath();
         ctx.arc(opx, opy, 3, 0, Math.PI * 2);
@@ -7157,7 +7291,7 @@ function draw() {
       }
       ctx.globalAlpha = 1;
       // "TRANSCENDED" label
-      ctx.fillStyle = `rgba(68,255,136,${0.6 + Math.sin(t*3)*0.3})`;
+      ctx.fillStyle = `rgba(255,215,0,${0.6 + Math.sin(t*3)*0.3})`;
       ctx.font = 'bold 11px monospace';
       ctx.textAlign = 'center';
       ctx.fillText('TRANSCENDED', mx + mb.w/2, my - 35 - bounce);
@@ -7171,7 +7305,7 @@ function draw() {
         ctx.save();
         ctx.translate(mx + mb.w/2, my + mb.h/2);
         ctx.rotate(t * 0.8);
-        ctx.strokeStyle = `rgba(68,255,136,${0.3 + Math.sin(t*3)*0.15})`;
+        ctx.strokeStyle = `rgba(255,215,0,${0.3 + Math.sin(t*3)*0.15})`;
         ctx.lineWidth = 2;
         ctx.beginPath();
         for (let s = 0; s < 6; s++) {
@@ -7185,7 +7319,7 @@ function draw() {
         ctx.stroke();
         ctx.restore();
         // Shield text
-        ctx.fillStyle = `rgba(68,255,136,${0.4 + Math.sin(t*4)*0.2})`;
+        ctx.fillStyle = hawkingPhase2 ? `rgba(255,200,0,${0.4 + Math.sin(t*4)*0.2})` : `rgba(68,255,136,${0.4 + Math.sin(t*4)*0.2})`;
         ctx.font = 'bold 7px monospace';
         ctx.textAlign = 'center';
         ctx.fillText('SHIELDED', mx + mb.w/2, my - 28 - bounce);
@@ -7193,7 +7327,7 @@ function draw() {
     }
 
     // Draw image based on imgKey
-    const mbImgMap = { boss: bossImg, epstein: epsteinImg, musk: muskImg, clinton: clintonImg, hawking: hawkingImg };
+    const mbImgMap = { boss: bossImg, epstein: epsteinImg, musk: muskImg, clinton: clintonImg, hawking: (mb.name === 'HAWKING' && hawkingPhase2) ? hawkingGoldImg : hawkingImg };
     const mbImg = mbImgMap[mb.imgKey] || guardImg;
     ctx.save();
     if (mb.dir < 0) {
@@ -7205,18 +7339,19 @@ function draw() {
     }
     ctx.restore();
 
-    // Color tint
-    ctx.fillStyle = mb.color + '18';
-    ctx.fillRect(mx, my - bounce, mb.w, mb.h);
-
-    // Glowing eyes
-    ctx.fillStyle = mb.color;
-    ctx.globalAlpha = 0.6 + Math.sin(t*5 + mx)*0.3;
-    ctx.beginPath();
-    ctx.arc(mx + mb.w*0.35, my + mb.h*0.2 - bounce, 3, 0, Math.PI*2);
-    ctx.arc(mx + mb.w*0.65, my + mb.h*0.2 - bounce, 3, 0, Math.PI*2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
+    // Glowing aura behind boss (no blocky tint on transparent images)
+    ctx.save();
+    ctx.globalAlpha = 0.15 + Math.sin(t*4) * 0.05;
+    ctx.shadowColor = mb.color;
+    ctx.shadowBlur = 25;
+    if (mb.dir < 0) {
+      ctx.translate(mx + mb.w, my - bounce);
+      ctx.scale(-1, 1);
+      ctx.drawImage(mbImg, 0, 0, mb.w, mb.h);
+    } else {
+      ctx.drawImage(mbImg, mx, my - bounce, mb.w, mb.h);
+    }
+    ctx.restore();
 
     // Name label
     ctx.fillStyle = mb.color;
@@ -7465,18 +7600,33 @@ function draw() {
       ctx.fillText(displayText, cx, textY);
     }
 
-    // Phase 6: Text + heart pulse brighter (t: 530-600)
-    if (t >= 530 && t < 600) {
+    // Phase 6: Text + heart pulse — transitions from green to GOLD (t: 530-620)
+    if (t >= 530 && t < 620) {
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 32px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('* But it refused.', cx, textY);
 
-      const flashCol = (t % 8 < 4) ? '#00ff00' : '#44ff88';
-      drawPixelHeart(cx, heartY, hs, flashCol, 1);
+      // Heart color transitions green → gold (slower)
+      const goldProgress = Math.min(1, (t - 540) / 60);
+      const heartColor = goldProgress < 0.5 ? ((t % 8 < 4) ? '#00ff00' : '#44ff88') : ((t % 6 < 3) ? '#ffd700' : '#ffcc00');
+      const heartScale = hs + (goldProgress > 0.5 ? Math.sin(t * 0.15) * 1.5 : 0);
+      drawPixelHeart(cx, heartY, heartScale, heartColor, 1);
 
-      if (t > 560) shakeTimer = Math.max(shakeTimer, 3);
+      if (t > 560) shakeTimer = Math.max(shakeTimer, 2 + Math.floor(goldProgress * 3));
+
+      // Gold energy wisps radiating from heart
+      if (goldProgress > 0.5) {
+        for (let w = 0; w < 6; w++) {
+          const wa = (Date.now()/1000 * 1.5 + w * Math.PI / 3) % (Math.PI * 2);
+          const wd = 30 + Math.sin(Date.now()/1000 * 2 + w) * 15;
+          ctx.fillStyle = `rgba(255, 215, 0, ${0.2 + Math.sin(Date.now()/1000 * 3 + w) * 0.15})`;
+          ctx.beginPath();
+          ctx.arc(cx + Math.cos(wa) * wd, heartY + Math.sin(wa) * wd, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
 
       if (t >= 545) {
         ctx.fillStyle = '#fff';
@@ -7486,21 +7636,211 @@ function draw() {
       }
     }
 
-    // Phase 7: White flash (t: 600-670)
-    if (t >= 600 && t < 670) {
-      const stage = Math.floor((t - 600) / 12);
-      if (stage < 3) {
-        if (t % 4 < 2) {
-          drawPixelHeart(cx, heartY, hs, '#00ff00', 1);
-        } else {
-          ctx.fillStyle = '#fff';
+    // Phase 7: Close-up of NORMAL Hawking — long dramatic linger (t: 620-780)
+    if (t >= 620 && t < 780) {
+      const phaseDur = 160;
+      const fadeIn = Math.min(1, (t - 620) / 30);
+      // Black bg
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      // Normal Hawking close-up — centered, large, slowly zooming in
+      const zoomProg = (t - 620) / phaseDur;
+      const hawkSize = Math.min(W * 0.45, 320) + zoomProg * 40;
+      const hawkH_val = imgH(hawkingImg, hawkSize);
+      ctx.globalAlpha = fadeIn;
+      ctx.drawImage(hawkingImg, cx - hawkSize/2, H * 0.2 - zoomProg * 15, hawkSize, hawkH_val);
+      ctx.globalAlpha = 1;
+      // Name text fades in
+      if (t > 660) {
+        const textAlpha = Math.min(1, (t - 660) / 25);
+        ctx.globalAlpha = textAlpha;
+        ctx.fillStyle = '#999';
+        ctx.font = 'italic 18px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('Stephen Hawking', cx, H * 0.2 + hawkH_val + 20);
+        ctx.globalAlpha = 1;
+      }
+      // Ominous heartbeat pulse effect
+      if (t > 700) {
+        const hbPhase = ((t - 700) % 40) / 40;
+        if (hbPhase < 0.15) {
+          const pulseAlpha = Math.sin(hbPhase / 0.15 * Math.PI) * 0.08;
+          ctx.fillStyle = `rgba(255, 215, 0, ${pulseAlpha})`;
           ctx.fillRect(0, 0, W, H);
         }
-      } else {
-        ctx.fillStyle = '#fff';
+      }
+      // Start light shake toward end, building
+      if (t > 740) {
+        const shk = ((t - 740) / 40) * 4;
+        shakeTimer = Math.max(shakeTimer, Math.ceil(shk));
+      }
+      // Faint gold cracks appear at very end
+      if (t > 760) {
+        const earlyProg = (t - 760) / 20;
+        const crackN = Math.floor(earlyProg * 4);
+        for (let c = 0; c < crackN; c++) {
+          ctx.strokeStyle = `rgba(255, 215, 0, ${0.15 + Math.random() * 0.1})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          const sx = cx + (Math.sin(c * 5.3) * 0.3) * W;
+          const sy = H * 0.35 + Math.cos(c * 3.7) * H * 0.2;
+          ctx.moveTo(sx, sy);
+          for (let s = 0; s < 3; s++) {
+            ctx.lineTo(sx + (Math.random()-0.5) * 60, sy + (Math.random()-0.5) * 50);
+          }
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Phase 8: VIOLENT SHAKE + golden flash takeover (t: 780-920)
+    if (t >= 780 && t < 920) {
+      const flashProg = (t - 780) / 140;
+      // Black bg with intensifying gold
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      // Hawking still visible but shaking violently, slowly consumed by gold
+      const hawkSize = Math.min(W * 0.45, 320);
+      const hawkH_val = imgH(hawkingImg, hawkSize);
+      if (flashProg < 0.4) {
+        ctx.globalAlpha = 1 - flashProg * 2;
+        ctx.drawImage(hawkingImg, cx - hawkSize/2, H * 0.2, hawkSize, hawkH_val);
+        ctx.globalAlpha = 1;
+      }
+      // Gold energy cracks spreading across screen — more over time
+      const crackCount = Math.floor(flashProg * 20);
+      for (let c = 0; c < crackCount; c++) {
+        ctx.strokeStyle = `rgba(255, 215, 0, ${0.2 + Math.random() * 0.4})`;
+        ctx.lineWidth = 1 + Math.random() * 3 + flashProg * 2;
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 15 + flashProg * 25;
+        ctx.beginPath();
+        const startX = cx + (Math.sin(c * 7.3 + flashProg * 2) * 0.5) * W;
+        const startY = H * 0.4 + Math.cos(c * 4.1) * H * 0.3;
+        ctx.moveTo(startX, startY);
+        for (let s = 0; s < 6; s++) {
+          ctx.lineTo(startX + (Math.random()-0.5) * 140 * (s+1)/3, startY + (Math.random()-0.5) * 110 * (s+1)/3);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+      // Golden flash builds from center — slow expansion
+      const flashGrad = ctx.createRadialGradient(cx, H * 0.4, 0, cx, H * 0.4, W * flashProg * 0.8);
+      flashGrad.addColorStop(0, `rgba(255, 215, 0, ${flashProg * 0.7})`);
+      flashGrad.addColorStop(0.5, `rgba(255, 200, 0, ${flashProg * 0.3})`);
+      flashGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = flashGrad;
+      ctx.fillRect(0, 0, W, H);
+      // Increasingly violent shaking
+      shakeTimer = Math.max(shakeTimer, Math.ceil(5 + flashProg * 15));
+      // Deep rumble — screen flickers
+      if (flashProg > 0.5 && Math.random() < flashProg * 0.3) {
+        ctx.fillStyle = `rgba(255, 200, 0, ${Math.random() * 0.08})`;
         ctx.fillRect(0, 0, W, H);
       }
-      shakeTimer = Math.max(shakeTimer, 8);
+      // Final blinding flash at end
+      if (flashProg > 0.85) {
+        ctx.fillStyle = `rgba(255, 230, 100, ${(flashProg - 0.85) / 0.15})`;
+        ctx.fillRect(0, 0, W, H);
+      }
+    }
+
+    // Phase 9: GOLDEN HAWKING REVEALED — slow, intimidating (t: 920-1120)
+    if (t >= 920 && t < 1120) {
+      const revealProg = (t - 920) / 200;
+      // White/gold flash fading to black
+      const bgFade = Math.min(1, revealProg * 2);
+      if (revealProg < 0.2) {
+        ctx.fillStyle = `rgba(255, 230, 100, ${1 - revealProg * 5})`;
+        ctx.fillRect(0, 0, W, H);
+      }
+      ctx.fillStyle = `rgba(0, 0, 0, ${bgFade})`;
+      ctx.fillRect(0, 0, W, H);
+      // Golden Hawking — larger, with radiating gold aura
+      const hawkSize = Math.min(W * 0.5, 350);
+      const hawkH_val = imgH(hawkingGoldImg, hawkSize);
+      const hawkAlpha = Math.min(1, revealProg * 3);
+      // Multi-layered golden aura
+      for (let a = 0; a < 3; a++) {
+        const aRad = hawkSize * (0.8 + a * 0.4) + Math.sin(Date.now()/1000 * 2 + a) * 10;
+        const aGrad = ctx.createRadialGradient(cx, H * 0.35 + hawkH_val * 0.4, 10, cx, H * 0.35 + hawkH_val * 0.4, aRad);
+        aGrad.addColorStop(0, `rgba(255, 215, 0, ${(0.2 - a * 0.05) * hawkAlpha})`);
+        aGrad.addColorStop(0.6, `rgba(255, 180, 0, ${(0.08 - a * 0.02) * hawkAlpha})`);
+        aGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = aGrad;
+        ctx.beginPath();
+        ctx.arc(cx, H * 0.35 + hawkH_val * 0.4, aRad, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // The golden figure
+      ctx.globalAlpha = hawkAlpha;
+      ctx.shadowColor = '#ffd700';
+      ctx.shadowBlur = 40 + revealProg * 40;
+      ctx.drawImage(hawkingGoldImg, cx - hawkSize/2, H * 0.2, hawkSize, hawkH_val);
+      ctx.drawImage(hawkingGoldImg, cx - hawkSize/2, H * 0.2, hawkSize, hawkH_val);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      // "TRANSCENDED" text — appears early, stays
+      if (revealProg > 0.2) {
+        const tAlpha = Math.min(1, (revealProg - 0.2) / 0.2);
+        ctx.globalAlpha = tAlpha;
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 30px monospace';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 25;
+        ctx.fillText('T R A N S C E N D E D', cx, H * 0.1);
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+      }
+      // Threatening dialogue — typewriter, appears after reveal settles
+      if (revealProg > 0.4) {
+        const dlgProg = (revealProg - 0.4) / 0.6;
+        const quotes = [
+          { at: 0.0, text: '"You thought you could kill me?"', y: 0.78 },
+          { at: 0.35, text: '"I have conquered death itself."', y: 0.84 },
+          { at: 0.7, text: '"Now... face a GOD."', y: 0.90, bold: true },
+        ];
+        for (const q of quotes) {
+          if (dlgProg >= q.at) {
+            const qProg = Math.min(1, (dlgProg - q.at) / 0.2);
+            const showLen = Math.floor(q.text.length * Math.min(1, qProg * 3));
+            ctx.globalAlpha = Math.min(1, qProg * 2);
+            ctx.fillStyle = q.bold ? '#ffd700' : '#dddddd';
+            ctx.font = q.bold ? 'bold 24px monospace' : '18px monospace';
+            ctx.textAlign = 'center';
+            if (q.bold) { ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 15; }
+            ctx.fillText(q.text.substring(0, showLen), cx, H * q.y);
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1;
+          }
+        }
+      }
+      // Energy rings pulsing outward from golden Hawking
+      if (revealProg > 0.15) {
+        const ringT = Date.now()/1000;
+        for (let r = 0; r < 4; r++) {
+          const rPhase = ((ringT * 0.6 + r * 0.25) % 1);
+          const rRadius = 30 + rPhase * 300;
+          ctx.strokeStyle = `rgba(255, 215, 0, ${(1 - rPhase) * 0.2})`;
+          ctx.lineWidth = 2 * (1 - rPhase);
+          ctx.beginPath();
+          ctx.arc(cx, H * 0.35 + hawkH_val * 0.3, rRadius, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+      // Gold particles floating upward — more of them
+      if (revealProg > 0.1) {
+        for (let gp = 0; gp < 20; gp++) {
+          const gpT = Date.now()/1000;
+          const gpx = cx + Math.sin(gpT * 1.2 + gp * 0.31) * hawkSize * 0.8;
+          const gpy = H * 0.9 - ((gpT * 30 + gp * 25) % (H * 0.75));
+          ctx.fillStyle = `rgba(255, 215, 0, ${0.2 + Math.sin(gpT * 3 + gp) * 0.15})`;
+          ctx.beginPath();
+          ctx.arc(gpx, gpy, 1.5 + Math.sin(gpT * 2 + gp) * 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
     }
 
     ctx.imageSmoothingEnabled = true;
@@ -7535,8 +7875,8 @@ function draw() {
       ctx.fillRect(0, 0, W, H);
       // Radial green distortion from Hawking
       const distGrad = ctx.createRadialGradient(hx, hy, 10, hx, hy, 300 + freezeProg * 200);
-      distGrad.addColorStop(0, `rgba(68,255,136,${0.15 * freezeProg})`);
-      distGrad.addColorStop(0.4, `rgba(68,255,136,${0.05 * freezeProg})`);
+      distGrad.addColorStop(0, `rgba(255,200,0,${0.15 * freezeProg})`);
+      distGrad.addColorStop(0.4, `rgba(255,200,0,${0.05 * freezeProg})`);
       distGrad.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = distGrad;
       ctx.fillRect(0, 0, W, H);
@@ -7546,17 +7886,17 @@ function draw() {
         for (let g = 0; g < glitchN; g++) {
           const gy = ((g * 97 + dt * 7) % H);
           const gw = 50 + Math.random() * 200;
-          ctx.fillStyle = `rgba(68,255,136,${0.1 + Math.random() * 0.15})`;
+          ctx.fillStyle = `rgba(255,200,0,${0.1 + Math.random() * 0.15})`;
           ctx.fillRect(Math.random() * W, gy, gw, 2);
         }
       }
       // "TIME DISTORTION" text
       if (dt > 40) {
         ctx.globalAlpha = Math.sin((dt - 40) / 40 * Math.PI);
-        ctx.fillStyle = '#44ff88';
+        ctx.fillStyle = '#ffd700';
         ctx.font = `bold ${14 + Math.sin(t * 10) * 2}px monospace`;
         ctx.textAlign = 'center';
-        ctx.shadowColor = '#44ff88';
+        ctx.shadowColor = '#ffd700';
         ctx.shadowBlur = 20;
         ctx.fillText('CRITICAL MASS REACHED', W/2, H * 0.15);
         ctx.shadowBlur = 0;
@@ -7573,8 +7913,8 @@ function draw() {
       // Massive green/white energy column from below
       const colW = 60 + riseProg * 120;
       const colGrad = ctx.createLinearGradient(hx - colW/2, H, hx + colW/2, hy - 200);
-      colGrad.addColorStop(0, 'rgba(68,255,136,0)');
-      colGrad.addColorStop(0.3, `rgba(68,255,136,${0.2 + riseProg * 0.3})`);
+      colGrad.addColorStop(0, 'rgba(255,200,0,0)');
+      colGrad.addColorStop(0.3, `rgba(255,200,0,${0.2 + riseProg * 0.3})`);
       colGrad.addColorStop(0.6, `rgba(136,255,204,${0.15 + riseProg * 0.25})`);
       colGrad.addColorStop(1, `rgba(255,255,255,${riseProg * 0.3})`);
       ctx.fillStyle = colGrad;
@@ -7586,9 +7926,9 @@ function draw() {
         const hH = imgH(hawkingImg, hSize);
         ctx.save();
         ctx.globalAlpha = 1;
-        ctx.shadowColor = '#44ff88';
+        ctx.shadowColor = '#ffd700';
         ctx.shadowBlur = 30 + riseProg * 60;
-        ctx.drawImage(hawkingImg, hx - hSize/2, floatY - hH/2, hSize, hH);
+        ctx.drawImage(hawkingGoldImg, hx - hSize/2, floatY - hH/2, hSize, hH);
         ctx.shadowBlur = 0;
         ctx.restore();
       }
@@ -7597,7 +7937,7 @@ function draw() {
       for (let r = 0; r < ringCount; r++) {
         const rProg = ((t * 0.8 + r * 0.3) % 1);
         const rRadius = 50 + rProg * 350;
-        ctx.strokeStyle = `rgba(68,255,136,${(1-rProg) * 0.3})`;
+        ctx.strokeStyle = `rgba(255,200,0,${(1-rProg) * 0.3})`;
         ctx.lineWidth = 3 * (1 - rProg);
         ctx.beginPath();
         ctx.arc(hx, hy - 100 * riseProg, rRadius, 0, Math.PI * 2);
@@ -7609,7 +7949,7 @@ function draw() {
         const pd = 100 + Math.sin(t * 3 + p) * 40;
         const px = hx + Math.cos(pa) * pd;
         const py = (hy - 100 * riseProg) + Math.sin(pa) * pd * 0.6;
-        ctx.fillStyle = `rgba(68,255,136,${0.4 + Math.sin(t*5+p)*0.2})`;
+        ctx.fillStyle = `rgba(255,200,0,${0.4 + Math.sin(t*5+p)*0.2})`;
         ctx.beginPath();
         ctx.arc(px, py, 2 + Math.sin(t*4+p)*1, 0, Math.PI * 2);
         ctx.fill();
@@ -7637,9 +7977,9 @@ function draw() {
       for (let c = 0; c < crackCount; c++) {
         const cStartX = (c * 157 + 100) % W;
         const cStartY = (c * 211 + 80) % H;
-        ctx.strokeStyle = `rgba(68,255,136,${0.4 + Math.sin(t*4+c)*0.2})`;
+        ctx.strokeStyle = `rgba(255,200,0,${0.4 + Math.sin(t*4+c)*0.2})`;
         ctx.lineWidth = 2 + Math.sin(t * 6 + c) * 1;
-        ctx.shadowColor = '#44ff88';
+        ctx.shadowColor = '#ffd700';
         ctx.shadowBlur = 15;
         ctx.beginPath();
         ctx.moveTo(cStartX, cStartY);
@@ -7653,7 +7993,7 @@ function draw() {
         ctx.shadowBlur = 0;
         // Bright glow at crack origin
         const crGlow = ctx.createRadialGradient(cStartX, cStartY, 0, cStartX, cStartY, 30);
-        crGlow.addColorStop(0, `rgba(68,255,136,${0.3 * (1 - crackProg * 0.5)})`);
+        crGlow.addColorStop(0, `rgba(255,200,0,${0.3 * (1 - crackProg * 0.5)})`);
         crGlow.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = crGlow;
         ctx.fillRect(cStartX - 30, cStartY - 30, 60, 60);
@@ -7663,18 +8003,18 @@ function draw() {
         const dissolve = Math.min(1, crackProg * 1.5);
         const floatY = hy - 120 - Math.sin(t * 0.5) * 20;
         const hSize = 160 - crackProg * 40;
-        const hH = imgH(hawkingImg, hSize);
+        const hH = imgH(hawkingGoldImg, hSize);
         ctx.save();
         ctx.globalAlpha = Math.max(0, 1 - dissolve);
-        ctx.shadowColor = '#44ff88';
+        ctx.shadowColor = '#ffd700';
         ctx.shadowBlur = 40 + crackProg * 80;
-        ctx.drawImage(hawkingImg, hx - hSize/2, floatY - hH/2, hSize, hH);
+        ctx.drawImage(hawkingGoldImg, hx - hSize/2, floatY - hH/2, hSize, hH);
         ctx.shadowBlur = 0;
         ctx.restore();
         // Energy aura where Hawking was
         const auraGrad = ctx.createRadialGradient(hx, floatY, 10, hx, floatY, 200);
-        auraGrad.addColorStop(0, `rgba(68,255,136,${0.3 + dissolve * 0.3})`);
-        auraGrad.addColorStop(0.4, `rgba(68,255,136,${0.1})`);
+        auraGrad.addColorStop(0, `rgba(255,200,0,${0.3 + dissolve * 0.3})`);
+        auraGrad.addColorStop(0.4, `rgba(255,200,0,${0.1})`);
         auraGrad.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = auraGrad;
         ctx.beginPath();
@@ -7684,7 +8024,7 @@ function draw() {
       // Chromatic aberration bars
       if (crackProg > 0.5 && Math.random() < crackProg * 0.3) {
         const barY = Math.random() * H;
-        ctx.fillStyle = `rgba(68,255,136,${Math.random() * 0.1})`;
+        ctx.fillStyle = `rgba(255,200,0,${Math.random() * 0.1})`;
         ctx.fillRect(0, barY, W, 2 + Math.random() * 4);
       }
     }
@@ -7709,7 +8049,7 @@ function draw() {
       for (let nr = 0; nr < 4; nr++) {
         const nrR = novaR * (0.3 + nr * 0.2);
         const nrAlpha = Math.max(0, (1 - disProg) * 0.4 - nr * 0.08);
-        ctx.strokeStyle = `rgba(68,255,136,${nrAlpha})`;
+        ctx.strokeStyle = `rgba(255,200,0,${nrAlpha})`;
         ctx.lineWidth = 4 - nr;
         ctx.beginPath();
         ctx.arc(novaCenter.x, novaCenter.y, nrR, 0, Math.PI * 2);
@@ -7718,7 +8058,7 @@ function draw() {
       // Central bright glow fading
       const novaGlow = ctx.createRadialGradient(novaCenter.x, novaCenter.y, 0, novaCenter.x, novaCenter.y, 100 * (1 - disProg * 0.5));
       novaGlow.addColorStop(0, `rgba(255,255,255,${(1 - disProg) * 0.6})`);
-      novaGlow.addColorStop(0.3, `rgba(68,255,136,${(1 - disProg) * 0.3})`);
+      novaGlow.addColorStop(0.3, `rgba(255,200,0,${(1 - disProg) * 0.3})`);
       novaGlow.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = novaGlow;
       ctx.beginPath();
@@ -7733,14 +8073,14 @@ function draw() {
         const cpy = novaCenter.y + Math.sin(cpAngle) * cpDist * 0.7;
         if (cpx < 0 || cpx > W || cpy < 0 || cpy > H) continue;
         const cpAlpha = Math.min(1, disProg * 3) * (0.3 + Math.sin(t * 2 + cp) * 0.2);
-        ctx.fillStyle = `rgba(68,255,136,${cpAlpha})`;
+        ctx.fillStyle = `rgba(255,200,0,${cpAlpha})`;
         const cpSize = cp % 4 === 0 ? 4 : 2;
         ctx.beginPath();
         ctx.arc(cpx, cpy, cpSize, 0, Math.PI * 2);
         ctx.fill();
         // Glow around larger dots
         if (cp % 4 === 0) {
-          ctx.fillStyle = `rgba(68,255,136,${cpAlpha * 0.3})`;
+          ctx.fillStyle = `rgba(255,200,0,${cpAlpha * 0.3})`;
           ctx.beginPath();
           ctx.arc(cpx, cpy, 10, 0, Math.PI * 2);
           ctx.fill();
@@ -7748,7 +8088,7 @@ function draw() {
       }
       // Connect some constellation points with faint lines
       if (disProg > 0.4) {
-        ctx.strokeStyle = `rgba(68,255,136,${(disProg - 0.4) * 0.15})`;
+        ctx.strokeStyle = `rgba(255,200,0,${(disProg - 0.4) * 0.15})`;
         ctx.lineWidth = 1;
         for (let lp = 0; lp < constellationPts - 1; lp += 3) {
           const a1 = (lp / constellationPts) * Math.PI * 2 + Math.sin(lp * 3) * 0.5;
@@ -7782,7 +8122,7 @@ function draw() {
         const cpDist = 200 + cosmicProg * 50 + Math.sin(t * 0.5 + cp) * 20;
         const cpx = hx + Math.cos(cpAngle) * cpDist;
         const cpy = (hy - 120) + Math.sin(cpAngle) * cpDist * 0.7;
-        ctx.fillStyle = `rgba(68,255,136,${0.15 * (1 - cosmicProg * 0.5)})`;
+        ctx.fillStyle = `rgba(255,200,0,${0.15 * (1 - cosmicProg * 0.5)})`;
         ctx.beginPath();
         ctx.arc(cpx, cpy, 2, 0, Math.PI * 2);
         ctx.fill();
@@ -7827,10 +8167,10 @@ function draw() {
             const dProg = Math.min(1, (dlgProg - dlg.at) / 0.2);
             const isAttrib = dlg.text.startsWith('-');
             ctx.globalAlpha = Math.sin(Math.min(1, dProg) * Math.PI * 0.5);
-            ctx.fillStyle = isAttrib ? '#44ff88' : '#ffffff';
+            ctx.fillStyle = isAttrib ? '#ffd700' : '#ffffff';
             ctx.font = isAttrib ? 'italic 18px monospace' : `${22 + Math.sin(t)*1}px monospace`;
             ctx.textAlign = 'center';
-            ctx.shadowColor = isAttrib ? '#44ff88' : '#ffffff';
+            ctx.shadowColor = isAttrib ? '#ffd700' : '#ffffff';
             ctx.shadowBlur = 12;
             const yOff = isAttrib ? 0.62 : (dlg.at < 0.2 ? 0.48 : 0.55);
             // Typewriter effect
@@ -7846,7 +8186,7 @@ function draw() {
       // Gentle green pulse from center
       const pulseR = 100 + Math.sin(t * 1.5) * 30;
       const pulseGrad = ctx.createRadialGradient(W/2, H * 0.45, 0, W/2, H * 0.45, pulseR);
-      pulseGrad.addColorStop(0, `rgba(68,255,136,${0.05 + Math.sin(t*2)*0.02})`);
+      pulseGrad.addColorStop(0, `rgba(255,200,0,${0.05 + Math.sin(t*2)*0.02})`);
       pulseGrad.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = pulseGrad;
       ctx.beginPath();
@@ -7871,7 +8211,7 @@ function draw() {
         ctx.font = 'bold 48px monospace';
         ctx.textAlign = 'center';
         ctx.fillText('HAWKING DEFEATED', W/2, H * 0.45);
-        ctx.fillStyle = `rgba(68,100,60,${Math.sin(textProg * Math.PI) * 0.7})`;
+        ctx.fillStyle = `rgba(180,140,40,${Math.sin(textProg * Math.PI) * 0.7})`;
         ctx.font = '18px monospace';
         ctx.fillText('The mind that defied death... rests at last.', W/2, H * 0.55);
       } else {
@@ -7906,7 +8246,7 @@ function draw() {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, barH);
     ctx.fillRect(0, H - barH, W, barH);
-    ctx.strokeStyle = '#44ff8844';
+    ctx.strokeStyle = '#ffd70044';
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, barH); ctx.lineTo(W, barH); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(0, H - barH); ctx.lineTo(W, H - barH); ctx.stroke();
@@ -7918,6 +8258,158 @@ function draw() {
     ctx.fillStyle = vigGrad;
     ctx.fillRect(0, 0, W, H);
 
+    // SKIP button
+    ctx.fillStyle = '#ffffff22';
+    ctx.fillRect(W - 110, 8, 100, 28);
+    ctx.strokeStyle = '#ffffff44';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(W - 110, 8, 100, 28);
+    ctx.fillStyle = '#aaa';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('SKIP \u25b6\u25b6', W - 60, 27);
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // WIN CUTSCENE — Walking to citizenship office + THE END
+  // ════════════════════════════════════════════════════════════════
+  if (state === 'winCutscene') {
+    const wt = winCutsceneTimer;
+    
+    // Office position in screen coords (world X minus camera)
+    const officeScreenX = winCutsceneOfficeX - cameraX;
+    const officeY = GROUND_Y - 200;
+    
+    // Building body
+    ctx.fillStyle = '#4a3c2e';
+    ctx.fillRect(officeScreenX, officeY, 180, 200);
+    
+    // Roof
+    ctx.fillStyle = '#2a1c0e';
+    ctx.beginPath();
+    ctx.moveTo(officeScreenX - 20, officeY);
+    ctx.lineTo(officeScreenX + 90, officeY - 60);
+    ctx.lineTo(officeScreenX + 200, officeY);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Door
+    ctx.fillStyle = '#1a140a';
+    ctx.fillRect(officeScreenX + 65, officeY + 120, 50, 80);
+    // Door handle
+    ctx.fillStyle = '#ffdd44';
+    ctx.beginPath();
+    ctx.arc(officeScreenX + 105, officeY + 160, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Windows (warm glow)
+    ctx.fillStyle = '#ffeeaa';
+    ctx.fillRect(officeScreenX + 20, officeY + 40, 40, 50);
+    ctx.fillRect(officeScreenX + 120, officeY + 40, 40, 50);
+    // Window frames
+    ctx.strokeStyle = '#2a1c0e';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(officeScreenX + 20, officeY + 40, 40, 50);
+    ctx.strokeRect(officeScreenX + 120, officeY + 40, 40, 50);
+    // Cross panes
+    ctx.beginPath();
+    ctx.moveTo(officeScreenX + 40, officeY + 40); ctx.lineTo(officeScreenX + 40, officeY + 90);
+    ctx.moveTo(officeScreenX + 20, officeY + 65); ctx.lineTo(officeScreenX + 60, officeY + 65);
+    ctx.moveTo(officeScreenX + 140, officeY + 40); ctx.lineTo(officeScreenX + 140, officeY + 90);
+    ctx.moveTo(officeScreenX + 120, officeY + 65); ctx.lineTo(officeScreenX + 160, officeY + 65);
+    ctx.stroke();
+    
+    // Sign board
+    ctx.fillStyle = '#1a4480';
+    ctx.fillRect(officeScreenX + 25, officeY + 100, 130, 22);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('CITIZENSHIP OFFICE', officeScreenX + 90, officeY + 115);
+    
+    // American flag on pole
+    const flagX = officeScreenX + 170, flagY = officeY - 80;
+    ctx.fillStyle = '#654321';
+    ctx.fillRect(flagX, flagY, 3, 80); // pole
+    // Flag body
+    const fW = 32, fH = 20;
+    // Stripes
+    for (let s = 0; s < 7; s++) {
+      ctx.fillStyle = s % 2 === 0 ? '#cc0000' : '#ffffff';
+      ctx.fillRect(flagX + 3, flagY + s * (fH / 7), fW, fH / 7);
+    }
+    // Blue canton
+    ctx.fillStyle = '#0044aa';
+    ctx.fillRect(flagX + 3, flagY, fW * 0.45, fH * 0.57);
+    
+    // Phase 2 (300+): Player enters door, fade out
+    if (wt >= 300 && wt < 350) {
+      // Player fades as they enter
+      // (the player is already drawn by main draw — we overlay a fade)
+    }
+    
+    // Phase 3: Fade to black
+    if (wt >= 350) {
+      const fadeP = Math.min(1, (wt - 350) / 100);
+      ctx.fillStyle = `rgba(0,0,0,${fadeP})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+    
+    // Phase 4: "THE END" text on black
+    if (wt >= 480) {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      
+      const textProg = Math.min(1, (wt - 480) / 60);
+      ctx.globalAlpha = textProg;
+      ctx.fillStyle = '#ffdd44';
+      ctx.font = 'bold 56px monospace';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#ffdd44';
+      ctx.shadowBlur = 20;
+      ctx.fillText('THE END', W/2, H/2 - 20);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      
+      // Subtitle
+      if (wt >= 540) {
+        const subProg = Math.min(1, (wt - 540) / 40);
+        ctx.globalAlpha = subProg;
+        ctx.fillStyle = '#88ccff';
+        ctx.font = '18px monospace';
+        ctx.fillText('Thank you for playing', W/2, H/2 + 30);
+        ctx.globalAlpha = 1;
+      }
+      
+      // Timer
+      if (wt >= 580 && settings.showTimer) {
+        const tProg = Math.min(1, (wt - 580) / 40);
+        ctx.globalAlpha = tProg * 0.7;
+        ctx.fillStyle = '#aaa';
+        ctx.font = '14px monospace';
+        const mins = Math.floor(gameTimer / 3600);
+        const secs = Math.floor((gameTimer % 3600) / 60);
+        ctx.fillText(`Time: ${mins}:${secs.toString().padStart(2, '0')}`, W / 2, H / 2 + 60);
+        ctx.globalAlpha = 1;
+      }
+      
+      // Subtitle 2
+      if (wt >= 620) {
+        const credProg = Math.min(1, (wt - 620) / 40);
+        ctx.globalAlpha = credProg * 0.6;
+        ctx.fillStyle = '#666';
+        ctx.font = '12px monospace';
+        ctx.fillText('A game about perseverance', W/2, H/2 + 90);
+        ctx.globalAlpha = 1;
+      }
+    }
+    
+    // Letterbox bars throughout
+    const barH = 45;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, barH);
+    ctx.fillRect(0, H - barH, W, barH);
+    
     // SKIP button
     ctx.fillStyle = '#ffffff22';
     ctx.fillRect(W - 110, 8, 100, 28);
@@ -7994,7 +8486,7 @@ function draw() {
     ctx.save();
     ctx.shadowColor = '#ff8800';
     ctx.shadowBlur = 20;
-    ctx.drawImage(bossImg, trumpX, trumpY, 120, 160);
+    ctx.drawImage(bossIntroImg, trumpX, trumpY, 120, 160);
     ctx.shadowBlur = 0;
     ctx.restore();
     // Phone icon - drawn with canvas (no emoji)
@@ -8102,7 +8594,7 @@ function draw() {
 
     const barGrad = ctx.createLinearGradient(W / 2 - 148, 0, W / 2 + 148, 0);
     barGrad.addColorStop(0, '#44aaff');
-    barGrad.addColorStop(1, '#44ff88');
+    barGrad.addColorStop(1, hawkingPhase2 ? '#ffd700' : '#44ff88');
     ctx.fillStyle = barGrad;
     ctx.fillRect(W / 2 - 148, 14, 296 * pct, 16);
 
@@ -8396,7 +8888,7 @@ function draw() {
     ctx.globalAlpha = 0.7 + prog * 0.3;
     ctx.shadowColor = '#ff4400';
     ctx.shadowBlur = 20 + prog * 30;
-    ctx.drawImage(bossImg, W/2 - portraitSize - separation + shakeX, H/2 - portraitH/2 + shakeY, portraitSize, portraitH);
+    ctx.drawImage(bossIntroImg, W/2 - portraitSize - separation + shakeX, H/2 - portraitH/2 + shakeY, portraitSize, portraitH);
     ctx.restore();
     
     // Epstein portrait (coming from right)
@@ -9083,7 +9575,7 @@ function draw() {
         ctx.globalAlpha = tEase;
         ctx.shadowColor = '#ff4400';
         ctx.shadowBlur = 50 + Math.sin(t*2)*15;
-        ctx.drawImage(bossImg, tx - tSize/2, H * 0.16 + (1-tEase)*60, tSize, imgH(bossImg, tSize));
+        ctx.drawImage(bossIntroImg, tx - tSize/2, H * 0.16 + (1-tEase)*60, tSize, imgH(bossIntroImg, tSize));
         ctx.shadowBlur = 0;
         
         // Ornate gold desk — larger, with more items
@@ -9908,13 +10400,13 @@ function draw() {
         ctx.fillRect(gsX + 40 + buzzOff, gsY - 30, 22, 35);
         if (phoneBuzz) {
           // Screen glowing
-          ctx.fillStyle = `rgba(68,255,136,${0.4 + Math.sin(t*8)*0.3})`;
+          ctx.fillStyle = `rgba(255,200,0,${0.4 + Math.sin(t*8)*0.3})`;
           ctx.fillRect(gsX + 42 + buzzOff, gsY - 28, 18, 25);
           ctx.fillStyle = '#fff';
           ctx.font = '5px monospace';
           ctx.fillText('CALL', gsX + 51 + buzzOff, gsY - 15);
           // Buzz vibration rings
-          ctx.strokeStyle = `rgba(68,255,136,${Math.sin(t*12)*0.3})`;
+          ctx.strokeStyle = `rgba(255,200,0,${Math.sin(t*12)*0.3})`;
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.arc(gsX + 51 + buzzOff, gsY - 12, 20 + Math.sin(t*10)*5, 0, Math.PI*2);
@@ -9925,7 +10417,7 @@ function draw() {
         if (sp > 0.4) {
           const crackProg = (sp - 0.4) / 0.3;
           // Cracks emanating from grave
-          ctx.strokeStyle = `rgba(68,255,136,${Math.min(0.8, crackProg)})`;
+          ctx.strokeStyle = `rgba(255,200,0,${Math.min(0.8, crackProg)})`;
           ctx.lineWidth = 2 + crackProg * 2;
           const crackLen = crackProg * 200;
           // Left crack
@@ -9949,7 +10441,7 @@ function draw() {
           // Green glow from underground
           const glowAlpha = crackProg * 0.5;
           const underGlow = ctx.createRadialGradient(gsX, gsY + 10, 5, gsX, gsY + 10, 100 + crackProg * 100);
-          underGlow.addColorStop(0, `rgba(68,255,136,${glowAlpha})`);
+          underGlow.addColorStop(0, `rgba(255,200,0,${glowAlpha})`);
           underGlow.addColorStop(1, 'rgba(0,0,0,0)');
           ctx.fillStyle = underGlow;
           ctx.fillRect(gsX - 200, gsY - 50, 400, 150);
@@ -9967,7 +10459,7 @@ function draw() {
           
           // Lightning flash at start of rise
           if (riseProg < 0.08) {
-            ctx.fillStyle = `rgba(68,255,136,${(0.08 - riseProg) * 8})`;
+            ctx.fillStyle = `rgba(255,200,0,${(0.08 - riseProg) * 8})`;
             ctx.fillRect(0, 0, W, H);
           }
           // Secondary flash
@@ -9985,9 +10477,9 @@ function draw() {
             const pillarAlpha = Math.min(0.4, (riseProg - 0.1) * 0.8);
             const pillarGrad = ctx.createLinearGradient(gsX - 40, 0, gsX + 40, 0);
             pillarGrad.addColorStop(0, 'rgba(0,0,0,0)');
-            pillarGrad.addColorStop(0.3, `rgba(68,255,136,${pillarAlpha * 0.5})`);
-            pillarGrad.addColorStop(0.5, `rgba(68,255,136,${pillarAlpha})`);
-            pillarGrad.addColorStop(0.7, `rgba(68,255,136,${pillarAlpha * 0.5})`);
+            pillarGrad.addColorStop(0.3, `rgba(255,200,0,${pillarAlpha * 0.5})`);
+            pillarGrad.addColorStop(0.5, `rgba(255,200,0,${pillarAlpha})`);
+            pillarGrad.addColorStop(0.7, `rgba(255,200,0,${pillarAlpha * 0.5})`);
             pillarGrad.addColorStop(1, 'rgba(0,0,0,0)');
             ctx.fillStyle = pillarGrad;
             ctx.fillRect(gsX - 80, 0, 160, gsY);
@@ -9998,12 +10490,12 @@ function draw() {
           const hSize = Math.min(W * 0.25, 180);
           ctx.globalAlpha = Math.min(1, riseProg * 2);
           
-          // Massive ethereal green aura — multi-layered
+          // Massive ethereal gold aura — multi-layered
           for (let aLayer = 0; aLayer < 3; aLayer++) {
             const aRad = hSize * (1.2 + aLayer * 0.5);
             const hAura = ctx.createRadialGradient(gsX, riseY + hSize*0.5, 10, gsX, riseY + hSize*0.5, aRad);
-            hAura.addColorStop(0, `rgba(68,255,136,${(0.3 - aLayer*0.08) * riseProg})`);
-            hAura.addColorStop(0.5, `rgba(68,255,136,${(0.1 - aLayer*0.03) * riseProg})`);
+            hAura.addColorStop(0, `rgba(255,200,0,${(0.3 - aLayer*0.08) * riseProg})`);
+            hAura.addColorStop(0.5, `rgba(255,200,0,${(0.1 - aLayer*0.03) * riseProg})`);
             hAura.addColorStop(1, 'rgba(0,0,0,0)');
             ctx.fillStyle = hAura;
             ctx.beginPath();
@@ -10012,10 +10504,10 @@ function draw() {
           }
           
           // The figure — triple shadow for ultra glow
-          ctx.shadowColor = '#44ff88';
+          ctx.shadowColor = '#ffd700';
           ctx.shadowBlur = 50 + riseProg * 60;
-          ctx.drawImage(hawkingImg, gsX - hSize/2, riseY, hSize, imgH(hawkingImg, hSize));
-          ctx.drawImage(hawkingImg, gsX - hSize/2, riseY, hSize, imgH(hawkingImg, hSize));
+          ctx.drawImage(hawkingGoldImg, gsX - hSize/2, riseY, hSize, imgH(hawkingGoldImg, hSize));
+          ctx.drawImage(hawkingGoldImg, gsX - hSize/2, riseY, hSize, imgH(hawkingGoldImg, hSize));
           ctx.shadowBlur = 0;
           
           // Redraw ground/dirt ON TOP of Hawking so he emerges from behind the earth
@@ -10066,7 +10558,7 @@ function draw() {
               const rp = Math.max(0, (ringProg - rDelay) / (1 - rDelay));
               if (rp <= 0) continue;
               const rr = rp * (120 + r * 70);
-              ctx.strokeStyle = `rgba(68,255,136,${Math.max(0, (0.7 - rp * 0.8) * (1 - r*0.15))})`;
+              ctx.strokeStyle = `rgba(255,200,0,${Math.max(0, (0.7 - rp * 0.8) * (1 - r*0.15))})`;
               ctx.lineWidth = 4 - r * 0.7;
               ctx.beginPath();
               ctx.arc(gsX, riseY + hSize*0.5, rr, 0, Math.PI*2);
@@ -10078,7 +10570,7 @@ function draw() {
           if (riseProg > 0.05 && riseProg < 0.5) {
             const lFreq = Math.sin(t*20);
             if (lFreq > 0.7) {
-              ctx.strokeStyle = `rgba(68,255,136,${0.6})`;
+              ctx.strokeStyle = `rgba(255,200,0,0.6)`;
               ctx.lineWidth = 2;
               ctx.beginPath();
               let lx = gsX + (Math.random()-0.5)*40, ly = 0;
@@ -10107,14 +10599,14 @@ function draw() {
           ctx.globalAlpha = 1;
         } else if (sp < 0.4) {
           const buzzAlpha = 0.6 + Math.sin(t*12) * 0.3;
-          ctx.fillStyle = `rgba(68,255,136,${buzzAlpha})`;
+          ctx.fillStyle = `rgba(255,200,0,${buzzAlpha})`;
           ctx.font = `italic ${Math.min(18, W*0.025)}px monospace`;
           ctx.fillText('*bzzzz . . . bzzzz . . . bzzzz . . .*', W/2, H * 0.88);
         } else if (sp < 0.7) {
           const crackAlpha = Math.min(1, (sp-0.4)*5);
           ctx.globalAlpha = crackAlpha;
-          ctx.fillStyle = '#44ff88';
-          ctx.shadowColor = '#44ff88';
+          ctx.fillStyle = '#ffd700';
+          ctx.shadowColor = '#ffd700';
           ctx.shadowBlur = 10;
           ctx.font = `italic ${Math.min(22, W*0.03)}px monospace`;
           const crackLine = sp < 0.55 ? '"Did you really think..."' : '"...death could stop me?"';
@@ -10123,8 +10615,8 @@ function draw() {
           ctx.globalAlpha = 1;
         } else {
           const riseProg = (sp - 0.7) / 0.3;
-          ctx.fillStyle = '#44ff88';
-          ctx.shadowColor = '#44ff88';
+          ctx.fillStyle = '#ffd700';
+          ctx.shadowColor = '#ffd700';
           ctx.shadowBlur = 25 + riseProg * 20;
           if (riseProg < 0.4) {
             const s1 = Math.min(1, riseProg * 4);
@@ -10357,7 +10849,7 @@ function draw() {
           ctx.fillText(allNames[i], px, npY + nameSize + 2);
           ctx.shadowBlur = 0;
           const titleSize = isHawking ? 12 : 9;
-          ctx.fillStyle = isHawking ? '#44ff88' : '#999';
+          ctx.fillStyle = isHawking ? '#ffd700' : '#999';
           ctx.font = `${isHawking ? 'bold ' : ''}${titleSize}px monospace`;
           ctx.fillText(allTitles[i], px, npY + nameSize + titleSize + 6);
         }
@@ -10368,14 +10860,14 @@ function draw() {
           // Rapid flicker
           const flicker = Math.sin(t * 30) * Math.sin(t * 17) * Math.sin(t * 43);
           if (flicker > 0.3) {
-            ctx.fillStyle = `rgba(68,255,136,${tensionProg * 0.15})`;
+            ctx.fillStyle = `rgba(255,200,0,${tensionProg * 0.15})`;
             ctx.fillRect(0, 0, W, H);
           }
           // "?" text building
-          ctx.fillStyle = `rgba(68,255,136,${tensionProg * 0.5})`;
+          ctx.fillStyle = `rgba(255,200,0,${tensionProg * 0.5})`;
           ctx.font = `bold ${60 + Math.sin(t*8)*10}px monospace`;
           ctx.textAlign = 'center';
-          ctx.shadowColor = '#44ff88';
+          ctx.shadowColor = '#ffd700';
           ctx.shadowBlur = 40;
           ctx.fillText('?', W/2, H/2 + 20);
           ctx.shadowBlur = 0;
@@ -10760,7 +11252,7 @@ function draw() {
     ctx.shadowBlur = 8;
     const othersUp = miniBosses.filter(m => !m.dead && m.name !== 'HAWKING').length;
     const statusText = hawkingPhase2 ? '★★ HAWKING TRANSCENDED ★★' : (othersUp === 0 ? '★ HAWKING EXPOSED ★' : `DEFEAT THEM ALL  (${total - alive.length}/${total})`);
-    ctx.fillStyle = hawkingPhase2 ? '#44ff88' : (othersUp === 0 ? '#44ff88' : '#ff8844');
+    ctx.fillStyle = hawkingPhase2 ? '#ffd700' : (othersUp === 0 ? '#44ff88' : '#ff8844');
     ctx.fillText(statusText, W/2, 19);
     ctx.shadowBlur = 0;
 
@@ -10770,11 +11262,12 @@ function draw() {
       const bx = startX + i * 55;
       ctx.fillStyle = '#1a1a1a';
       ctx.fillRect(bx, 25, 50, 10);
-      // Hawking: if shielded, show green pulsing bar
+      // Hawking: if shielded, show pulsing bar (gold if phase 2)
       const isShielded = mb.name === 'HAWKING' && othersUp > 0;
-      ctx.fillStyle = isShielded ? `rgba(68,255,136,${0.3 + Math.sin(Date.now()/200)*0.2})` : mb.color;
+      const shieldBarCol = hawkingPhase2 ? [255,200,0] : [68,255,136];
+      ctx.fillStyle = isShielded ? `rgba(${shieldBarCol},${0.3 + Math.sin(Date.now()/200)*0.2})` : mb.color;
       ctx.fillRect(bx, 25, 50 * (mb.hp / mb.maxHp), 10);
-      ctx.strokeStyle = isShielded ? '#44ff88' : '#ffffff33';
+      ctx.strokeStyle = isShielded ? (hawkingPhase2 ? '#ffd700' : '#44ff88') : '#ffffff33';
       ctx.lineWidth = isShielded ? 2 : 1;
       ctx.strokeRect(bx, 25, 50, 10);
       ctx.fillStyle = '#fff';
@@ -10834,7 +11327,7 @@ function draw() {
       ctx.fillRect(imgX - 4, imgY - 4, imgW + 8, imgH + 8);
 
       // Trump image
-      ctx.drawImage(bossImg, imgX, imgY, imgW, imgH);
+      ctx.drawImage(bossIntroImg, imgX, imgY, imgW, imgH);
 
       // White flash on reveal
       if (cutscene.phase === 1 && cutscene.timer < 15) {
@@ -10960,7 +11453,7 @@ function draw() {
     ctx.fillRect(portX - 4, portY - 4, portW + 8, portH + 8);
     ctx.fillStyle = '#b8860b';
     ctx.fillRect(portX - 2, portY - 2, portW + 4, portH + 4);
-    ctx.drawImage(bossImg, portX, portY, portW, portH);
+    ctx.drawImage(bossIntroImg, portX, portY, portW, portH);
 
     // Red tint on portrait based on phase
     ctx.fillStyle = phaseNum === 3 ? 'rgba(255, 0, 0, 0.25)' : 'rgba(255, 100, 0, 0.15)';
@@ -11283,11 +11776,15 @@ function draw() {
       ctx.save();
       // Slight bob to simulate running
       const bob = Math.sin(r.frame * Math.PI / 2) * 3;
-      ctx.drawImage(playerImg, r.x, r.y + bob, r.w, r.h);
+      const mrW = r.w * PLAYER_IMG_SCALE;
+      const mrH = r.h * PLAYER_IMG_SCALE;
+      const mrOffX = (r.w - mrW) / 2;
+      const mrOffY = r.h - mrH;
+      ctx.drawImage(playerImg, r.x + mrOffX, r.y + mrOffY + bob, mrW, mrH);
       // Trail effect
       ctx.globalAlpha = 0.15;
       for (let t = 1; t <= 3; t++) {
-        ctx.drawImage(playerImg, r.x - t * 18, r.y + bob, r.w, r.h);
+        ctx.drawImage(playerImg, r.x + mrOffX - t * 18, r.y + mrOffY + bob, mrW, mrH);
       }
       ctx.restore();
       ctx.globalAlpha = 1;
