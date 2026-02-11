@@ -3644,6 +3644,7 @@ function update() {
     // Update VFX during dialogue too
     for (let i = bossVfx.length - 1; i >= 0; i--) {
       bossVfx[i].life--;
+      if (bossVfx[i].vy) bossVfx[i].y += bossVfx[i].vy;
       if (bossVfx[i].type === 'ring') {
         const prog = 1 - bossVfx[i].life / bossVfx[i].maxLife;
         bossVfx[i].radius = bossVfx[i].maxRadius * prog;
@@ -3709,6 +3710,7 @@ function update() {
     if (bossIntroTimer > 0) bossIntroTimer--;
     for (let i = bossVfx.length - 1; i >= 0; i--) {
       bossVfx[i].life--;
+      if (bossVfx[i].vy) bossVfx[i].y += bossVfx[i].vy;
       if (bossVfx[i].type === 'ring') {
         const prog = 1 - bossVfx[i].life / bossVfx[i].maxLife;
         bossVfx[i].radius = bossVfx[i].maxRadius * prog;
@@ -3798,6 +3800,7 @@ function update() {
     if (shakeTimer > 0) shakeTimer--;
     for (let i = bossVfx.length - 1; i >= 0; i--) {
       bossVfx[i].life--;
+      if (bossVfx[i].vy) bossVfx[i].y += bossVfx[i].vy;
       if (bossVfx[i].type === 'ring') {
         const prog2 = 1 - bossVfx[i].life / bossVfx[i].maxLife;
         bossVfx[i].radius = bossVfx[i].maxRadius * prog2;
@@ -4348,6 +4351,7 @@ function update() {
             // Ground crack lines
             bossVfx.push({ type: 'crack', x: boss.x + boss.w/2, y: boss.y + boss.h, life: 60, maxLife: 60 });
             // Visual shockwave particles - way more
+            const shockRange = 250;
             for (let sx = -shockRange; sx <= shockRange; sx += 12) {
               spawnParticles(boss.x + boss.w/2 + sx, boss.y + boss.h, '#ff8800', 3);
             }
@@ -5810,8 +5814,8 @@ function update() {
       screenFlash = 80;
       screenFlashColor = '#ffd700';
       shakeTimer = 60;
-      bossVfx.push({ type: 'text', x: W/2, y: H/2 - 100, text: 'HAWKING TRANSCENDED', life: 180, maxLife: 180, color: '#ffd700' });
-      bossVfx.push({ type: 'ring', x: W/2, y: H/2, radius: 10, maxRadius: 800, life: 50, maxLife: 50, color: '#ffd700' });
+      bossVfx.push({ type: 'text', x: hawk.x + hawk.w/2, y: hawk.y - 60, text: 'HAWKING TRANSCENDED', life: 180, maxLife: 180, color: '#ffd700' });
+      bossVfx.push({ type: 'ring', x: hawk.x + hawk.w/2, y: hawk.y + hawk.h/2, radius: 10, maxRadius: 800, life: 50, maxLife: 50, color: '#ffd700' });
     }
   }
 
@@ -6028,6 +6032,7 @@ function update() {
   for (let i = bossVfx.length - 1; i >= 0; i--) {
     const vfx = bossVfx[i];
     vfx.life--;
+    if (vfx.vy) vfx.y += vfx.vy;
     if (vfx.type === 'ring') {
       const prog = 1 - vfx.life / vfx.maxLife;
       vfx.radius = vfx.maxRadius * prog;
@@ -7510,7 +7515,8 @@ function draw() {
       ctx.fillStyle = vfx.color;
       ctx.shadowColor = vfx.color;
       ctx.shadowBlur = 20;
-      ctx.font = `bold ${32 + (1-alpha)*20}px monospace`;
+      const vfxSize = vfx.size || 32;
+      ctx.font = `bold ${vfxSize + (1-alpha)*20}px monospace`;
       ctx.textAlign = 'center';
       ctx.fillText(vfx.text, vfx.x, vfx.y - (1-alpha)*60);
       ctx.shadowBlur = 0;
