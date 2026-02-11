@@ -1755,11 +1755,11 @@ let cutscene = {
   dialogueIndex: 0,
   dialogues: [
     '...',
-    'Well, well, well... Look who found the BUNKER.',
-    'Welcome to my UNDERGROUND fortress. The BEST bunker. TREMENDOUS.',
+    'Well, well, well... Look who made it to the WALL.',
+    'Welcome to MY border. The BEST wall. TREMENDOUS.',
     'Nobody gets through. NOBODY.',
     'I\'m gonna Make America Great Again!',
-    'You\'re trapped down here with ME. NOT HAPPENING!',
+    'You think you can cross MY wall? NOT HAPPENING!',
     'Now get ready to be DEPORTED! BIGLY!',
   ],
   fadeAlpha: 0,
@@ -3144,7 +3144,7 @@ function startGame() {
   bossIntroTimer = 0;
   bossDialogue = { active: false, texts: [], index: 0, timer: 0 };
   
-  // Build UNDERGROUND BUNKER arena — fills most of the screen area
+  // Build BORDER WALL arena — fills most of the screen area
   const arenaW = 2400; // very wide — nearly full screen
   const arenaH = 800; // tall room
   const arenaLeft = bigWall.x + bigWall.w / 2 - arenaW / 2;
@@ -3502,7 +3502,7 @@ function update() {
       if (cutscene.fadeAlpha <= 0) {
         cutscene.fadeAlpha = 0;
         cutscene.active = false;
-        // Spawn the boss in the bunker arena
+        // Spawn the boss in the border arena
         const arenaTop2 = bigWall.y + 40;
         const arenaH2 = 800;
         const arenaBottom2 = arenaTop2 + arenaH2;
@@ -3534,7 +3534,7 @@ function update() {
         };
         bossMinions = [];
         bossIntroTimer = 120; // dramatic entrance animation
-        // Teleport player into the bunker!
+        // Teleport player into the border arena!
         const arenaW2 = 2400;
         const arenaLeft2 = bigWall.x + bigWall.w/2 - arenaW2/2;
         player.x = arenaLeft2 + 100;
@@ -3812,7 +3812,7 @@ function update() {
     spawnParticles(p.x + p.w / 2, p.y + p.h / 2, '#aaa', 4);
   }
 
-  // Climb big wall (disabled during bossfight - player is in bunker)
+  // Climb big wall (disabled during bossfight - player is in arena)
   if (bigWall && p.onWall && state !== 'bossfight' && state !== 'bossdialogue' && rectsOverlap(
     { x: p.x - 4, y: p.y, w: p.w + 8, h: p.h },
     bigWall
@@ -3851,7 +3851,7 @@ function update() {
     p.onGround = true;
   }
 
-  // Walls & platforms (exclude bigWall during bossfight - player is inside bunker)
+  // Walls & platforms (exclude bigWall during bossfight - player is inside arena)
   const inArena = state === 'bossfight' || state === 'bossdialogue' || state === 'cutscene' || state === 'epsteinfight' || state === 'phonecall' || state === 'fusioncutscene' || state === 'fusionfight' || state === 'splitfight' || state === 'hawkingRefusal' || state === 'hawkingDeath';
   const allSolids = [...walls, ...(inArena ? arenaPlats : [bigWall])].filter(Boolean);
   for (const wall of allSolids) {
@@ -6362,7 +6362,7 @@ function draw() {
     ctx.fillText('★ EL OTRO LADO ★', bw.x + bw.w + 60, bw.y + bw.h - 20);
   }
 
-  // ── SEWER / UNDERGROUND BUNKER ARENA ──
+  // ── BORDER WALL ARENA ──
   // Draw the full sewer background behind platforms (only during bossfight)
   const drawArena = (state === 'bossfight' || state === 'bossdialogue' || state === 'cutscene' || state === 'epsteinfight' || state === 'phonecall' || state === 'fusioncutscene' || state === 'fusionfight' || state === 'splitfight' || state === 'hawkingRefusal' || state === 'hawkingDeath' || bossDeathTimer > 0) && arenaPlats.length > 0;
   if (drawArena) {
@@ -6514,7 +6514,7 @@ function draw() {
       ctx.fillRect(ap.x + 8, ap.y + ap.h, 6, 35);
       ctx.fillRect(ap.x + ap.w - 14, ap.y + ap.h, 6, 35);
     } else if (ap.isSideWall) {
-      // Thick concrete bunker walls
+      // Thick concrete border walls
       const wallGrad = ctx.createLinearGradient(ap.x, ap.y, ap.x + ap.w, ap.y);
       wallGrad.addColorStop(0, '#2a2e28');
       wallGrad.addColorStop(0.5, '#353935');
