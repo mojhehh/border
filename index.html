@@ -5930,10 +5930,9 @@ function update() {
       player.runFrame = 0;
     }
     
-    // Camera always follows player during cutscene
+    // Camera always follows player during cutscene (unclamped — player is past level edge)
     cameraX = player.x - W * 0.3;
     if (cameraX < 0) cameraX = 0;
-    if (cameraX > levelWidth - W) cameraX = levelWidth - W;
     
     // Phase 3 (700+): Transition to won state with buttons
     if (wt >= 700) {
@@ -6178,10 +6177,11 @@ function draw() {
   groundGrad.addColorStop(0.3, '#b8944d');
   groundGrad.addColorStop(1, '#8b6914');
   ctx.fillStyle = groundGrad;
-  ctx.fillRect(0, GROUND_Y, levelWidth, H - GROUND_Y);
+  const groundRight = state === 'winCutscene' ? levelWidth + 2000 : levelWidth;
+  ctx.fillRect(0, GROUND_Y, groundRight, H - GROUND_Y);
   // Sand texture line
   ctx.fillStyle = '#d4b87a';
-  ctx.fillRect(0, GROUND_Y, levelWidth, 3);
+  ctx.fillRect(0, GROUND_Y, groundRight, 3);
 
   // Ground cracks
   ctx.strokeStyle = '#a0854088';
