@@ -6827,6 +6827,7 @@ function draw() {
     ctx.restore();
 
     // Phase glow aura (re-draw image with shadowBlur instead of blocky fillRect)
+    const tintPulse = 0.15 + Math.sin(t * 4) * 0.1;
     ctx.save();
     ctx.globalAlpha = tintPulse;
     ctx.shadowColor = boss.phase === 3 ? '#ff0000' : '#ff8800';
