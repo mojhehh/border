@@ -309,11 +309,11 @@ function getPlayerCountMult() {
 function getDiffMult() {
   const pm = getPlayerCountMult();
   switch(settings.difficulty) {
-    case 'easy': return { dmg: 0.6 * pm, enemyHp: 0.8 * pm, enemySpeed: 0.85, playerHp: 20, projSpeed: 0.75 };
-    case 'normal': return { dmg: 1.2 * pm, enemyHp: 1.2 * pm, enemySpeed: 1.05, playerHp: 15, projSpeed: 1.05 };
-    case 'hard': return { dmg: 1.8 * pm, enemyHp: 1.5 * pm, enemySpeed: 1.25, playerHp: 12, projSpeed: 1.25 };
-    case 'insane': return { dmg: 2.5 * pm, enemyHp: 2.0 * pm, enemySpeed: 1.5, playerHp: 8, projSpeed: 1.5 };
-    default: return { dmg: 1.2 * pm, enemyHp: 1.2 * pm, enemySpeed: 1.05, playerHp: 15, projSpeed: 1.05 };
+    case 'easy': return { dmg: 0.5 * pm, enemyHp: 0.7 * pm, enemySpeed: 0.85, playerHp: 20, projSpeed: 0.75 };
+    case 'normal': return { dmg: 1.0 * pm, enemyHp: 1.0 * pm, enemySpeed: 1.0, playerHp: 15, projSpeed: 1.0 };
+    case 'hard': return { dmg: 1.5 * pm, enemyHp: 1.4 * pm, enemySpeed: 1.2, playerHp: 12, projSpeed: 1.2 };
+    case 'insane': return { dmg: 2.2 * pm, enemyHp: 1.8 * pm, enemySpeed: 1.45, playerHp: 8, projSpeed: 1.45 };
+    default: return { dmg: 1.0 * pm, enemyHp: 1.0 * pm, enemySpeed: 1.0, playerHp: 15, projSpeed: 1.0 };
   }
 }
 
@@ -2946,8 +2946,8 @@ function buildLevel() {
       alertTimer: 0,
       frame: 0,
       frameTimer: 0,
-      hp: Math.ceil(4 * dmGuards.enemyHp),
-      maxHp: Math.ceil(4 * dmGuards.enemyHp),
+      hp: Math.ceil(3 * dmGuards.enemyHp),
+      maxHp: Math.ceil(3 * dmGuards.enemyHp),
       climbing: false,
       shootCooldown: 60 + Math.floor(Math.random() * 60),
       dead: false,
@@ -3575,7 +3575,7 @@ function update() {
         const arenaH2 = 800;
         const arenaBottom2 = arenaTop2 + arenaH2;
         const dmBoss = getDiffMult();
-        const bossBaseHp = Math.ceil(45 * dmBoss.enemyHp);
+        const bossBaseHp = Math.ceil(40 * dmBoss.enemyHp);
         boss = {
           x: bigWall.x + bigWall.w / 2 - 60,
           y: arenaBottom2 - 160,
@@ -3675,7 +3675,7 @@ function update() {
       const arenaTop2 = bigWall.y + 40;
       const arenaFloor2 = arenaTop2 + 800;
       const dmEps = getDiffMult();
-      const epsBaseHp = Math.ceil(35 * dmEps.enemyHp);
+      const epsBaseHp = Math.ceil(30 * dmEps.enemyHp);
       epstein = {
         x: arenaLeft2 + bArenaW2/2 - 50,
         y: arenaTop2 + 30,
@@ -3764,7 +3764,7 @@ function update() {
       screenFlashColor = '#ffffff';
       shakeTimer = 50;
       const dmFus = getDiffMult();
-      const fusBaseHp = Math.ceil(65 * dmFus.enemyHp);
+      const fusBaseHp = Math.ceil(55 * dmFus.enemyHp);
       fusionBoss = {
         x: centerX - 75, y: centerY - 100,
         w: 150, h: 200,
