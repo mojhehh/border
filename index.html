@@ -412,6 +412,7 @@ function getAlivePlayerList() {
 // Handle player death — spectate in MP, game over in solo
 function handlePlayerDeath() {
   const p = player;
+  if (!p.alive) return; // prevent re-entry
   p.alive = false;
   p.hp = 0;
   p.iFrames = 99999; // prevent all further damage checks
@@ -5211,16 +5212,18 @@ function update() {
       fb.slamCooldown = fb.phase === 2 ? 120 + Math.floor(Math.random()*60) : 180 + Math.floor(Math.random()*80);
       fb.vy = -18;
       shakeTimer = 15;
-      // After landing, shockwave
-      setTimeout(() => {
-        if (!fusionBoss || fusionBoss.dead) return;
+      fb._slamDelay = 36; // ~600ms at 60fps, tick-based instead of setTimeout
+    }
+    // Slam shockwave after landing delay
+    if (fb._slamDelay !== undefined && fb._slamDelay > 0) {
+      fb._slamDelay--;
+      if (fb._slamDelay <= 0 && !fusionBoss.dead) {
         shakeTimer = 20;
         screenFlash = 8;
         screenFlashColor = '#ff440044';
         bossVfx.push({ type: 'ring', x: fb.x+fb.w/2, y: fb.y+fb.h, radius: 10, maxRadius: 400, life: 25, maxLife: 25, color: '#ff4400' });
-        // Set slam shock flag for ALL players to check outside gate
         fusionBoss._slamShock = 25;
-      }, 600);
+      }
     }
 
     // Attack 3: Dash charge (phase 2)
@@ -5230,8 +5233,13 @@ function update() {
         fb.dashCooldown = 100 + Math.floor(Math.random()*80);
         fb.charging = true;
         fb.chargeVx = fb.dir * 12;
-        setTimeout(() => { if (fusionBoss) fusionBoss.charging = false; }, 800);
+        fb._chargeDelay = 48; // ~800ms at 60fps, tick-based instead of setTimeout
         bossVfx.push({ type: 'text', x: fb.x+fb.w/2, y: fb.y - 20, text: 'CHARGE!', life: 40, maxLife: 40, color: '#ff4400' });
+      }
+      // Tick down charge duration
+      if (fb._chargeDelay !== undefined && fb._chargeDelay > 0) {
+        fb._chargeDelay--;
+        if (fb._chargeDelay <= 0 && fusionBoss) fusionBoss.charging = false;
       }
       if (fb.charging) {
         fb.x += fb.chargeVx;
@@ -5424,8 +5432,12 @@ function update() {
         // Ground slam every 140 frames
         if (mb.specialTimer % 140 === 0 && mb.vy === 0) {
           mb.vy = -14;
-          setTimeout(() => {
-            if (mb.dead) return;
+          mb._slamDelay = 21; // ~350ms at 60fps, tick-based
+        }
+        // Slam shockwave after delay
+        if (mb._slamDelay !== undefined && mb._slamDelay > 0) {
+          mb._slamDelay--;
+          if (mb._slamDelay <= 0 && !mb.dead) {
             shakeTimer = 15;
             spawnParticles(mb.x + mb.w/2, mb.y + mb.h, '#ff4400', 20);
             // Fire wave — ground projectiles spreading left and right
@@ -5440,7 +5452,7 @@ function update() {
             }
             // Trump slam shockwave — flag for ALL players
             mb._slamShock = 25;
-          }, 350);
+          }
         }
         // Rage roar — speed boost + rapid fire burst every 400 frames
         if (mb.specialTimer % 400 === 0) {
@@ -5595,7 +5607,6 @@ function update() {
       }
       else if (mb.name === 'HAWKING') {
         const isPhase2 = hawkingPhase2;
-        const hawkSpeed = hawkingAlone ? 1.2 : 0.6;
         // Hawking: Genius supreme — orbital ring + gravity well + black hole + time warp
         if (mb.shootCooldown <= 0) {
           mb.shootCooldown = isPhase2 ? 20 : (hawkingAlone ? 30 : 55);
@@ -5808,14 +5819,15 @@ function update() {
         hawk.x = arenaLeft + bArenaW/2 - hawk.w/2;
         hawk.y = arenaFloor - hawk.h - 50;
         hawk.vy = -15;
+        // VFX inside hawk guard to prevent null crash
+        bossVfx.push({ type: 'text', x: hawk.x + hawk.w/2, y: hawk.y - 60, text: 'HAWKING TRANSCENDED', life: 180, maxLife: 180, color: '#ffd700' });
+        bossVfx.push({ type: 'ring', x: hawk.x + hawk.w/2, y: hawk.y + hawk.h/2, radius: 10, maxRadius: 800, life: 50, maxLife: 50, color: '#ffd700' });
       }
       // Restore player HP a bit
       player.hp = Math.min(player.maxHp, player.hp + 15);
       screenFlash = 80;
       screenFlashColor = '#ffd700';
       shakeTimer = 60;
-      bossVfx.push({ type: 'text', x: hawk.x + hawk.w/2, y: hawk.y - 60, text: 'HAWKING TRANSCENDED', life: 180, maxLife: 180, color: '#ffd700' });
-      bossVfx.push({ type: 'ring', x: hawk.x + hawk.w/2, y: hawk.y + hawk.h/2, radius: 10, maxRadius: 800, life: 50, maxLife: 50, color: '#ffd700' });
     }
   }
 
