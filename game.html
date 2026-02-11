@@ -3179,11 +3179,11 @@ function startGame() {
     active: false, timer: 0, phase: 0, dialogueIndex: 0,
     dialogues: [
       '...',
-      'Well, well, well... Look who made it up here.',
-      'I built this wall. The BEST wall. TREMENDOUS wall.',
+      'Well, well, well... Look who made it to the WALL.',
+      'Welcome to MY border. The BEST wall. TREMENDOUS.',
       'Nobody gets through. NOBODY.',
       'I\'m gonna Make America Great Again!',
-      'You\'re not crossing. Believe me. NOT HAPPENING!',
+      'You think you can cross MY wall? NOT HAPPENING!',
       'Now get ready to be DEPORTED! BIGLY!',
     ],
     fadeAlpha: 0,
@@ -3884,7 +3884,7 @@ function update() {
   }
 
   // Trigger cutscene when ANY player reaches top of wall (first time) — HOST ONLY
-  if ((!mpEnabled || isHost) && bigWall && !boss && !cutscene.active) {
+  if (state === 'playing' && (!mpEnabled || isHost) && bigWall && !boss && !cutscene.active) {
   let anyPlayerAtWall = p.y < bigWall.y + 80 && p.x > bigWall.x - 100 && p.x < bigWall.x + bigWall.w + 100;
   if (!anyPlayerAtWall && mpEnabled) {
     for (const uid of Object.keys(roomPlayers)) {
