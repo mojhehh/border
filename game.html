@@ -40,7 +40,7 @@ canvas {
 </div>
 <canvas id="game"></canvas>
 <!-- Hidden input for iOS/iPad virtual keyboard -->
-<input id="hiddenInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="position:fixed;left:-9999px;top:50%;width:1px;height:1px;opacity:0;font-size:16px;z-index:-1;pointer-events:none;" />
+<input id="hiddenInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="position:fixed;left:0;top:0;width:100%;height:40px;opacity:0.01;font-size:16px;z-index:9999;pointer-events:none;" />
 
 <!-- Firebase SDK (compat for non-module script) -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -413,15 +413,15 @@ function _focusHiddenInput(inputType) {
   _hiddenInput.value = cur || '';
   _hiddenInput.setAttribute('maxlength', inputType === 'chat' ? '100' : inputType === 'roomcode' ? '6' : '20');
   _hiddenInput.type = (inputType === 'password' || inputType === 'confirm') ? 'password' : 'text';
-  _hiddenInput.style.left = '0px';
-  _hiddenInput.style.opacity = '0';
   _hiddenInput.style.pointerEvents = 'auto';
-  setTimeout(() => _hiddenInput.focus(), 50);
+  // iOS requires focus in same call stack as user gesture — no setTimeout
+  _hiddenInput.focus();
+  // Fallback for older iOS
+  setTimeout(() => { if (document.activeElement !== _hiddenInput) _hiddenInput.focus(); }, 100);
 }
 function _blurHiddenInput() {
   if (!_hiddenInput) return;
   _hiddenInput.blur();
-  _hiddenInput.style.left = '-9999px';
   _hiddenInput.style.pointerEvents = 'none';
 }
 function _getTextInputValue(type) {
