@@ -3705,7 +3705,7 @@ function update() {
     return;
   }
 
-  if (state !== 'playing' && state !== 'bossfight' && state !== 'epsteinfight' && state !== 'fusionfight' && state !== 'splitfight' && state !== 'hawkingRefusal') return;
+  if (state !== 'playing' && state !== 'bossfight' && state !== 'epsteinfight' && state !== 'fusionfight' && state !== 'splitfight' && state !== 'hawkingRefusal' && state !== 'hawkingDeath') return;
 
   gameTimer++;
   const p = player;
@@ -5982,6 +5982,8 @@ function update() {
     pt.size *= 0.97;
     return pt.life > 0;
   });
+  // Hard cap — trim oldest particles if over limit (direct pushes bypass spawnParticles cap)
+  if (particles.length > MAX_PARTICLES) particles.splice(0, particles.length - MAX_PARTICLES);
 }
 
 // ── Draw ──
@@ -7291,14 +7293,10 @@ function draw() {
     const pAlpha = pt.life / 40;
     ctx.globalAlpha = pAlpha;
     ctx.fillStyle = pt.color;
-    ctx.shadowColor = pt.color;
-    ctx.shadowBlur = pt.size * 2;
     ctx.beginPath();
     ctx.arc(pt.x, pt.y, pt.size / 2, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.shadowBlur = 0;
-  ctx.shadowColor = 'transparent';
   ctx.globalAlpha = 1;
 
   ctx.restore();
@@ -12894,8 +12892,10 @@ function loop(timestamp) {
   // Run multiple ticks per frame on slow devices (iPad 30fps) to maintain game speed
   // Cap at 3 ticks to prevent performance death spiral
   const ticks = Math.min(Math.max(1, Math.round(elapsed / 16.67)), 3);
-  for (let i = 0; i < ticks; i++) update();
-  draw();
+  try {
+    for (let i = 0; i < ticks; i++) update();
+    draw();
+  } catch (e) { console.error('Game loop error:', e); }
   requestAnimationFrame(loop);
 }
 
