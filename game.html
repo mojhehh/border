@@ -975,6 +975,9 @@ async function leaveRoom() {
   mpRetryVotes = {};
   mpRetrySelection = 0;
   mpMatchSettings = null;
+  // Reset touch/joystick state
+  moveJoystick.active = false; moveJoystick.touchId = null; moveJoystick.dx = 0; moveJoystick.dy = 0; moveJoystick.inJumpUp = false;
+  touchAim.active = false; aimTouchId = null; touchControls.left = false; touchControls.right = false; touchControls.up = false;
   menuState = 'multiplayer';
   mpMenuSelection = 0;
 }
@@ -3183,6 +3186,9 @@ function startGame() {
   particles = [];
   projectiles = [];
   epsteinProjectiles = [];
+  // Reset touch/joystick state to prevent stale input after restart
+  moveJoystick.active = false; moveJoystick.touchId = null; moveJoystick.dx = 0; moveJoystick.dy = 0; moveJoystick.inJumpUp = false;
+  touchAim.active = false; aimTouchId = null; touchControls.left = false; touchControls.right = false; touchControls.up = false;
   epstein = null;
   phonecallTimer = 0;
   fusionBoss = null;
@@ -5078,7 +5084,7 @@ function update() {
     ep.rotation += 0.1;
     ep.life--;
     // Hit player
-    if (p.iFrames <= 0 && p.alive && rectsOverlap({ x: ep.x - ep.size/2, y: ep.y - ep.size/2, w: ep.size, h: ep.size }, p)) {
+    if (p.iFrames <= 0 && !p.won && p.alive && rectsOverlap({ x: ep.x - ep.size/2, y: ep.y - ep.size/2, w: ep.size, h: ep.size }, p)) {
       p.hp--;
       p.iFrames = 40;
       shakeTimer = 8;
@@ -5665,7 +5671,7 @@ function update() {
 
       // Contact damage — ALL players
       const contactDmg = (mb.name === 'HAWKING' && hawkingAlone) ? (hawkingPhase2 ? 3 : 2) : 1;
-      if (p.alive && p.iFrames <= 0 && rectsOverlap(p, mb)) {
+      if (p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, mb)) {
         p.hp -= contactDmg;
         p.iFrames = 40;
         p.vx = (p.x < mb.x ? -1 : 1) * 5;
@@ -11997,6 +12003,8 @@ function draw() {
         // Buttons
         ctx.beginPath();
         ctx.arc(x + s*0.25, y - s*0.05, s*0.06, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
         ctx.arc(x + s*0.35, y + s*0.05, s*0.06, 0, Math.PI*2);
         ctx.fill();
       } else if (type === 'credits') {
@@ -12015,6 +12023,8 @@ function draw() {
         ctx.stroke();
         ctx.beginPath();
         ctx.arc(x - s*0.15, y - s*0.1, s*0.05, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
         ctx.arc(x + s*0.15, y - s*0.1, s*0.05, 0, Math.PI*2);
         ctx.fill();
         ctx.beginPath();
@@ -12027,6 +12037,8 @@ function draw() {
         ctx.stroke();
         ctx.beginPath();
         ctx.arc(x - s*0.15, y - s*0.1, s*0.05, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
         ctx.arc(x + s*0.15, y - s*0.1, s*0.05, 0, Math.PI*2);
         ctx.fill();
         ctx.beginPath();
@@ -12040,6 +12052,8 @@ function draw() {
         ctx.stroke();
         ctx.beginPath();
         ctx.arc(x - s*0.15, y - s*0.05, s*0.05, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
         ctx.arc(x + s*0.15, y - s*0.05, s*0.05, 0, Math.PI*2);
         ctx.fill();
         // Angry eyebrows
@@ -12068,6 +12082,8 @@ function draw() {
         // Eyes
         ctx.beginPath();
         ctx.arc(x - s*0.15, y - s*0.05, s*0.08, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
         ctx.arc(x + s*0.15, y - s*0.05, s*0.08, 0, Math.PI*2);
         ctx.fill();
         // Nose
