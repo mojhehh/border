@@ -1063,7 +1063,7 @@ let mpEnemySyncTimer = 0;
 function syncEnemyData() {
   if (!mpEnabled || !isHost || !currentRoom) return;
   const now = Date.now();
-  if (now - _lastEnemySyncTime < 100) return; // sync every 100ms (~10Hz wall-clock)
+  if (now - _lastEnemySyncTime < 50) return; // sync every 50ms (~20Hz wall-clock)
   _lastEnemySyncTime = now;
 
   const enemies = {};
@@ -1177,13 +1177,18 @@ function applyEnemyData() {
       boss = { frameTimer: 0, phaseTriggered2: false, phaseTriggered3: false,
         attackTimer: 0, currentAttack: 'shoot', summonCooldown: 300, shootCooldown: 50 };
     }
-    boss.x = d.boss.x; boss.y = d.boss.y; boss.w = d.boss.w; boss.h = d.boss.h;
+    boss.x += (d.boss.x - boss.x) * 0.5; boss.y += (d.boss.y - boss.y) * 0.5;
+    boss.w = d.boss.w; boss.h = d.boss.h;
     boss.hp = d.boss.hp; boss.maxHp = d.boss.maxHp; boss.dir = d.boss.dir;
     boss.dead = d.boss.dead; boss.phase = d.boss.phase; boss.frame = d.boss.frame;
     boss.charging = d.boss.charging; boss.slamming = d.boss.slamming;
     boss.chargeVx = d.boss.chargeVx || 0; boss.alert = d.boss.alert;
     boss.speed = d.boss.speed; boss.vy = d.boss.vy;
     boss._slamShock = d.boss._slamShock || 0;
+    // Snap position if too far (teleport/spawn)
+    if (Math.abs(boss.x - d.boss.x) > 200 || Math.abs(boss.y - d.boss.y) > 200) {
+      boss.x = d.boss.x; boss.y = d.boss.y;
+    }
   }
   // Apply epstein
   if (d.epstein) {
@@ -1191,10 +1196,14 @@ function applyEnemyData() {
       epstein = { frameTimer: 0, phaseTriggered2: false, attackTimer: 0, shootCooldown: 40,
         teleportCooldown: 200, speed: 2.5, vy: 0 };
     }
-    epstein.x = d.epstein.x; epstein.y = d.epstein.y; epstein.w = d.epstein.w; epstein.h = d.epstein.h;
+    epstein.x += (d.epstein.x - epstein.x) * 0.5; epstein.y += (d.epstein.y - epstein.y) * 0.5;
+    epstein.w = d.epstein.w; epstein.h = d.epstein.h;
     epstein.hp = d.epstein.hp; epstein.maxHp = d.epstein.maxHp; epstein.dir = d.epstein.dir;
     epstein.dead = d.epstein.dead; epstein.phase = d.epstein.phase; epstein.frame = d.epstein.frame;
     epstein.charging = d.epstein.charging; epstein.chargeVx = d.epstein.chargeVx || 0;
+    if (Math.abs(epstein.x - d.epstein.x) > 200 || Math.abs(epstein.y - d.epstein.y) > 200) {
+      epstein.x = d.epstein.x; epstein.y = d.epstein.y;
+    }
   }
   // Apply fusion boss
   if (d.fusion) {
@@ -1202,12 +1211,16 @@ function applyEnemyData() {
       fusionBoss = { frameTimer: 0, phaseTriggered2: false, attackTimer: 0, shootCooldown: 30,
         slamCooldown: 200, dashCooldown: 150, speed: 3, vy: 0 };
     }
-    fusionBoss.x = d.fusion.x; fusionBoss.y = d.fusion.y; fusionBoss.w = d.fusion.w; fusionBoss.h = d.fusion.h;
+    fusionBoss.x += (d.fusion.x - fusionBoss.x) * 0.5; fusionBoss.y += (d.fusion.y - fusionBoss.y) * 0.5;
+    fusionBoss.w = d.fusion.w; fusionBoss.h = d.fusion.h;
     fusionBoss.hp = d.fusion.hp; fusionBoss.maxHp = d.fusion.maxHp; fusionBoss.dir = d.fusion.dir;
     fusionBoss.dead = d.fusion.dead; fusionBoss.phase = d.fusion.phase; fusionBoss.frame = d.fusion.frame;
     fusionBoss.charging = d.fusion.charging; fusionBoss.chargeVx = d.fusion.chargeVx || 0;
     fusionBoss.mergeGlow = d.fusion.mergeGlow || 0;
     fusionBoss._slamShock = d.fusion._slamShock || 0;
+    if (Math.abs(fusionBoss.x - d.fusion.x) > 200 || Math.abs(fusionBoss.y - d.fusion.y) > 200) {
+      fusionBoss.x = d.fusion.x; fusionBoss.y = d.fusion.y;
+    }
   }
   // Apply mini-bosses
   if (d.minis) {
@@ -2509,6 +2522,26 @@ canvas.addEventListener('touchstart', e => {
       return;
     }
 
+    // Room code input overlay — cancel on tap outside or on CANCEL button
+    if (activeTextInput === 'roomcode') {
+      const overlayL = W/2 - 200, overlayT = H/2 - 60, overlayW = 400, overlayH = 120;
+      // CANCEL button area at bottom of overlay
+      const cancelY = overlayT + overlayH + 8, cancelH = 36;
+      if (cx >= overlayL && cx <= overlayL + overlayW && cy >= cancelY && cy <= cancelY + cancelH) {
+        deactivateTextInput(); return;
+      }
+      // Tap outside overlay → cancel
+      if (cx < overlayL || cx > overlayL + overlayW || cy < overlayT || cy > cancelY + cancelH) {
+        deactivateTextInput(); return;
+      }
+      return; // tap inside overlay but not cancel — do nothing (let keyboard handle input)
+    }
+
+    // Any other active text input — tap outside to dismiss
+    if (activeTextInput === 'friendadd') {
+      deactivateTextInput(); return;
+    }
+
     // Menu touch support
     if (state === 'menu') {
       if (menuState === 'main') {
@@ -2902,15 +2935,37 @@ let guards = [];
 let bigWall = null;
 let decorations = [];
 
+// ── Seeded PRNG (mulberry32) — ensures identical level on all MP clients ──
+let _levelSeed = 0;
+function _seedFromRoom() {
+  // Derive a numeric seed from the room code so all players get the same level
+  if (currentRoom) {
+    let h = 0;
+    for (let i = 0; i < currentRoom.length; i++) {
+      h = ((h << 5) - h + currentRoom.charCodeAt(i)) | 0;
+    }
+    _levelSeed = h >>> 0;
+  } else {
+    _levelSeed = (Math.random() * 0xFFFFFFFF) >>> 0;
+  }
+}
+function _seededRandom() {
+  _levelSeed |= 0; _levelSeed = (_levelSeed + 0x6D2B79F5) | 0;
+  let t = Math.imul(_levelSeed ^ (_levelSeed >>> 15), 1 | _levelSeed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 0x100000000;
+}
+
 function buildLevel() {
   walls = [];
   guards = [];
   decorations = [];
+  _seedFromRoom(); // seed PRNG from room code for MP determinism
 
   // Small walls to jump over
   const wallPositions = [400, 800, 1300, 1800, 2400, 3000];
   wallPositions.forEach((x, i) => {
-    const h = 70 + Math.random() * 40;
+    const h = 70 + _seededRandom() * 40;
     walls.push({ x, y: GROUND_Y - h, w: 50, h, color: '#b08040' });
   });
 
@@ -2944,8 +2999,8 @@ function buildLevel() {
       w: 56, h: 84,
       startX: g.x,
       range: g.range,
-      speed: (1.2 + Math.random() * 0.7) * dmGuards.enemySpeed,
-      dir: Math.random() > 0.5 ? 1 : -1,
+      speed: (1.2 + _seededRandom() * 0.7) * dmGuards.enemySpeed,
+      dir: _seededRandom() > 0.5 ? 1 : -1,
       alert: false,
       alertTimer: 0,
       frame: 0,
@@ -2953,7 +3008,7 @@ function buildLevel() {
       hp: Math.ceil(3 * dmGuards.enemyHp),
       maxHp: Math.ceil(3 * dmGuards.enemyHp),
       climbing: false,
-      shootCooldown: 60 + Math.floor(Math.random() * 60),
+      shootCooldown: 60 + Math.floor(_seededRandom() * 60),
       dead: false,
     });
   });
@@ -2968,17 +3023,17 @@ function buildLevel() {
 
   // Background decorations - desert theme
   for (let i = 0; i < 40; i++) {
-    const rng = Math.random();
+    const rng = _seededRandom();
     let type;
     if (rng < 0.35) type = 'cactus';
     else if (rng < 0.55) type = 'tumbleweed';
     else if (rng < 0.75) type = 'rock';
     else type = 'scrub';
     decorations.push({
-      x: Math.random() * levelWidth,
+      x: _seededRandom() * levelWidth,
       y: GROUND_Y,
       type,
-      size: 14 + Math.random() * 30,
+      size: 14 + _seededRandom() * 30,
     });
   }
 }
@@ -4837,9 +4892,24 @@ function update() {
     if (mpSpectating && roomPlayers[mpSpectateTarget]) {
       const sp2 = roomPlayers[mpSpectateTarget];
       targetCamX = sp2.x + 26 - W / 2;
-      if (inArenaState) {
+      // Clamp spectator camera to arena bounds in arena states
+      if (inArenaState && bigWall) {
+        const bArenaW2 = 2400;
+        const arenaLeftSpec = bigWall.x + bigWall.w/2 - bArenaW2/2;
+        const arenaRightSpec = arenaLeftSpec + bArenaW2;
+        if (targetCamX < arenaLeftSpec - 30) targetCamX = arenaLeftSpec - 30;
+        if (targetCamX + W > arenaRightSpec + 30) targetCamX = arenaRightSpec + 30 - W;
         const targetCamY2 = sp2.y - H * 0.5 + 40;
         cameraY += (targetCamY2 - cameraY) * 0.12;
+      } else {
+        // Non-arena spectating — follow vertical position if climbing
+        if (sp2.climbingBigWall || sp2.y < GROUND_Y - 130) {
+          const comfortY = GROUND_Y - H * 0.6;
+          const targetCamY2 = Math.min(0, sp2.y - comfortY);
+          cameraY += (targetCamY2 - cameraY) * 0.1;
+        } else {
+          cameraY += (0 - cameraY) * 0.08;
+        }
       }
     }
   }
@@ -4849,7 +4919,10 @@ function update() {
   if (cameraX > levelWidth - W) cameraX = levelWidth - W;
 
   // Vertical camera - follows player upward when climbing
-  if (inArenaState) {
+  // Skip when spectating — spectator vertical camera is handled above
+  if (mpSpectating) {
+    // Already handled in spectator block above
+  } else if (inArenaState) {
     // In arena — camera follows player vertically (arena is underground)
     const arenaCenter = bigWall ? bigWall.y + 40 + 400 : GROUND_Y;
     const targetCamY = p.y - H * 0.5 + p.h/2;
@@ -12267,6 +12340,14 @@ function draw() {
         ctx.fillStyle = '#888';
         ctx.font = '12px monospace';
         ctx.fillText(_isTouchDev ? 'Type 6-letter code' : 'Type 6-letter code + ENTER', W/2, H/2 + 48);
+        // Touch cancel button
+        if (_isTouchDev) {
+          ctx.fillStyle = '#ff6644';
+          ctx.fillRect(W/2 - 60, H/2 + 68, 120, 32);
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 14px monospace';
+          ctx.fillText('CANCEL', W/2, H/2 + 88);
+        }
       }
       
       if (!playerUsername) {
