@@ -36,7 +36,7 @@ canvas {
 <body>
 <div id="ui">
   <h1>CRUZA LA FRONTERA</h1>
-  <p>Arrow Keys / WASD to move &amp; jump Ãƒâ€šÃ‚Â· Dodge la migra Ãƒâ€šÃ‚Â· Climb the border wall!</p>
+  <p>Arrow Keys / WASD to move &amp; jump · Dodge la migra · Climb the border wall!</p>
 </div>
 <canvas id="game"></canvas>
 <video id="deathVideo" muted playsinline preload="auto" style="display:none"></video>
@@ -52,7 +52,7 @@ canvas {
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Load Images ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Load Images ──
 const playerImg = new Image();
 playerImg.src = 'player_new.png';
 const PLAYER_IMG_SCALE = 1.4; // draw image wider than hitbox to center cutout
@@ -87,15 +87,15 @@ function imgH(img, w) {
   if (img.naturalWidth && img.naturalHeight) return w * (img.naturalHeight / img.naturalWidth);
   return w * 1.3;
 }
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Dynamic Sizing ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
-// Fixed internal resolution ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â JS resizes canvas with proper aspect ratio (letterboxing)
+// ── Dynamic Sizing ──
+// Fixed internal resolution — JS resizes canvas with proper aspect ratio (letterboxing)
 const W = 1280;
 const H = 720;
 let GROUND_Y = H - 80;
 canvas.width = W;
 canvas.height = H;
 
-// Canvas letterbox scaling ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â maintains 16:9 on any screen
+// Canvas letterbox scaling — maintains 16:9 on any screen
 let canvasScale = 1, canvasOffsetX = 0, canvasOffsetY = 0;
 function resizeCanvas() {
   // Use visualViewport when available (iOS Safari address bar changes)
@@ -149,7 +149,7 @@ const PLAYER_SPEED = 5.0;
 const JUMP_FORCE = -12.5;
 const WALL_CLIMB_SPEED = 3.8;
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Game State ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Game State ──
 let state = 'menu'; // menu | tutorial | intro | playing | cutscene | bossfight | bossdialogue | phonecall | epsteinfight | fusioncutscene | fusionfight | splitfight | hawkingRefusal | hawkingDeath | winCutscene | won | dead | arena | lobby
 let cameraX = 0;
 let cameraY = 0;
@@ -165,7 +165,7 @@ let bossDeathTimer = 0; // big death explosion sequence
 let screenFlash = 0; // white/red screen flash
 let screenFlashColor = '#fff';
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ In-game toast notifications ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── In-game toast notifications ──
 let mpToasts = []; // [{text, life, color}]
 function showToast(text, color = '#ffffff') {
   mpToasts.push({ text, life: 180, color }); // ~3 seconds at 60fps
@@ -183,7 +183,7 @@ let fusionBoss = null; // fused Trump+Epstein boss
 let fusionCutsceneTimer = 0; // timer for fusion animation
 let miniBosses = []; // split mini-bosses array
 let restartCooldown = 0;
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Soul Shatter Death Animation (video-based) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Soul Shatter Death Animation (video-based) ──
 let deathAnimTimer = 0;
 let deathAnimVideoPlaying = false;
 const _deathVid = document.getElementById('deathVideo');
@@ -196,7 +196,7 @@ function initDeathAnim() {
 // Hawking Undertale-style refusal cutscene
 let hawkingRefusalTimer = 0;
 let hawkingRefusalPhase = 0; // 0=black, 1=heart appears, 2=heart cracks, 3=heart splits, 4=pieces float, 5=BUT IT REFUSED, 6=heart reforms, 7=white flash, 8=return
-let hawkingPhase2 = false; // true after refusal ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Hawking is MASSIVE
+let hawkingPhase2 = false; // true after refusal — Hawking is MASSIVE
 let hawkingDeathTimer = 0; // epic death scene timer
 let hawkingDeathPhase = 0; // phase of the death scene
 let winCutsceneTimer = 0; // final win cutscene timer
@@ -239,7 +239,7 @@ let settings = {
   colorblind: false,
 };
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ iPad/Touch Performance Mode Prompt ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── iPad/Touch Performance Mode Prompt ──
 let _perfPromptShown = localStorage.getItem('perfPromptDismissed') === 'true';
 let _showPerfPrompt = false;
 // Detect iPad/mobile and offer performance mode on first visit
@@ -265,7 +265,7 @@ function _declinePerfMode() {
   localStorage.setItem('perfPromptDismissed', 'true');
 }
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ TOUCH CONTROL LAYOUT SYSTEM ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── TOUCH CONTROL LAYOUT SYSTEM ──
 const TOUCH_PRESETS = {
   default: { name: 'Default', moveX: 140, moveY: 600, moveR: 70, aimX: 1140, aimY: 600, aimR: 70 },
   lefty:   { name: 'Lefty',   moveX: 1140, moveY: 600, moveR: 70, aimX: 140, aimY: 600, aimR: 70 },
@@ -346,9 +346,9 @@ function initMenuBg() {
 }
 initMenuBg();
 
-// ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ FIREBASE + MULTIPLAYER SYSTEM ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
-// ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
+// ══════════════════════════════════════════════════════
+// ── FIREBASE + MULTIPLAYER SYSTEM ──
+// ══════════════════════════════════════════════════════
 
 // Firebase init
 const firebaseConfig = {
@@ -364,7 +364,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Auth State ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Auth State ──
 let currentUser = null;       // firebase auth user
 let playerUsername = '';       // display name only
 let authError = '';            // error message to show
@@ -373,7 +373,7 @@ let authInputField = 0;       // 0=username, 1=password, 2=confirm(register)
 let authInputs = { username: '', password: '', confirm: '' };
 let authLoading = false;
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Multiplayer State ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Multiplayer State ──
 let mpEnabled = false;        // is multiplayer active?
 let isHost = false;           // am I the room host?
 let currentRoom = null;       // room code string
@@ -389,7 +389,7 @@ let joinRoomInput = '';       // room code input when joining
 let mpMenuSelection = 0;      // selection in multiplayer menu
 let mpGameStarted = false;    // has game actually started in MP?
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Friend System State ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Friend System State ──
 let friendsList = [];         // [{uid, username, online}]
 let friendRequests = [];      // [{uid, username}]
 let blockedUsers = [];        // [{uid, username}]
@@ -403,7 +403,7 @@ let mpDamageQueueRef = null;  // Firebase ref for guest damage events
 let mpSpectating = false;     // true when local player is dead but spectating others
 let mpSpectateTarget = null;  // uid of the player being spectated
 let mpSpectateIndex = 0;      // index into alive player list for cycling
-let mpRetryVotes = {};        // { uid: true } ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â players who want to retry
+let mpRetryVotes = {};        // { uid: true } — players who want to retry
 let mpRetrySelection = 0;     // 0 = retry, 1 = leave (for win/lose screen)
 let mpMatchSettings = null;   // { difficulty, cheats } from host lobby
 let mpSettingsSelection = 0;  // lobby settings cursor
@@ -420,7 +420,7 @@ function getAlivePlayerList() {
   return alive;
 }
 
-// Handle player death ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â spectate in MP, game over in solo
+// Handle player death — spectate in MP, game over in solo
 function handlePlayerDeath() {
   const p = player;
   if (!p.alive) return; // prevent re-entry
@@ -440,19 +440,19 @@ function handlePlayerDeath() {
       mpSpectateIndex = 0;
       mpSpectateTarget = alive[0].uid;
     } else {
-      // All players dead ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â play soul shatter animation
+      // All players dead — play soul shatter animation
       initDeathAnim();
       state = 'deathAnim';
       mpSpectating = false;
     }
   } else {
-    // Solo death ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â play soul shatter animation
+    // Solo death — play soul shatter animation
     initDeathAnim();
     state = 'deathAnim';
   }
 }
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Text Input System ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬  
+// ── Text Input System ──  
 let activeTextInput = null;   // which input is active: 'username'|'password'|'confirm'|'chat'|'roomcode'|'friendadd'|null
 let textCursorBlink = 0;
 
@@ -465,7 +465,7 @@ function _focusHiddenInput(inputType) {
   _hiddenInput.setAttribute('maxlength', inputType === 'chat' ? '100' : inputType === 'roomcode' ? '6' : '20');
   _hiddenInput.type = (inputType === 'password' || inputType === 'confirm') ? 'password' : 'text';
   _hiddenInput.style.pointerEvents = 'auto';
-  // iOS requires focus in same call stack as user gesture ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no setTimeout
+  // iOS requires focus in same call stack as user gesture — no setTimeout
   _hiddenInput.focus();
   // Fallback for older iOS
   setTimeout(() => { if (document.activeElement !== _hiddenInput) _hiddenInput.focus(); }, 100);
@@ -500,7 +500,7 @@ function deactivateTextInput() {
   activeTextInput = null;
   _blurHiddenInput();
 }
-// Sync hidden input ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ game state on every input event (iOS keyboard)
+// Sync hidden input → game state on every input event (iOS keyboard)
 if (_hiddenInput) {
   _hiddenInput.addEventListener('input', () => {
     if (!activeTextInput) return;
@@ -528,7 +528,7 @@ if (_hiddenInput) {
     }
   });
 }
-// Capture typed text for input fields (PC keyboard ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â also works alongside hidden input)
+// Capture typed text for input fields (PC keyboard — also works alongside hidden input)
 window.addEventListener('keydown', e => {
   if (!activeTextInput) return;
   e.preventDefault();
@@ -567,7 +567,7 @@ window.addEventListener('keydown', e => {
   }
 }, true); // capture phase so it runs before game keydown
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Auth Functions ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Auth Functions ──
 async function registerAccount(username, password) {
   if (authLoading) return;
   if (!username || username.length < 2) { authError = 'Username must be at least 2 characters!'; return; }
@@ -671,7 +671,7 @@ auth.onAuthStateChanged(user => {
   }
 });
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Room Functions ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Room Functions ──
 function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -764,7 +764,7 @@ function setupRoomListeners(code, uid) {
   const _connHandler = connRef.on('value', snap => {
     const connected = snap.val() === true;
     if (_wasConnected && !connected) {
-      showToast('Connection lost ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â reconnecting...', '#ffaa00');
+      showToast('Connection lost — reconnecting...', '#ffaa00');
     } else if (!_wasConnected && connected) {
       showToast('Reconnected!', '#44ff88');
     }
@@ -812,12 +812,12 @@ function setupRoomListeners(code, uid) {
       startGame();
     }
     if (st === 'playing' && mpGameStarted && (state === 'won' || state === 'dead')) {
-      // Retry triggered ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â restart game
+      // Retry triggered — restart game
       mpRetryVotes = {};
       startGame();
     }
     if (st === 'restarting') {
-      // Pre-restart signal ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â clear votes
+      // Pre-restart signal — clear votes
       mpRetryVotes = {};
     }
   });
@@ -849,13 +849,13 @@ function setupRoomListeners(code, uid) {
     });
   }
   
-  // Detect room deletion (host left) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â non-host gets kicked with grace period
+  // Detect room deletion (host left) — non-host gets kicked with grace period
   // Allow 5 seconds for host to reconnect (Safari tab switch)
   if (!isHost) {
     let _hostGraceTimeout = null;
     roomR.child('host').on('value', snap => {
       if (!snap.exists() && currentRoom === code) {
-        // Start grace period ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â host might come back
+        // Start grace period — host might come back
         if (!_hostGraceTimeout) {
           _hostGraceTimeout = setTimeout(() => {
             // Check one more time before leaving
@@ -869,7 +869,7 @@ function setupRoomListeners(code, uid) {
           }, 5000);
         }
       } else {
-        // Host is back ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â cancel grace period
+        // Host is back — cancel grace period
         if (_hostGraceTimeout) {
           clearTimeout(_hostGraceTimeout);
           _hostGraceTimeout = null;
@@ -914,14 +914,14 @@ function setupRoomListeners(code, uid) {
     roomR.child('host').onDisconnect().remove();
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Connection resilience (Safari tab switching, brief disconnects) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Connection resilience (Safari tab switching, brief disconnects) ──
   // Re-establish onDisconnect when returning from background
   const _visHandler = () => {
     if (document.visibilityState === 'visible' && currentRoom) {
       const uid2 = myUid();
       if (!uid2) return;
       const rr = db.ref('rooms/' + currentRoom);
-      // Re-establish presence ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â write player back and reset onDisconnect
+      // Re-establish presence — write player back and reset onDisconnect
       rr.child('players/' + uid2).update({ alive: player ? player.alive : true });
       rr.child('players/' + uid2).onDisconnect().remove();
       if (isHost) {
@@ -1022,7 +1022,7 @@ function sendChatMessage() {
   chatInput = '';
 }
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Multiplayer Sync ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Multiplayer Sync ──
 function syncMyPositionImmediate() {
   // Force-sync player state now (used on death, critical events)
   if (!mpEnabled || !currentRoom || !player) return;
@@ -1265,7 +1265,7 @@ function applyEnemyData() {
   } else {
     bossMinions = [];
   }
-  // Apply bullets (full replacement ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â guest moves them locally between syncs)
+  // Apply bullets (full replacement — guest moves them locally between syncs)
   if (d.bullets) {
     bullets = d.bullets.map(b => ({ x: b.x, y: b.y, vx: b.vx, vy: b.vy, life: b.life }));
   } else {
@@ -1285,7 +1285,7 @@ function applyEnemyData() {
     const syncStates = ['cutscene','bossfight','bossdialogue','phonecall','epsteinfight','fusioncutscene','fusionfight','splitfight','hawkingRefusal','hawkingDeath','winCutscene','won','dead'];
     if (syncStates.includes(d.gameState) && state !== d.gameState) {
       const oldState = state;
-      // First time entering cutscene ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â set up cutscene.active so rendering works
+      // First time entering cutscene — set up cutscene.active so rendering works
       if (d.gameState === 'cutscene' && state !== 'cutscene') {
         cutscene.active = true;
       }
@@ -1321,7 +1321,7 @@ function applyEnemyData() {
         mpSpectating = false;
         restartCooldown = 60;
       }
-      // Guest winCutscene setup ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â revive player, teleport past wall, set office position
+      // Guest winCutscene setup — revive player, teleport past wall, set office position
       if (d.gameState === 'winCutscene' && oldState !== 'winCutscene') {
         player.alive = true;
         player.hp = player.maxHp;
@@ -1408,7 +1408,7 @@ function mpHandleDamageEvent(dmg) {
     spawnParticles(mb.x + mb.w/2, mb.y + mb.h/3, mb.color || '#ffffff', 10);
     shakeTimer = 6;
     if (mb.hp <= 0) {
-      // Hawking first death ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â trigger refusal cutscene
+      // Hawking first death — trigger refusal cutscene
       if (mb.name === 'HAWKING' && !hawkingPhase2) {
         mb.hp = 1;
         hawkingRefusalTimer = 0; hawkingRefusalPhase = 0;
@@ -1418,7 +1418,7 @@ function mpHandleDamageEvent(dmg) {
         screenFlash = 40; screenFlashColor = '#44ff88'; shakeTimer = 30;
         spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#44ff88', 40);
       } else if (mb.name === 'HAWKING' && hawkingPhase2) {
-        // Hawking FINAL death ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â epic death scene
+        // Hawking FINAL death — epic death scene
         mb.hp = 1;
         hawkingDeathTimer = 0; hawkingDeathPhase = 0;
         mb._deathX = mb.x + mb.w/2; mb._deathY = mb.y + mb.h/2;
@@ -1456,7 +1456,7 @@ function mpSendCutsceneEvent(type) {
   db.ref('rooms/' + currentRoom + '/cutsceneAdvance').push({ type: type });
 }
 
-// MP Retry ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â vote to retry after win/lose
+// MP Retry — vote to retry after win/lose
 function mpVoteRetry() {
   if (!mpEnabled || !currentRoom) return;
   const uid = myUid();
@@ -1464,7 +1464,7 @@ function mpVoteRetry() {
   mpRetryVotes[uid] = true;
 }
 
-// Host triggers retry ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â resets game for all players
+// Host triggers retry — resets game for all players
 function mpTriggerRetry() {
   if (!mpEnabled || !isHost || !currentRoom) return;
   // Clear retry votes
@@ -1594,7 +1594,7 @@ function drawOtherPlayers() {
   }
 }
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Friend System Functions ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Friend System Functions ──
 async function loadFriendsList() {
   if (!currentUser) return;
   authSuccessMsg = '';
@@ -1716,20 +1716,20 @@ async function unblockUser(targetUid) {
   } catch(e) { authError = 'Failed to unblock user'; }
 }
 
-// ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ END FIREBASE / MULTIPLAYER SYSTEM ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
-// ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
+// ══════════════════════════════════════════════════════
+// ── END FIREBASE / MULTIPLAYER SYSTEM ──
+// ══════════════════════════════════════════════════════
 
 let touchControls = { left: false, right: false, up: false };
 
-// Touch aim joystick state (right side) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â positions from touchLayout
+// Touch aim joystick state (right side) — positions from touchLayout
 let touchAim = { active: false, cx: 0, cy: 0, dx: 0, dy: 0, angle: 0 };
 function getAimCenterX() { return touchLayout.aimX; }
 function getAimCenterY() { return touchLayout.aimY; }
 function getAimRadius() { return touchLayout.aimR; }
 const AIM_DEAD_ZONE = 8;
 
-// Touch movement joystick state (left side) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â positions from touchLayout
+// Touch movement joystick state (left side) — positions from touchLayout
 function getMoveCenterX() { return touchLayout.moveX; }
 function getMoveCenterY() { return touchLayout.moveY; }
 function getMoveRadius() { return touchLayout.moveR; }
@@ -1738,7 +1738,7 @@ let moveJoystick = { active: false, dx: 0, dy: 0, touchId: null, inJumpUp: false
 const MOVE_JUMP_THRESHOLD = -25; // dy must be less than this (upward) to trigger jump
 let jumpFlashTimer = 0; // visual flash timer when jump triggers (frames)
 
-// Shared touch button renderer ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â called from each game state's HUD
+// Shared touch button renderer — called from each game state's HUD
 let _isTouchDev = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 // Auto-detect touch on first touch event (for iPad with keyboard attached)
 window.addEventListener('touchstart', () => { _isTouchDev = true; }, { once: true, passive: true });
@@ -1748,7 +1748,7 @@ function drawTouchButtons() {
   const MCX = getMoveCenterX(), MCY = getMoveCenterY(), MR = getMoveRadius();
   const ACX = getAimCenterX(), ACY = getAimCenterY(), AR = getAimRadius();
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ LEFT SIDE: Movement joystick ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── LEFT SIDE: Movement joystick ──
   ctx.globalAlpha = 0.25;
   ctx.strokeStyle = '#88bbff';
   ctx.lineWidth = 3;
@@ -1795,7 +1795,7 @@ function drawTouchButtons() {
   ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
   ctx.fillText('\u25b2', MCX, MCY - MR - 14);
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ RIGHT SIDE: Aim joystick ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── RIGHT SIDE: Aim joystick ──
   ctx.globalAlpha = 0.25;
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 3;
@@ -1875,7 +1875,7 @@ const epsteinPhaseDialogues = {
 };
 let bossDialogue = { active: false, texts: [], index: 0, timer: 0 };
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Input ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Input ──
 const keys = {};
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
@@ -2084,7 +2084,7 @@ window.addEventListener('keydown', e => {
     return;
   }
   
-  // Spectator controls ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â cycle through alive players
+  // Spectator controls — cycle through alive players
   if (mpSpectating) {
     const alive = getAlivePlayerList();
     if (alive.length > 0) {
@@ -2111,7 +2111,7 @@ window.addEventListener('keydown', e => {
         // Retry
         if (mpEnabled) {
           mpVoteRetry();
-          // Host with all votes ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ trigger retry
+          // Host with all votes → trigger retry
           if (isHost) {
             const totalPlayers = Object.keys(roomPlayers).length;
             const retryCount = Object.keys(mpRetryVotes).length;
@@ -2188,7 +2188,7 @@ canvas.addEventListener('click', e => {
     return; // block all clicks while prompt is up
   }
 
-  // Fullscreen button (top-right corner, always available ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â 46px for touch)
+  // Fullscreen button (top-right corner, always available — 46px for touch)
   if (cx > W - 48 && cy < 48) {
     toggleFullscreen();
     return;
@@ -2352,7 +2352,7 @@ canvas.addEventListener('click', e => {
       }
       return;
     } else if (menuState === 'account') {
-      // Account screen touch ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â generous touch targets
+      // Account screen touch — generous touch targets
       const accY = H * 0.38;
       // Username field
       if (cy > accY - 14 && cy < accY + 32) { activateTextInput('username'); return; }
@@ -2377,7 +2377,7 @@ canvas.addEventListener('click', e => {
       if (cy > H * 0.88) { authError = ''; menuState = 'multiplayer'; return; }
       return;
     } else if (menuState === 'lobby') {
-      // Chat area tap ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ open chat
+      // Chat area tap → open chat
       if (cy > H * 0.58 && cy < H * 0.87) { chatOpen = true; activateTextInput('chat'); chatInput = ''; return; }
       // Start button (host only)
       if (isHost && cy > H * 0.87) { startMultiplayerGame(); return; }
@@ -2475,10 +2475,10 @@ window.addEventListener('keydown', e => {
   if (e.key === 'F11') { e.preventDefault(); toggleFullscreen(); }
 });
 
-// Touch controls ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â track active touches by ID
+// Touch controls — track active touches by ID
 let aimTouchId = null; // separate tracking for aim joystick
 
-// Touch button hit zones ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â dynamically split based on joystick positions
+// Touch button hit zones — dynamically split based on joystick positions
 function isInMoveZone(cx, cy) {
   // Touch is in move zone if closer to move joystick center
   const mdx = cx - getMoveCenterX(), mdy = cy - getMoveCenterY();
@@ -2512,7 +2512,7 @@ function updateTouchControlsFromActive() {
     touchControls.left = false;
     touchControls.right = false;
   }
-  // Jump from joystick-up ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â queue a jump for rising edge
+  // Jump from joystick-up — queue a jump for rising edge
   touchControls.up = moveJoystick.inJumpUp || touchJumpQueued;
 }
 
@@ -2536,7 +2536,7 @@ canvas.addEventListener('touchstart', e => {
       return;
     }
 
-    // Room code input overlay ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â cancel on tap outside or on CANCEL button
+    // Room code input overlay — cancel on tap outside or on CANCEL button
     if (activeTextInput === 'roomcode') {
       const overlayL = W/2 - 200, overlayT = H/2 - 60, overlayW = 400, overlayH = 120;
       // CANCEL button area at bottom of overlay
@@ -2544,14 +2544,14 @@ canvas.addEventListener('touchstart', e => {
       if (cx >= overlayL && cx <= overlayL + overlayW && cy >= cancelY && cy <= cancelY + cancelH) {
         deactivateTextInput(); return;
       }
-      // Tap outside overlay ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ cancel
+      // Tap outside overlay → cancel
       if (cx < overlayL || cx > overlayL + overlayW || cy < overlayT || cy > cancelY + cancelH) {
         deactivateTextInput(); return;
       }
-      return; // tap inside overlay but not cancel ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â do nothing (let keyboard handle input)
+      return; // tap inside overlay but not cancel — do nothing (let keyboard handle input)
     }
 
-    // Any other active text input ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â tap outside to dismiss
+    // Any other active text input — tap outside to dismiss
     if (activeTextInput === 'friendadd') {
       deactivateTextInput(); return;
     }
@@ -2801,7 +2801,7 @@ canvas.addEventListener('touchstart', e => {
       if (mpEnabled && !isHost) { mpSendCutsceneEvent('advance'); } else { advanceCutscene(); } return;
     }
     if ((state === 'won' || state === 'dead') && restartCooldown <= 0) {
-      // Touch retry/leave buttons ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â detect which button was tapped
+      // Touch retry/leave buttons — detect which button was tapped
       const btnY = state === 'won' ? H/2 + 30 : H/2 + 20;
       const btnW = 160, btnH = 48;
       if (cy > btnY && cy < btnY + btnH) {
@@ -2816,9 +2816,9 @@ canvas.addEventListener('touchstart', e => {
       return;
     }
 
-    // Gameplay touch controls ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â joystick up to jump
+    // Gameplay touch controls — joystick up to jump
     if (state === 'playing' || state === 'intro' || state === 'bossfight' || state === 'epsteinfight' || state === 'fusionfight' || state === 'splitfight') {
-      // Spectator touch ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â tap left/right half to cycle players
+      // Spectator touch — tap left/right half to cycle players
       if (mpSpectating) {
         const alive = getAlivePlayerList();
         if (alive.length > 0) {
@@ -2914,7 +2914,7 @@ canvas.addEventListener('touchmove', e => {
   }
 }, { passive: false });
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Player ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Player ──
 let player = createPlayer();
 function createPlayer() {
   return {
@@ -2943,13 +2943,13 @@ function createPlayer() {
   };
 }
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Level Elements ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Level Elements ──
 let walls = [];
 let guards = [];
 let bigWall = null;
 let decorations = [];
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Seeded PRNG (mulberry32) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ensures identical level on all MP clients ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Seeded PRNG (mulberry32) — ensures identical level on all MP clients ──
 let _levelSeed = 0;
 function _seedFromRoom() {
   // Derive a numeric seed from the room code so all players get the same level
@@ -3288,8 +3288,8 @@ function startGame() {
   bossIntroTimer = 0;
   bossDialogue = { active: false, texts: [], index: 0, timer: 0 };
   
-  // Build BORDER WALL arena ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â fills most of the screen area
-  const arenaW = 2400; // very wide ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â nearly full screen
+  // Build BORDER WALL arena — fills most of the screen area
+  const arenaW = 2400; // very wide — nearly full screen
   const arenaH = 800; // tall room
   const arenaLeft = bigWall.x + bigWall.w / 2 - arenaW / 2;
   const arenaRight = arenaLeft + arenaW;
@@ -3304,7 +3304,7 @@ function startGame() {
     { x: arenaLeft - 40, y: arenaTop, w: 40, h: arenaH + 30, isArena: true, isSideWall: true },
     // Right wall (fully enclosed)
     { x: arenaRight, y: arenaTop, w: 40, h: arenaH + 30, isArena: true, isSideWall: true },
-    // Elevated platforms for dodging ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â more of them, spread out
+    // Elevated platforms for dodging — more of them, spread out
     { x: arenaLeft + 120, y: arenaBottom - 180, w: 200, h: 18, isArena: true, isPlatform: true },
     { x: arenaLeft + 500, y: arenaBottom - 280, w: 220, h: 18, isArena: true, isPlatform: true },
     { x: arenaLeft + arenaW / 2 - 120, y: arenaBottom - 400, w: 240, h: 18, isArena: true, isPlatform: true },
@@ -3345,7 +3345,7 @@ function startGame() {
   restartCooldown = 30;
 }
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Cutscene Control ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Cutscene Control ──
 function advanceCutscene() {
   // Mid-fight boss dialogue
   if (state === 'bossdialogue') {
@@ -3376,7 +3376,7 @@ function advanceCutscene() {
   }
 }
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Throw Projectile ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Throw Projectile ──
 function throwProjectile() {
   if (!player.alive) return;
   if (state === 'hawkingDeath' || state === 'hawkingRefusal') return;
@@ -3387,7 +3387,7 @@ function throwProjectile() {
   let vx, vy;
   const pjSpd = cheats.bigProjectiles ? 20 : 12;
   if (touchAim.active) {
-    // Touch aim joystick ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â fire in joystick direction
+    // Touch aim joystick — fire in joystick direction
     vx = Math.cos(touchAim.angle) * pjSpd;
     vy = Math.sin(touchAim.angle) * pjSpd;
     p.facing = vx > 0 ? 1 : -1;
@@ -3417,12 +3417,12 @@ function throwProjectile() {
   });
 }
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Collision ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Collision ──
 function rectsOverlap(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Particles ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Particles ──
 const MAX_PARTICLES = 800;
 function spawnParticles(x, y, color, count) {
   if (!settings.particles) return; // respect particles setting
@@ -3440,14 +3440,14 @@ function spawnParticles(x, y, color, count) {
   }
 }
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Colorblind-safe color helper ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Colorblind-safe color helper ──
 function cbColor(normal, colorblindAlt) {
   return settings.colorblind ? colorblindAlt : normal;
 }
 // Colorblind palette replacements:
-// Red (#ff4444) ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Orange (#ff8800)
-// Green (#44ff44, #22aa22) ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Cyan (#44ddff, #2299cc)  
-// Red+Green HP bars ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Blue+Yellow scheme
+// Red (#ff4444) → Orange (#ff8800)
+// Green (#44ff44, #22aa22) → Cyan (#44ddff, #2299cc)  
+// Red+Green HP bars → Blue+Yellow scheme
 function cbHP(pct) {
   if (settings.colorblind) {
     if (pct > 0.5) return { a: '#2299cc', b: '#44ddff' }; // high = cyan
@@ -3459,13 +3459,13 @@ function cbHP(pct) {
   return { a: '#aa2222', b: '#ff4444' }; // low = red
 }
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Update ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Update ──
 function update() {
   if (restartCooldown > 0) restartCooldown--;
   if (shakeTimer > 0 && settings.screenShake) shakeTimer--;
   else if (!settings.screenShake) shakeTimer = 0;
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Soul Shatter Death Animation Update (video) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Soul Shatter Death Animation Update (video) ──
   if (state === 'deathAnim') {
     deathAnimTimer++;
     // Start video playback after brief black screen
@@ -3488,7 +3488,7 @@ function update() {
     if (mpToasts[i].life <= 0) mpToasts.splice(i, 1);
   }
   
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ MULTIPLAYER SYNC ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── MULTIPLAYER SYNC ──
   if (mpEnabled && player) {
     syncMyPosition();
     if (isHost) syncEnemyData();
@@ -3500,7 +3500,7 @@ function update() {
     }
     if (player.alive) mpDeathSynced = false;
     
-    // Host checks if ALL players are dead ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ game over for everyone
+    // Host checks if ALL players are dead → game over for everyone
     if (isHost && !player.alive && state !== 'dead' && state !== 'won' && state !== 'menu') {
       const anyAlive = Object.keys(roomPlayers).some(pid => {
         const rp = roomPlayers[pid];
@@ -3523,7 +3523,7 @@ function update() {
   }
   textCursorBlink = (textCursorBlink + 1) % 60;
   
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ CHEAT EFFECTS ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── CHEAT EFFECTS ──
   if (cheats.godMode && player.alive) {
     player.hp = player.maxHp;
   }
@@ -3533,7 +3533,7 @@ function update() {
     player.iFrames = Math.max(player.iFrames, 5);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ MENU BACKGROUND UPDATE ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── MENU BACKGROUND UPDATE ──
   if (state === 'menu' || state === 'tutorial') {
     menuBgTimer++;
     menuBgFloorY = H - 100;
@@ -3578,7 +3578,7 @@ function update() {
     if (state === 'menu') return; // don't update game logic
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ CINEMATIC INTRO ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── CINEMATIC INTRO ──
   if (state === 'intro') {
     introTimer++;
     
@@ -3715,7 +3715,7 @@ function update() {
         for (let r = 0; r < 3; r++) {
           bossVfx.push({ type: 'ring', x: boss.x + boss.w/2, y: boss.y + boss.h/2, radius: 30 + r*40, maxRadius: 250 + r*60, color: r===0?'#ff0000':r===1?'#ff8800':'#ffffff', life: 60, maxLife: 60 });
         }
-        bossVfx.push({ type: 'text', x: boss.x + boss.w/2, y: boss.y - 40, text: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â¥ TRUMP AWAITS ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â¥', color: '#ff4444', size: 38, life: 180, maxLife: 180, vy: -0.3 });
+        bossVfx.push({ type: 'text', x: boss.x + boss.w/2, y: boss.y - 40, text: '🔥 TRUMP AWAITS 🔥', color: '#ff4444', size: 38, life: 180, maxLife: 180, vy: -0.3 });
         state = 'bossfight';
       }
     }
@@ -3748,7 +3748,7 @@ function update() {
     return;
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ PHONE CALL CUTSCENE UPDATE ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── PHONE CALL CUTSCENE UPDATE ──
   if (state === 'phonecall') {
     phonecallTimer--;
     // Advance dialogue automatically
@@ -3814,7 +3814,7 @@ function update() {
     return;
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ FUSION CUTSCENE UPDATE ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── FUSION CUTSCENE UPDATE ──
   if (state === 'fusioncutscene') {
     fusionCutsceneTimer--;
     const bArenaW = 2400;
@@ -3853,7 +3853,7 @@ function update() {
       bossVfx.push({ type: 'ring', x: centerX, y: centerY, radius: 10, maxRadius: 300, life: 30, maxLife: 30, color: '#ff8844' });
       shakeTimer = 10;
     }
-    // Final merge ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â spawn fusion boss
+    // Final merge — spawn fusion boss
     if (fusionCutsceneTimer <= 0) {
       screenFlash = 60;
       screenFlashColor = '#ffffff';
@@ -3915,14 +3915,14 @@ function update() {
     spawnParticles(p.x + p.w/2, p.y + p.h/2, hawkingPhase2 ? '#ffd700' : '#44ff88', 3);
   }
 
-  // Input ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â skip if dead (spectating)
+  // Input — skip if dead (spectating)
   if (p.alive) {
   const left = keys['ArrowLeft'] || keys['KeyA'] || touchControls.left;
   const right = keys['ArrowRight'] || keys['KeyD'] || touchControls.right;
   const up = keys['ArrowUp'] || keys['KeyW'] || keys['Space'] || touchControls.up;
 
   // If a touch jump was queued between frames (quick flick), force rising edge
-  // so double jumps aren't missed when downÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢up happens within one frame
+  // so double jumps aren't missed when down→up happens within one frame
   if (touchJumpQueued) p.prevUp = false;
 
   // After reading touch state, reset for rising edge detection.
@@ -3939,7 +3939,7 @@ function update() {
   else if (right) { p.vx = pSpeed; p.facing = 1; }
   else { p.vx *= 0.7; }
 
-  // Jump buffer & coyote time ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â only set on key press (rising edge), not hold
+  // Jump buffer & coyote time — only set on key press (rising edge), not hold
   if (up && !p.prevUp) p.jumpBuffer = 8;
   else if (!up) p.jumpBuffer--;
   p.prevUp = up;
@@ -3970,7 +3970,7 @@ function update() {
     }
   }
 
-  // Wall jump (off small walls ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â NOT the big wall, which uses climb)
+  // Wall jump (off small walls — NOT the big wall, which uses climb)
   const _onBigWall = bigWall && state !== 'bossfight' && state !== 'bossdialogue' && rectsOverlap(
     { x: p.x - 4, y: p.y, w: p.w + 8, h: p.h }, bigWall
   );
@@ -4053,7 +4053,7 @@ function update() {
     }
   }
 
-  // Trigger cutscene when ANY player reaches top of wall (first time) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â HOST ONLY
+  // Trigger cutscene when ANY player reaches top of wall (first time) — HOST ONLY
   if (state === 'playing' && (!mpEnabled || isHost) && bigWall && !boss && !cutscene.active) {
   let anyPlayerAtWall = p.y < bigWall.y + 80 && p.x > bigWall.x - 100 && p.x < bigWall.x + bigWall.w + 100;
   if (!anyPlayerAtWall && mpEnabled) {
@@ -4106,13 +4106,13 @@ function update() {
   }
   p.trail = p.trail.filter(t => { t.life--; return t.life > 0; });
   } else {
-    // Dead/spectating ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â still consume touch state to prevent stale inputs
+    // Dead/spectating — still consume touch state to prevent stale inputs
     touchControls.up = false;
     touchJumpQueued = false;
     moveJoystick.inJumpUp = false;
-  } // end if (p.alive) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â player input/physics
+  } // end if (p.alive) — player input/physics
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Guards ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Guards ──
   const _mpHost = !mpEnabled || isHost;
   for (const g of guards) {
     if (g.dead) continue;
@@ -4184,7 +4184,7 @@ function update() {
     if (g.frameTimer > 8) { g.frameTimer = 0; g.frame = (g.frame + 1) % 4; }
     } // end _mpHost guard AI
 
-    // Damage player on touch (with iFrames) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ALL players
+    // Damage player on touch (with iFrames) — ALL players
     if (p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, g)) {
       p.hp--;
       p.iFrames = 40;
@@ -4196,14 +4196,14 @@ function update() {
     }
   }
 
-  // Remove dead guards (single-player only ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â MP preserves array indices for sync)
+  // Remove dead guards (single-player only — MP preserves array indices for sync)
   if (!mpEnabled) {
     for (let i = guards.length - 1; i >= 0; i--) {
       if (guards[i].dead) guards.splice(i, 1);
     }
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Boss Update ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Boss Update ──
   if (boss && !boss.dead) {
    if (_mpHost) {
     const bArenaW = 2400;
@@ -4273,7 +4273,7 @@ function update() {
       }
     }
 
-    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Boss Attack Patterns ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    // ── Boss Attack Patterns ──
     // Multiplayer: bosses target nearest player
     const bossTarget = mpEnabled ? getNearestPlayerTarget(boss.x + boss.w/2, boss.y + boss.h/2) : p;
     if (!boss.charging && !boss.slamming) {
@@ -4283,7 +4283,7 @@ function update() {
         if (boss.x < arenaLeft + 30) { boss.x = arenaLeft + 30; boss.dir = 1; }
         if (boss.x + boss.w > arenaRight - 30) { boss.x = arenaRight - boss.w - 30; boss.dir = -1; }
         
-        // Aimed shots ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â slower
+        // Aimed shots — slower
         boss.shootCooldown--;
         if (boss.shootCooldown <= 0) {
           boss.shootCooldown = 60 + Math.floor(Math.random() * 40);
@@ -4311,7 +4311,7 @@ function update() {
           spawnParticles(boss.x + boss.w/2, boss.y + boss.h/2, '#ff8800', 10);
         }
         
-        // Spread shot ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â fewer bullets, slower
+        // Spread shot — fewer bullets, slower
         boss.shootCooldown--;
         if (boss.shootCooldown <= 0) {
           boss.shootCooldown = 70 + Math.floor(Math.random() * 30);
@@ -4359,7 +4359,7 @@ function update() {
           spawnParticles(boss.x + boss.w/2, boss.y + boss.h, '#ff4444', 8);
         }
         
-        // Rapid fire ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â still fast but more manageable
+        // Rapid fire — still fast but more manageable
         boss.shootCooldown--;
         if (boss.shootCooldown <= 0) {
           boss.shootCooldown = 30 + Math.floor(Math.random() * 20);
@@ -4369,7 +4369,7 @@ function update() {
           if (dist > 0) {
             bullets.push({ x: boss.x + boss.w/2, y: boss.y + boss.h/3, vx: (dx/dist)*5.5, vy: (dy/dist)*5.5, life: 150 });
           }
-          // Extra spread bullets ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â less frequent
+          // Extra spread bullets — less frequent
           if (Math.random() < 0.2) {
             for (let a = -0.4; a <= 0.4; a += 0.4) {
               bullets.push({ x: boss.x + boss.w/2, y: boss.y + boss.h/3, vx: boss.dir * 5 * Math.cos(a), vy: 5 * Math.sin(a) - 1, life: 100 });
@@ -4459,7 +4459,7 @@ function update() {
     }
    } // end _mpHost boss AI
 
-    // Boss slam shockwave damage ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ALL players
+    // Boss slam shockwave damage — ALL players
     if (boss._slamShock > 0) {
       boss._slamShock--;
       if (boss._slamShock > 20) { // Only damage on first few frames
@@ -4475,7 +4475,7 @@ function update() {
       }
     }
 
-    // Boss contact damage ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ALL players (guest uses synced positions)
+    // Boss contact damage — ALL players (guest uses synced positions)
     if (boss.charging && p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, boss)) {
       p.hp -= 1;
       p.iFrames = 60;
@@ -4498,7 +4498,7 @@ function update() {
     }
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Boss Minions Update ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Boss Minions Update ──
   // Arena floor reference for minion clamping
   const mArenaH = 800;
   const mArenaTopY = bigWall.y + 40;
@@ -4510,7 +4510,7 @@ function update() {
     if (m.vy === undefined || m.vy === null) m.vy = 0;
     m.vy += GRAVITY;
     m.y += m.vy;
-    // Floor collision for minions ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â only land on actual floor, not mid-air platforms
+    // Floor collision for minions — only land on actual floor, not mid-air platforms
     let onPlatform = false;
     let platformY = mArenaFloorY;
     for (const plat of arenaPlats) {
@@ -4545,7 +4545,7 @@ function update() {
     m.frameTimer++;
     if (m.frameTimer > 8) { m.frameTimer = 0; m.frame = (m.frame + 1) % 4; }
     } // end _mpHost boss minion AI
-    // Damage player ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ALL players
+    // Damage player — ALL players
     if (p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, m)) {
       p.hp--;
       p.iFrames = 35;
@@ -4556,14 +4556,14 @@ function update() {
       }
     }
   }
-  // Remove dead minions (single-player only ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â MP preserves indices for sync)
+  // Remove dead minions (single-player only — MP preserves indices for sync)
   if (!mpEnabled) {
     for (let i = bossMinions.length - 1; i >= 0; i--) {
       if (bossMinions[i].dead) bossMinions.splice(i, 1);
     }
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Projectiles (player throws) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Projectiles (player throws) ──
   if (p.throwCooldown > 0) p.throwCooldown--;
   if (p.iFrames > 0 && p.alive) p.iFrames--;
 
@@ -4582,7 +4582,7 @@ function update() {
 
     // Hit guards
     let hit = false;
-    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ GUEST: simplified collision (VFX + send damage to host) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    // ── GUEST: simplified collision (VFX + send damage to host) ──
     if (mpEnabled && !isHost) {
       for (let gi = 0; gi < guards.length; gi++) {
         const gg = guards[gi];
@@ -4640,7 +4640,7 @@ function update() {
       if (hit || proj.life <= 0) { projectiles.splice(i, 1); }
       continue;
     }
-    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ HOST/SINGLE-PLAYER: full collision + damage + death handling ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    // ── HOST/SINGLE-PLAYER: full collision + damage + death handling ──
     for (const g of guards) {
       if (g.dead) continue;
       if (rectsOverlap(proj, g)) {
@@ -4754,7 +4754,7 @@ function update() {
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/3, mb.color, 10);
           shakeTimer = 6;
           if (mb.hp <= 0) {
-            // Hawking first death ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â trigger Undertale refusal cutscene
+            // Hawking first death — trigger Undertale refusal cutscene
             if (mb.name === 'HAWKING' && !hawkingPhase2) {
               mb.hp = 1; // keep alive temporarily
               hawkingRefusalTimer = 0;
@@ -4773,7 +4773,7 @@ function update() {
               hit = true;
               break;
             }
-            // Hawking FINAL death ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â trigger epic death scene
+            // Hawking FINAL death — trigger epic death scene
             if (mb.name === 'HAWKING' && hawkingPhase2) {
               mb.hp = 1; // keep alive for cutscene
               hawkingDeathTimer = 0;
@@ -4841,7 +4841,7 @@ function update() {
     }
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Bullets (guards shoot) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Bullets (guards shoot) ──
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
     b.x += b.vx;
@@ -4892,7 +4892,7 @@ function update() {
       const midX = p.x * 0.5 + bossX * 0.5;
       targetCamX = midX - W / 2;
     } else {
-      // No boss ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â center on player
+      // No boss — center on player
       targetCamX = p.x + p.w/2 - W / 2;
     }
     
@@ -4904,7 +4904,7 @@ function update() {
   // Faster lerp in arena for responsive tracking
   const camSpeed = inArenaState ? 0.15 : 0.1;
   
-  // Spectator camera ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â follow spectated player
+  // Spectator camera — follow spectated player
   if (mpSpectating && mpSpectateTarget && roomPlayers[mpSpectateTarget]) {
     const sp = roomPlayers[mpSpectateTarget];
     // Check if target is still alive
@@ -4933,7 +4933,7 @@ function update() {
         const targetCamY2 = sp2.y - H * 0.5 + 40;
         cameraY += (targetCamY2 - cameraY) * 0.12;
       } else {
-        // Non-arena spectating ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â follow vertical position if climbing
+        // Non-arena spectating — follow vertical position if climbing
         if (sp2.climbingBigWall || sp2.y < GROUND_Y - 130) {
           const comfortY = GROUND_Y - H * 0.6;
           const targetCamY2 = Math.min(0, sp2.y - comfortY);
@@ -4950,11 +4950,11 @@ function update() {
   if (cameraX > levelWidth - W) cameraX = levelWidth - W;
 
   // Vertical camera - follows player upward when climbing
-  // Skip when spectating ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â spectator vertical camera is handled above
+  // Skip when spectating — spectator vertical camera is handled above
   if (mpSpectating) {
     // Already handled in spectator block above
   } else if (inArenaState) {
-    // In arena ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â camera follows player vertically (arena is underground)
+    // In arena — camera follows player vertically (arena is underground)
     const arenaCenter = bigWall ? bigWall.y + 40 + 400 : GROUND_Y;
     const targetCamY = p.y - H * 0.5 + p.h/2;
     cameraY += (targetCamY - cameraY) * 0.12;
@@ -4970,7 +4970,7 @@ function update() {
   // Clamp: don't look below ground (only when not in arena)
   if (!inArenaState && cameraY > 0) cameraY = 0;
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ VFX Updates ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── VFX Updates ──
   if (screenFlash > 0) screenFlash--;
   if (bossIntroTimer > 0) {
     bossIntroTimer--;
@@ -5008,7 +5008,7 @@ function update() {
       screenFlash = 30;
       screenFlashColor = '#ffffff';
       shakeTimer = 20;
-      bossVfx.push({ type: 'text', x: player.x + player.w/2 + 400, y: player.y - 60, text: 'ÃƒÂ¢Ã…Â¡Ã¢â‚¬Â FIGHT! ÃƒÂ¢Ã…Â¡Ã¢â‚¬Â', life: 120, maxLife: 120, color: '#ffdd44', size: 48, vy: -0.3 });
+      bossVfx.push({ type: 'text', x: player.x + player.w/2 + 400, y: player.y - 60, text: '⚔ FIGHT! ⚔', life: 120, maxLife: 120, color: '#ffdd44', size: 48, vy: -0.3 });
     }
   }
   
@@ -5038,7 +5038,7 @@ function update() {
     }
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Epstein Boss Update ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Epstein Boss Update ──
   if (epstein && !epstein.dead && state === 'epsteinfight') {
    if (_mpHost) {
     const bArenaW3 = 2400;
@@ -5078,7 +5078,7 @@ function update() {
       }
     }
 
-    // Movement ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â chase player
+    // Movement — chase player
     const epTarget = mpEnabled ? getNearestPlayerTarget(epstein.x + epstein.w/2, epstein.y + epstein.h/2) : p;
     if (epTarget.x < epstein.x) epstein.dir = -1; else epstein.dir = 1;
     if (!epstein.charging) {
@@ -5087,7 +5087,7 @@ function update() {
       if (epstein.x + epstein.w > arenaRight - 30) epstein.x = arenaRight - epstein.w - 30;
     }
 
-    // Attack: Throw files (image projectiles) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â BIGGER projectiles
+    // Attack: Throw files (image projectiles) — BIGGER projectiles
     epstein.shootCooldown--;
     if (epstein.shootCooldown <= 0) {
       epstein.shootCooldown = epstein.phase === 2 ? 25 + Math.floor(Math.random()*20) : 45 + Math.floor(Math.random()*25);
@@ -5165,7 +5165,7 @@ function update() {
 
    } // end _mpHost epstein AI
 
-    // Contact damage ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ALL players
+    // Contact damage — ALL players
     if (p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, epstein)) {
       p.hp -= 1;
       p.iFrames = 45;
@@ -5202,7 +5202,7 @@ function update() {
     if (ep.life <= 0) epsteinProjectiles.splice(i, 1);
   }
 
-  // Epstein death ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ triggers FUSION CUTSCENE
+  // Epstein death → triggers FUSION CUTSCENE
   if (bossDeathTimer > 0 && epstein && epstein.dead && !fusionBoss) {
     bossDeathTimer--;
     if (bossDeathTimer % 10 === 0 && bossDeathTimer > 40) {
@@ -5222,7 +5222,7 @@ function update() {
     }
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ FUSION BOSS UPDATE ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── FUSION BOSS UPDATE ──
   if (fusionBoss && !fusionBoss.dead && state === 'fusionfight') {
    if (_mpHost) {
     const bArenaW = 2400;
@@ -5361,7 +5361,7 @@ function update() {
 
    } // end _mpHost fusion AI
 
-    // Contact damage ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ALL players
+    // Contact damage — ALL players
     if (p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, fusionBoss)) {
       p.hp -= 2;
       p.iFrames = 50;
@@ -5371,7 +5371,7 @@ function update() {
       spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4400', 12);
     }
 
-    // Fusion slam shockwave damage ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ALL players
+    // Fusion slam shockwave damage — ALL players
     if (fusionBoss._slamShock > 0) {
       fusionBoss._slamShock--;
       if (fusionBoss._slamShock > 20) {
@@ -5390,7 +5390,7 @@ function update() {
     }
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Fusion death ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ SPLIT into mini-bosses ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Fusion death → SPLIT into mini-bosses ──
   if (bossDeathTimer > 0 && fusionBoss && fusionBoss.dead && miniBosses.length === 0) {
     bossDeathTimer--;
     if (bossDeathTimer % 8 === 0 && bossDeathTimer > 40) {
@@ -5470,12 +5470,12 @@ function update() {
         spawnParticles(lx, ly, splitColors[lb % 5], 15);
         bossVfx.push({ type: 'ring', x: lx, y: ly, radius: 3, maxRadius: 80, life: 20, maxLife: 20, color: splitColors[lb % 5] });
       }
-      bossVfx.push({ type: 'text', x: cx, y: cy - 80, text: 'ÃƒÂ¢Ã…Â¡Ã‚Â¡ THE CABAL UNLEASHED ÃƒÂ¢Ã…Â¡Ã‚Â¡', life: 240, maxLife: 240, color: '#ffdd44', size: 42, vy: -0.2 });
+      bossVfx.push({ type: 'text', x: cx, y: cy - 80, text: '⚡ THE CABAL UNLEASHED ⚡', life: 240, maxLife: 240, color: '#ffdd44', size: 42, vy: -0.2 });
       bossVfx.push({ type: 'text', x: cx, y: cy - 40, text: 'FIVE AGAINST ONE', life: 200, maxLife: 200, color: '#ff4444', size: 28, vy: -0.15 });
     }
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ MINI-BOSS UPDATE (Split Fight) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── MINI-BOSS UPDATE (Split Fight) ──
   if (state === 'splitfight' && miniBosses.length > 0) {
     const bArenaW = 2400;
     const arenaLeft = bigWall.x + bigWall.w/2 - bArenaW/2;
@@ -5525,7 +5525,7 @@ function update() {
       const dm = getDiffMult();
 
       if (mb.name === 'TRUMP') {
-        // Trump: Rage mode ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â shotgun burst + ground slam + wall of fire
+        // Trump: Rage mode — shotgun burst + ground slam + wall of fire
         if (mb.shootCooldown <= 0) {
           mb.shootCooldown = 50 + Math.floor(Math.random() * 20);
           // 5-way spread shotgun
@@ -5550,7 +5550,7 @@ function update() {
           if (mb._slamDelay <= 0 && !mb.dead) {
             shakeTimer = 15;
             spawnParticles(mb.x + mb.w/2, mb.y + mb.h, '#ff4400', 20);
-            // Fire wave ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ground projectiles spreading left and right
+            // Fire wave — ground projectiles spreading left and right
             for (let fw = -1; fw <= 1; fw += 2) {
               for (let fi = 1; fi <= 3; fi++) {
                 epsteinProjectiles.push({
@@ -5560,11 +5560,11 @@ function update() {
                 });
               }
             }
-            // Trump slam shockwave ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â flag for ALL players
+            // Trump slam shockwave — flag for ALL players
             mb._slamShock = 25;
           }
         }
-        // Rage roar ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â speed boost + rapid fire burst every 400 frames
+        // Rage roar — speed boost + rapid fire burst every 400 frames
         if (mb.specialTimer % 400 === 0) {
           bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y - 30, text: 'MAGA RAGE!', life: 60, maxLife: 60, color: '#ff4400' });
           bossVfx.push({ type: 'ring', x: mb.x+mb.w/2, y: mb.y+mb.h/2, radius: 10, maxRadius: 200, life: 25, maxLife: 25, color: '#ff4400' });
@@ -5573,7 +5573,7 @@ function update() {
         }
       }
       else if (mb.name === 'EPSTEIN') {
-        // Epstein: Shadow master ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â homing projectiles + shadow vanish + poison trail
+        // Epstein: Shadow master — homing projectiles + shadow vanish + poison trail
         if (mb.shootCooldown <= 0) {
           mb.shootCooldown = 50 + Math.floor(Math.random() * 20);
           // Fire 2 homing projectiles
@@ -5588,7 +5588,7 @@ function update() {
           }
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/3, '#8844ff', 6);
         }
-        // Shadow vanish ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â teleport to random position every 200 frames
+        // Shadow vanish — teleport to random position every 200 frames
         if (mb.specialTimer % 200 === 0) {
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#8844ff', 18);
           // Leave a poison cloud at old position
@@ -5608,7 +5608,7 @@ function update() {
           bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y - 20, text: 'FROM THE SHADOWS', life: 50, maxLife: 50, color: '#8844ff' });
           shakeTimer = 6;
         }
-        // Web trap ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â slow projectile ring every 350 frames
+        // Web trap — slow projectile ring every 350 frames
         if (mb.specialTimer % 350 === 0) {
           for (let w = 0; w < 6; w++) {
             const angle = (Math.PI * 2 / 6) * w;
@@ -5622,7 +5622,7 @@ function update() {
         }
       }
       else if (mb.name === 'MUSK') {
-        // Musk: Tech genius ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â laser burst + drone strike + EMP dash
+        // Musk: Tech genius — laser burst + drone strike + EMP dash
         if (mb.shootCooldown <= 0) {
           mb.shootCooldown = 35 + Math.floor(Math.random() * 15);
           // Triple laser burst
@@ -5637,7 +5637,7 @@ function update() {
           }
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/3, '#4488ff', 6);
         }
-        // EMP dash every 100 frames ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â leaves electric trail
+        // EMP dash every 100 frames — leaves electric trail
         if (mb.specialTimer % 100 === 0) {
           const oldX = mb.x;
           mb.vx = mb.dir * 22;
@@ -5653,7 +5653,7 @@ function update() {
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#4488ff', 15);
           bossVfx.push({ type: 'ring', x: mb.x+mb.w/2, y: mb.y+mb.h/2, radius: 10, maxRadius: 120, life: 15, maxLife: 15, color: '#4488ff' });
         }
-        // Drone strike every 250 frames ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â rains projectiles from above
+        // Drone strike every 250 frames — rains projectiles from above
         if (mb.specialTimer % 250 === 0) {
           bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y - 30, text: 'DRONE STRIKE!', life: 60, maxLife: 60, color: '#4488ff' });
           for (let ds = 0; ds < 6; ds++) {
@@ -5668,10 +5668,10 @@ function update() {
         }
       }
       else if (mb.name === 'CLINTON') {
-        // Clinton: Political assassin ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â poison shots + backstab teleport + decoy
+        // Clinton: Political assassin — poison shots + backstab teleport + decoy
         if (mb.shootCooldown <= 0) {
           mb.shootCooldown = 60 + Math.floor(Math.random() * 30);
-          // Double shot ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â one aimed, one arcing
+          // Double shot — one aimed, one arcing
           epsteinProjectiles.push({
             x: mb.x + mb.w/2, y: mb.y + mb.h/3,
             vx: (dx/dist) * 4.5 * dm.projSpeed, vy: (dy/dist) * 4.5 * dm.projSpeed,
@@ -5702,7 +5702,7 @@ function update() {
             life: 60, rotation: 0, size: 28, imgIdx: 4,
           });
         }
-        // Decoy ring every 300 frames ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â circle of slow projectiles
+        // Decoy ring every 300 frames — circle of slow projectiles
         if (mb.specialTimer % 300 === 0) {
           for (let d = 0; d < 8; d++) {
             const angle = (Math.PI * 2 / 8) * d;
@@ -5717,7 +5717,7 @@ function update() {
       }
       else if (mb.name === 'HAWKING') {
         const isPhase2 = hawkingPhase2;
-        // Hawking: Genius supreme ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â orbital ring + gravity well + black hole + time warp
+        // Hawking: Genius supreme — orbital ring + gravity well + black hole + time warp
         if (mb.shootCooldown <= 0) {
           mb.shootCooldown = isPhase2 ? 20 : (hawkingAlone ? 30 : 55);
           // Orbital burst - bigger ring in phase 2
@@ -5739,7 +5739,7 @@ function update() {
             imgIdx: 4, homing: true,
           });
         }
-        // Gravity well ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â stores pull data for ALL players to check
+        // Gravity well — stores pull data for ALL players to check
         const gravInterval = isPhase2 ? 150 : (hawkingAlone ? 250 : 400);
         if (mb.specialTimer % gravInterval === 0) {
           bossVfx.push({ type: 'ring', x: mb.x+mb.w/2, y: mb.y+mb.h/2, radius: 300, maxRadius: 10, life: 40, maxLife: 40, color: hawkingPhase2 ? '#ffd700' : '#44ff88' });
@@ -5748,7 +5748,7 @@ function update() {
           shakeTimer = isPhase2 ? 15 : 10;
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, hawkingPhase2 ? '#ffd700' : '#44ff88', 25);
         }
-        // Phase 2 exclusive: Hawking radiation ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â random projectile rain
+        // Phase 2 exclusive: Hawking radiation — random projectile rain
         if (isPhase2 && mb.specialTimer % 80 === 0) {
           for (let hr = 0; hr < 4; hr++) {
             const rx = mb.x + mb.w/2 + (Math.random()-0.5)*400;
@@ -5773,7 +5773,7 @@ function update() {
 
       } // end _mpHost mini-boss AI
 
-      // Contact damage ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ALL players
+      // Contact damage — ALL players
       const contactDmg = (mb.name === 'HAWKING' && hawkingAlone) ? (hawkingPhase2 ? 3 : 2) : 1;
       if (p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, mb)) {
         p.hp -= contactDmg;
@@ -5784,7 +5784,7 @@ function update() {
         spawnParticles(p.x + p.w/2, p.y + p.h/2, mb.color, 8);
       }
 
-      // Hawking gravity well pull ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ALL alive players
+      // Hawking gravity well pull — ALL alive players
       if (mb.name === 'HAWKING' && mb._gravPull && mb._gravPull.active > 0) {
         mb._gravPull.active--;
         if (!p.alive) continue;
@@ -5797,7 +5797,7 @@ function update() {
         }
       }
 
-      // Trump/mini-boss slam shockwave ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ALL players
+      // Trump/mini-boss slam shockwave — ALL players
       if (mb._slamShock > 0) {
         mb._slamShock--;
         if (mb._slamShock > 20) {
@@ -5813,7 +5813,7 @@ function update() {
       }
     }
 
-    // Homing projectile tracking ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â target nearest player
+    // Homing projectile tracking — target nearest player
     for (const proj of epsteinProjectiles) {
       if (proj.homing && proj.life > 30) {
         const _homingTarget = mpEnabled ? getNearestPlayerTarget(proj.x, proj.y) : p;
@@ -5832,7 +5832,7 @@ function update() {
       handlePlayerDeath();
     }
 
-    // Check if all mini-bosses dead ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ VICTORY (skip if Hawking cutscenes are handling it)
+    // Check if all mini-bosses dead → VICTORY (skip if Hawking cutscenes are handling it)
     const allDead = miniBosses.length > 0 && miniBosses.every(mb => mb.dead);
     if (allDead && state === 'splitfight') {
       bossDeathTimer = 0;
@@ -5845,7 +5845,7 @@ function update() {
         particles.push({ x: p.x + p.w/2, y: p.y + p.h/2, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed-3, life: 80+Math.random()*60, color: ['#ff4400','#8844ff','#ffdd44','#ffffff','#44ff88','#4488ff','#ff44ff'][Math.floor(Math.random()*7)], size: 3+Math.random()*8 });
       }
       bossVfx.push({ type: 'ring', x: p.x+p.w/2, y: p.y+p.h/2, radius: 10, maxRadius: 900, life: 70, maxLife: 70, color: '#ffdd44' });
-      bossVfx.push({ type: 'text', x: p.x+p.w/2, y: p.y - 50, text: 'ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ FREEDOM! ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦', life: 200, maxLife: 200, color: '#ffdd44' });
+      bossVfx.push({ type: 'text', x: p.x+p.w/2, y: p.y - 50, text: '★ FREEDOM! ★', life: 200, maxLife: 200, color: '#ffdd44' });
       // Teleport player out
       player.x = bigWall.x + bigWall.w + 30;
       player.y = bigWall.y - player.h;
@@ -5869,9 +5869,9 @@ function update() {
     }
   }
 
-  // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
-  // HAWKING REFUSAL ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Undertale-style "But it refused." cutscene
-  // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
+  // ════════════════════════════════════════════════════════════════
+  // HAWKING REFUSAL — Undertale-style "But it refused." cutscene
+  // ════════════════════════════════════════════════════════════════
   if (state === 'hawkingRefusal') {
     hawkingRefusalTimer++;
     const t = hawkingRefusalTimer;
@@ -5888,7 +5888,7 @@ function update() {
     // 520-620: Heart pulses BRIGHTER, STRONGER, gold energy radiating
     // 620-780: Close-up normal Hawking face, lingering, dramatic
     // 780-920: Screen shakes violently + golden energy cracks + flash builds
-    // 920-1120: Golden Hawking revealed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â slow, intimidating, aura radiating
+    // 920-1120: Golden Hawking revealed — slow, intimidating, aura radiating
     // 1120+: Return to splitfight with Phase 2 Hawking
     if (t === 1) hawkingRefusalPhase = 0;
     if (t === 60) hawkingRefusalPhase = 1;
@@ -5905,13 +5905,13 @@ function update() {
     if (t === 920) hawkingRefusalPhase = 12;
     if (t === 1120) hawkingRefusalPhase = 13;
 
-    // At the end ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â return to splitfight with Phase 2 Hawking
+    // At the end — return to splitfight with Phase 2 Hawking
     if (t === 1130) {
       hawkingPhase2 = true;
       state = 'splitfight';
       const hawk = miniBosses.find(m => m.name === 'HAWKING');
       if (hawk) {
-        // MASSIVE Hawking ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â 2x size, full HP reset, boosted stats
+        // MASSIVE Hawking — 2x size, full HP reset, boosted stats
         const dm = getDiffMult();
         hawk.w = 160;
         hawk.h = 200;
@@ -5941,9 +5941,9 @@ function update() {
     }
   }
 
-  // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
-  // HAWKING DEATH ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Epic cinematic death scene
-  // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
+  // ════════════════════════════════════════════════════════════════
+  // HAWKING DEATH — Epic cinematic death scene
+  // ════════════════════════════════════════════════════════════════
   if (state === 'hawkingDeath') {
     hawkingDeathTimer++;
     const dt = hawkingDeathTimer;
@@ -5951,7 +5951,7 @@ function update() {
     const hx = hawk ? hawk._deathX || (hawk.x + hawk.w/2) : W/2;
     const hy = hawk ? hawk._deathY || (hawk.y + hawk.h/2) : H/2;
 
-    // Phase 1 (0-80): TIME FREEZE ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â everything stops, glitch distortion
+    // Phase 1 (0-80): TIME FREEZE — everything stops, glitch distortion
     if (dt < 80) {
       // Slow-mo particles dripping from Hawking
       if (dt % 4 === 0) {
@@ -5961,7 +5961,7 @@ function update() {
       if (dt > 30) shakeTimer = Math.max(shakeTimer, 3 + Math.floor((dt-30)/10));
     }
 
-    // Phase 2 (80-200): HAWKING RISES ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â body levitates, energy pours out
+    // Phase 2 (80-200): HAWKING RISES — body levitates, energy pours out
     if (dt >= 80 && dt < 200) {
       const riseProg = (dt - 80) / 120;
       if (hawk) {
@@ -5990,7 +5990,7 @@ function update() {
       if (dt % 30 === 0) { screenFlash = 8; screenFlashColor = '#ffd700'; }
     }
 
-    // Phase 3 (200-400): REALITY CRACKS ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â space-time tears around Hawking
+    // Phase 3 (200-400): REALITY CRACKS — space-time tears around Hawking
     if (dt >= 200 && dt < 400) {
       const crackProg = (dt - 200) / 200;
       // Continuous energy outpour
@@ -6016,7 +6016,7 @@ function update() {
       if (dt % 15 === 0 && crackProg > 0.5) { screenFlash = 10; screenFlashColor = '#ffffff'; }
     }
 
-    // Phase 4 (400-550): DISINTEGRATION ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â body breaks into stars
+    // Phase 4 (400-550): DISINTEGRATION — body breaks into stars
     if (dt >= 400 && dt < 550) {
       const disProg = (dt - 400) / 150;
       // Massive star burst
@@ -6038,7 +6038,7 @@ function update() {
       // Hide Hawking sprite progressively (handled in draw)
     }
 
-    // Phase 5 (550-750): COSMIC MOMENT ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â stars form equation, dialogue
+    // Phase 5 (550-750): COSMIC MOMENT — stars form equation, dialogue
     if (dt >= 550 && dt < 750) {
       // Gentle ambient particles
       if (dt % 6 === 0) {
@@ -6052,7 +6052,7 @@ function update() {
       }
     }
 
-    // Phase 6 (750-850): WHITE OUT ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â massive flash, peaceful transition
+    // Phase 6 (750-850): WHITE OUT — massive flash, peaceful transition
     if (dt >= 750 && dt <= 751) {
       screenFlash = 80;
       screenFlashColor = '#ffffff';
@@ -6088,7 +6088,7 @@ function update() {
         particles.push({ x: player.x + player.w/2, y: player.y + player.h/2, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed-3, life: 80+Math.random()*60, color: ['#ff4400','#8844ff','#ffdd44','#ffffff','#44ff88','#4488ff','#ff44ff'][Math.floor(Math.random()*7)], size: 3+Math.random()*8 });
       }
       bossVfx.push({ type: 'ring', x: player.x+player.w/2, y: player.y+player.h/2, radius: 10, maxRadius: 900, life: 70, maxLife: 70, color: '#ffdd44' });
-      bossVfx.push({ type: 'text', x: player.x+player.w/2, y: player.y - 50, text: 'ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ FREEDOM! ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦', life: 200, maxLife: 200, color: '#ffdd44' });
+      bossVfx.push({ type: 'text', x: player.x+player.w/2, y: player.y - 50, text: '★ FREEDOM! ★', life: 200, maxLife: 200, color: '#ffdd44' });
       if (bigWall) {
         player.x = bigWall.x + bigWall.w + 30;
         player.y = bigWall.y - player.h;
@@ -6115,9 +6115,9 @@ function update() {
     if (hawkingDeathTimer > 910) hawkingDeathTimer = 910;
   }
 
-  // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
-  // WIN CUTSCENE ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Player walks to citizenship office, THE END
-  // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
+  // ════════════════════════════════════════════════════════════════
+  // WIN CUTSCENE — Player walks to citizenship office, THE END
+  // ════════════════════════════════════════════════════════════════
   if (state === 'winCutscene') {
     winCutsceneTimer++;
     const wt = winCutsceneTimer;
@@ -6139,7 +6139,7 @@ function update() {
       player.runFrame = 0;
     }
     
-    // Camera always follows player during cutscene (unclamped ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â player is past level edge)
+    // Camera always follows player during cutscene (unclamped — player is past level edge)
     cameraX = player.x - W * 0.3;
     if (cameraX < 0) cameraX = 0;
     
@@ -6278,11 +6278,11 @@ function update() {
     pt.size *= 0.97;
     return pt.life > 0;
   });
-  // Hard cap ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â trim oldest particles if over limit (direct pushes bypass spawnParticles cap)
+  // Hard cap — trim oldest particles if over limit (direct pushes bypass spawnParticles cap)
   if (particles.length > MAX_PARTICLES) particles.splice(0, particles.length - MAX_PARTICLES);
 }
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Draw ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ── Draw ──
 function draw() {
   const shake = shakeTimer > 0 ? (Math.random() - 0.5) * (shakeTimer > 20 ? 7 : 4) : 0;
   ctx.save();
@@ -6294,7 +6294,7 @@ function draw() {
   // Skip game-world rendering when in menu (menu draws its own background)
   if (state !== 'menu') {
 
-  // Desert sunset sky ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â underground sewer during bossfight
+  // Desert sunset sky — underground sewer during bossfight
   const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
   if (inBossFight || bossDeathTimer > 0) {
     // Dark underground sewer atmosphere
@@ -6322,7 +6322,7 @@ function draw() {
     ctx.fillRect(0, 0, W, H);
   }
 
-  // Stars (top of sky only) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â hidden during bossfight, with twinkle
+  // Stars (top of sky only) — hidden during bossfight, with twinkle
   if (!inBossFight) {
     const _starTime = Date.now() / 1000;
     for (let i = 0; i < 50; i++) {
@@ -6550,11 +6550,11 @@ function draw() {
       ctx.stroke();
     }
 
-    // ÃƒÂ¢Ã¢â‚¬â€œÃ‚Â² CLIMB text
+    // ▲ CLIMB text
     ctx.fillStyle = '#ffcc44';
     ctx.font = 'bold 11px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('ÃƒÂ¢Ã¢â‚¬â€œÃ‚Â² CLIMB ÃƒÂ¢Ã¢â‚¬â€œÃ‚Â²', bw.x + bw.w / 2, bw.y + bw.h / 2);
+    ctx.fillText('▲ CLIMB ▲', bw.x + bw.w / 2, bw.y + bw.h / 2);
 
     // Arrows
     ctx.fillStyle = '#ffcc4466';
@@ -6570,20 +6570,20 @@ function draw() {
     ctx.fillStyle = '#006847aa';
     ctx.font = 'bold 16px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â²ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â½ MÃƒÆ’Ã¢â‚¬Â°XICO', bw.x - 60, bw.y + 30);
+    ctx.fillText('🇲🇽 MÉXICO', bw.x - 60, bw.y + 30);
 
     // USA label (right side)
     ctx.fillStyle = '#3c3b6eaa';
     ctx.font = 'bold 16px monospace';
-    ctx.fillText('ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚ÂºÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â¸ USA', bw.x + bw.w + 60, bw.y + 30);
+    ctx.fillText('🇺🇸 USA', bw.x + bw.w + 60, bw.y + 30);
 
     // "EL OTRO LADO" sign
     ctx.fillStyle = '#44ff4488';
     ctx.font = 'bold 14px monospace';
-    ctx.fillText('ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ EL OTRO LADO ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦', bw.x + bw.w + 60, bw.y + bw.h - 20);
+    ctx.fillText('★ EL OTRO LADO ★', bw.x + bw.w + 60, bw.y + bw.h - 20);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ BORDER WALL ARENA ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── BORDER WALL ARENA ──
   // Draw the full sewer background behind platforms (only during bossfight)
   const drawArena = (state === 'bossfight' || state === 'bossdialogue' || state === 'cutscene' || state === 'epsteinfight' || state === 'phonecall' || state === 'fusioncutscene' || state === 'fusionfight' || state === 'splitfight' || state === 'hawkingRefusal' || state === 'hawkingDeath' || bossDeathTimer > 0) && arenaPlats.length > 0;
   if (drawArena) {
@@ -6695,7 +6695,7 @@ function draw() {
       ctx.fillStyle = '#ffcc0033';
       ctx.font = 'bold 14px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('ÃƒÂ¢Ã…Â¡Ã‚Â  RESTRICTED AREA ÃƒÂ¢Ã…Â¡Ã‚Â ', sx + sw/2, sy + sh/2 - 50);
+      ctx.fillText('⚠ RESTRICTED AREA ⚠', sx + sw/2, sy + sh/2 - 50);
       ctx.fillStyle = '#ff333322';
       ctx.font = 'bold 10px monospace';
       ctx.fillText('AUTHORIZED PERSONNEL ONLY', sx + sw/2, sy + sh/2 - 35);
@@ -6802,7 +6802,7 @@ function draw() {
     }
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Boss Minions Drawing ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Boss Minions Drawing ──
   for (const m of bossMinions) {
     if (m.dead) continue;
     const mx = m.x, my = m.y;
@@ -6921,7 +6921,7 @@ function draw() {
     }
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Boss Drawing ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Boss Drawing ──
   if (boss && !boss.dead) {
     const bx = boss.x;
     const by = boss.y;
@@ -6964,7 +6964,7 @@ function draw() {
     ctx.closePath();
     ctx.stroke();
 
-    // Charge trail ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â fire and speed lines
+    // Charge trail — fire and speed lines
     if (boss.charging) {
       const trailDir = boss.chargeVx > 0 ? -1 : 1;
       for (let i = 0; i < 5; i++) {
@@ -6988,7 +6988,7 @@ function draw() {
       }
     }
 
-    // Slam warning ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â danger zone on ground
+    // Slam warning — danger zone on ground
     if (boss.slamming && boss.vy < 0) {
       const warnX = bx + boss.w/2;
       const arenaFloorY = bigWall.y + 40 + 800;
@@ -7007,10 +7007,10 @@ function draw() {
       ctx.fillStyle = `rgba(255, 0, 0, ${warnPulse})`;
       ctx.font = 'bold 24px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('ÃƒÂ¢Ã…Â¡Ã‚Â  INCOMING SLAM ÃƒÂ¢Ã…Â¡Ã‚Â ', warnX, arenaFloorY - 25);
+      ctx.fillText('⚠ INCOMING SLAM ⚠', warnX, arenaFloorY - 25);
     }
 
-    // Slam falling ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â afterimage trail
+    // Slam falling — afterimage trail
     if (boss.slamming && boss.vy > 2) {
       for (let ai = 1; ai <= 4; ai++) {
         ctx.globalAlpha = 0.15 / ai;
@@ -7079,8 +7079,8 @@ function draw() {
       ctx.shadowBlur = 0;
     }
 
-    // Label with phase ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â bigger, glowing
-    const phaseLabels = { 1: 'ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ TRUMP ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦', 2: 'ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ ENRAGED ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦', 3: 'ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ FINAL FORM ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦' };
+    // Label with phase — bigger, glowing
+    const phaseLabels = { 1: '★ TRUMP ★', 2: '★★ ENRAGED ★★', 3: '★★★ FINAL FORM ★★★' };
     ctx.shadowColor = boss.phase === 3 ? '#ff0000' : boss.phase === 2 ? '#ff6600' : '#ff4444';
     ctx.shadowBlur = boss.phase * 8;
     ctx.fillStyle = boss.phase === 3 ? '#ff0000' : boss.phase === 2 ? '#ff6600' : '#ff2222';
@@ -7089,7 +7089,7 @@ function draw() {
     ctx.fillText(phaseLabels[boss.phase], bx + boss.w / 2, by - 48);
     ctx.shadowBlur = 0;
 
-    // Boss HP bar ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â bigger, more detailed
+    // Boss HP bar — bigger, more detailed
     const bossHpW = 140;
     const bossHpPct = boss.hp / boss.maxHp;
     ctx.fillStyle = '#000000dd';
@@ -7114,7 +7114,7 @@ function draw() {
     ctx.fillRect(bx + boss.w/2 - bossHpW/2, by - 33, bossHpW * bossHpPct * 0.6, 4);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Boss Death VFX (ghost/fading boss) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Boss Death VFX (ghost/fading boss) ──
   if (boss && boss.dead && bossDeathTimer > 0) {
     const deathAlpha = bossDeathTimer > 30 ? 0.5 : bossDeathTimer / 60;
     ctx.globalAlpha = deathAlpha;
@@ -7211,7 +7211,7 @@ function draw() {
     ctx.restore();
   }
 
-  // Bullets ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â with fire trails
+  // Bullets — with fire trails
   for (const b of bullets) {
     // Trail behind bullet
     const speed = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
@@ -7243,7 +7243,7 @@ function draw() {
     ctx.fill();
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Epstein Boss Drawing ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Epstein Boss Drawing ──
   if (epstein && !epstein.dead) {
     const ex = epstein.x, ey = epstein.y;
     const bounce = Math.sin(epstein.frame * Math.PI / 2) * 3;
@@ -7292,7 +7292,7 @@ function draw() {
     ctx.restore();
 
     // Phase label
-    const epPhaseLabels = { 1: 'ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ EPSTEIN ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦', 2: 'ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ UNHINGED ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦' };
+    const epPhaseLabels = { 1: '★ EPSTEIN ★', 2: '★★ UNHINGED ★★' };
     ctx.fillStyle = '#ff44ff88';
     ctx.font = 'bold 11px monospace';
     ctx.textAlign = 'center';
@@ -7315,12 +7315,12 @@ function draw() {
     ctx.fill();
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Epstein Projectiles Drawing (spinning files/people/evidence) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Epstein Projectiles Drawing (spinning files/people/evidence) ──
   for (const ep of epsteinProjectiles) {
     ctx.save();
     ctx.translate(ep.x, ep.y);
     ctx.rotate(ep.rotation);
-    // Pick image based on imgIdx ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â drawn BIGGER, no glow
+    // Pick image based on imgIdx — drawn BIGGER, no glow
     const projImg = epProjectileImgs[ep.imgIdx] || epsteinFilesImg;
     try {
       ctx.drawImage(projImg, -ep.size/2, -ep.size/2, ep.size, ep.size);
@@ -7347,7 +7347,7 @@ function draw() {
     }
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ FUSION BOSS Drawing ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── FUSION BOSS Drawing ──
   if (fusionBoss && !fusionBoss.dead) {
     const fx = fusionBoss.x, fy = fusionBoss.y;
     const fb = fusionBoss;
@@ -7389,7 +7389,7 @@ function draw() {
     ctx.stroke();
     ctx.restore();
 
-    // Draw BOTH Trump and Epstein images side by side (fused ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â half/half)
+    // Draw BOTH Trump and Epstein images side by side (fused — half/half)
     ctx.save();
     // Left half = Trump
     ctx.save();
@@ -7447,7 +7447,7 @@ function draw() {
     ctx.textAlign = 'center';
     ctx.shadowColor = '#ff4400';
     ctx.shadowBlur = 10;
-    ctx.fillText(fb.phase === 2 ? 'ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ TRUMPSTEIN - UNLEASHED ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦' : 'ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ TRUMPSTEIN ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦', fx + fb.w/2, fy - 50 - bounce);
+    ctx.fillText(fb.phase === 2 ? '★★ TRUMPSTEIN - UNLEASHED ★★' : '★ TRUMPSTEIN ★', fx + fb.w/2, fy - 50 - bounce);
     ctx.shadowBlur = 0;
 
     // HP bar above
@@ -7468,14 +7468,14 @@ function draw() {
     ctx.fill();
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ MINI-BOSS Drawing (Split Fight) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── MINI-BOSS Drawing (Split Fight) ──
   for (const mb of miniBosses) {
     if (mb.dead) continue;
     const mx = mb.x, my = mb.y;
     const bounce = Math.sin(mb.frame * Math.PI / 2) * 2;
     const t = Date.now() / 1000;
 
-    // Color aura ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â MASSIVE for Hawking Phase 2
+    // Color aura — MASSIVE for Hawking Phase 2
     const auraRadius = (mb.name === 'HAWKING' && hawkingPhase2) ? mb.w/2 + 80 : mb.w/2 + 25;
     const mAuraGrad = ctx.createRadialGradient(mx+mb.w/2, my+mb.h/2, 5, mx+mb.w/2, my+mb.h/2, auraRadius);
     mAuraGrad.addColorStop(0, mb.color + ((mb.name === 'HAWKING' && hawkingPhase2) ? '88' : '44'));
@@ -7485,7 +7485,7 @@ function draw() {
     ctx.arc(mx + mb.w/2, my + mb.h/2, auraRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Hawking Phase 2 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â extra cosmic effects (GOLD theme)
+    // Hawking Phase 2 — extra cosmic effects (GOLD theme)
     if (mb.name === 'HAWKING' && hawkingPhase2) {
       // Orbiting energy rings
       for (let ring = 0; ring < 3; ring++) {
@@ -7598,7 +7598,7 @@ function draw() {
     ctx.fill();
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Boss VFX (rings, cracks, text) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Boss VFX (rings, cracks, text) ──
   for (const vfx of bossVfx) {
     const alpha = vfx.life / vfx.maxLife;
     if (vfx.type === 'ring') {
@@ -7659,14 +7659,14 @@ function draw() {
 
   ctx.restore();
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Screen Vignette ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Screen Vignette ──
   const vg = ctx.createRadialGradient(W/2, H/2, H * 0.35, W/2, H/2, H * 0.95);
   vg.addColorStop(0, 'rgba(0,0,0,0)');
   vg.addColorStop(1, 'rgba(0,0,0,0.45)');
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, W, H);
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Low HP red vignette ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Low HP red vignette ──
   if (player && player.alive && player.hp / player.maxHp < 0.35) {
     const hpPulse = 0.12 + Math.sin(Date.now() / 300) * 0.06;
     const rvg = ctx.createRadialGradient(W/2, H/2, H * 0.25, W/2, H/2, H * 0.85);
@@ -7676,7 +7676,7 @@ function draw() {
     ctx.fillRect(0, 0, W, H);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Screen Flash Effect ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Screen Flash Effect ──
   if (screenFlash > 0) {
     const flashAlpha = Math.min(0.8, screenFlash / 20);
     ctx.globalAlpha = flashAlpha;
@@ -7685,9 +7685,9 @@ function draw() {
     ctx.globalAlpha = 1;
   }
 
-  // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
-  // HAWKING REFUSAL ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Undertale "But it refused." full-screen drawing
-  // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
+  // ════════════════════════════════════════════════════════════════
+  // HAWKING REFUSAL — Undertale "But it refused." full-screen drawing
+  // ════════════════════════════════════════════════════════════════
   if (state === 'hawkingRefusal') {
     const t = hawkingRefusalTimer;
     const cx = W / 2;
@@ -7695,11 +7695,11 @@ function draw() {
     const heartY = H * 0.52; // heart below text
     ctx.imageSmoothingEnabled = false;
 
-    // Pure black background ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â instant
+    // Pure black background — instant
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
 
-    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Pixel heart (Undertale 8x7 grid) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    // ── Pixel heart (Undertale 8x7 grid) ──
     function drawPixelHeart(hx, hy, scale, color, alpha) {
       ctx.globalAlpha = alpha;
       ctx.fillStyle = color;
@@ -7823,7 +7823,7 @@ function draw() {
       ctx.fillText(displayText, cx, textY);
     }
 
-    // Phase 6: Text + heart pulse ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â transitions from green to GOLD (t: 530-620)
+    // Phase 6: Text + heart pulse — transitions from green to GOLD (t: 530-620)
     if (t >= 530 && t < 620) {
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 32px monospace';
@@ -7831,7 +7831,7 @@ function draw() {
       ctx.textBaseline = 'middle';
       ctx.fillText('* But it refused.', cx, textY);
 
-      // Heart color transitions green ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ gold (slower)
+      // Heart color transitions green → gold (slower)
       const goldProgress = Math.min(1, (t - 540) / 60);
       const heartColor = goldProgress < 0.5 ? ((t % 8 < 4) ? '#00ff00' : '#44ff88') : ((t % 6 < 3) ? '#ffd700' : '#ffcc00');
       const heartScale = hs + (goldProgress > 0.5 ? Math.sin(t * 0.15) * 1.5 : 0);
@@ -7859,14 +7859,14 @@ function draw() {
       }
     }
 
-    // Phase 7: Close-up of NORMAL Hawking ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â long dramatic linger (t: 620-780)
+    // Phase 7: Close-up of NORMAL Hawking — long dramatic linger (t: 620-780)
     if (t >= 620 && t < 780) {
       const phaseDur = 160;
       const fadeIn = Math.min(1, (t - 620) / 30);
       // Black bg
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, W, H);
-      // Normal Hawking close-up ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â centered, large, slowly zooming in
+      // Normal Hawking close-up — centered, large, slowly zooming in
       const zoomProg = (t - 620) / phaseDur;
       const hawkSize = Math.min(W * 0.45, 320) + zoomProg * 40;
       const hawkH_val = imgH(hawkingImg, hawkSize);
@@ -7930,7 +7930,7 @@ function draw() {
         ctx.drawImage(hawkingImg, cx - hawkSize/2, H * 0.2, hawkSize, hawkH_val);
         ctx.globalAlpha = 1;
       }
-      // Gold energy cracks spreading across screen ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â more over time
+      // Gold energy cracks spreading across screen — more over time
       const crackCount = Math.floor(flashProg * 20);
       for (let c = 0; c < crackCount; c++) {
         ctx.strokeStyle = `rgba(255, 215, 0, ${0.2 + Math.random() * 0.4})`;
@@ -7947,7 +7947,7 @@ function draw() {
         ctx.stroke();
         ctx.shadowBlur = 0;
       }
-      // Golden flash builds from center ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â slow expansion
+      // Golden flash builds from center — slow expansion
       const flashGrad = ctx.createRadialGradient(cx, H * 0.4, 0, cx, H * 0.4, W * flashProg * 0.8);
       flashGrad.addColorStop(0, `rgba(255, 215, 0, ${flashProg * 0.7})`);
       flashGrad.addColorStop(0.5, `rgba(255, 200, 0, ${flashProg * 0.3})`);
@@ -7956,7 +7956,7 @@ function draw() {
       ctx.fillRect(0, 0, W, H);
       // Increasingly violent shaking
       shakeTimer = Math.max(shakeTimer, Math.ceil(5 + flashProg * 15));
-      // Deep rumble ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â screen flickers
+      // Deep rumble — screen flickers
       if (flashProg > 0.5 && Math.random() < flashProg * 0.3) {
         ctx.fillStyle = `rgba(255, 200, 0, ${Math.random() * 0.08})`;
         ctx.fillRect(0, 0, W, H);
@@ -7968,7 +7968,7 @@ function draw() {
       }
     }
 
-    // Phase 9: GOLDEN HAWKING REVEALED ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â slow, intimidating (t: 920-1120)
+    // Phase 9: GOLDEN HAWKING REVEALED — slow, intimidating (t: 920-1120)
     if (t >= 920 && t < 1120) {
       const revealProg = (t - 920) / 200;
       // White/gold flash fading to black
@@ -7979,7 +7979,7 @@ function draw() {
       }
       ctx.fillStyle = `rgba(0, 0, 0, ${bgFade})`;
       ctx.fillRect(0, 0, W, H);
-      // Golden Hawking ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â larger, with radiating gold aura
+      // Golden Hawking — larger, with radiating gold aura
       const hawkSize = Math.min(W * 0.5, 350);
       const hawkH_val = imgH(hawkingGoldImg, hawkSize);
       const hawkAlpha = Math.min(1, revealProg * 3);
@@ -8003,7 +8003,7 @@ function draw() {
       ctx.drawImage(hawkingGoldImg, cx - hawkSize/2, H * 0.2, hawkSize, hawkH_val);
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
-      // "TRANSCENDED" text ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â appears early, stays
+      // "TRANSCENDED" text — appears early, stays
       if (revealProg > 0.2) {
         const tAlpha = Math.min(1, (revealProg - 0.2) / 0.2);
         ctx.globalAlpha = tAlpha;
@@ -8016,7 +8016,7 @@ function draw() {
         ctx.shadowBlur = 0;
         ctx.globalAlpha = 1;
       }
-      // Threatening dialogue ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â typewriter, appears after reveal settles
+      // Threatening dialogue — typewriter, appears after reveal settles
       if (revealProg > 0.4) {
         const dlgProg = (revealProg - 0.4) / 0.6;
         const quotes = [
@@ -8052,7 +8052,7 @@ function draw() {
           ctx.stroke();
         }
       }
-      // Gold particles floating upward ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â more of them
+      // Gold particles floating upward — more of them
       if (revealProg > 0.1) {
         for (let gp = 0; gp < 20; gp++) {
           const gpT = Date.now()/1000;
@@ -8080,9 +8080,9 @@ function draw() {
     ctx.fillText('SKIP \u25b6\u25b6', W - 60, 27);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
-  // HAWKING DEATH ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Epic cinematic death scene drawing
-  // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
+  // ════════════════════════════════════════════════════════════════
+  // HAWKING DEATH — Epic cinematic death scene drawing
+  // ════════════════════════════════════════════════════════════════
   if (state === 'hawkingDeath') {
     const dt = hawkingDeathTimer;
     const hawk = miniBosses.find(m => m.name === 'HAWKING');
@@ -8090,7 +8090,7 @@ function draw() {
     const hy = hawk ? hawk._deathY || H/2 : H/2;
     const t = Date.now() / 1000;
 
-    // Phase 1 (0-80): TIME FREEZE ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â dramatic slow-mo distortion
+    // Phase 1 (0-80): TIME FREEZE — dramatic slow-mo distortion
     if (dt < 80) {
       const freezeProg = dt / 80;
       // Darken arena progressively
@@ -8127,7 +8127,7 @@ function draw() {
       }
     }
 
-    // Phase 2 (80-200): HAWKING RISES ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â levitation with energy eruption
+    // Phase 2 (80-200): HAWKING RISES — levitation with energy eruption
     if (dt >= 80 && dt < 200) {
       const riseProg = (dt - 80) / 120;
       // Nearly full black
@@ -8179,13 +8179,13 @@ function draw() {
       }
     }
 
-    // Phase 3 (200-400): REALITY CRACKS ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â space-time tears, cosmic energy
+    // Phase 3 (200-400): REALITY CRACKS — space-time tears, cosmic energy
     if (dt >= 200 && dt < 400) {
       const crackProg = (dt - 200) / 200;
       // Deep black background
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, W, H);
-      // Star field appearing ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â cosmos becoming visible
+      // Star field appearing — cosmos becoming visible
       const starCount = Math.floor(crackProg * 120);
       for (let s = 0; s < starCount; s++) {
         const sx = (s * 73.7 + s * s * 3.1) % W;
@@ -8195,7 +8195,7 @@ function draw() {
         const sSize = s % 11 === 0 ? 3 : (s % 5 === 0 ? 2 : 1);
         ctx.fillRect(sx, sy, sSize, sSize);
       }
-      // Reality crack lines ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â jagged tears in space
+      // Reality crack lines — jagged tears in space
       const crackCount = Math.floor(crackProg * 8);
       for (let c = 0; c < crackCount; c++) {
         const cStartX = (c * 157 + 100) % W;
@@ -8252,7 +8252,7 @@ function draw() {
       }
     }
 
-    // Phase 4 (400-550): DISINTEGRATION ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â body breaks into constellation
+    // Phase 4 (400-550): DISINTEGRATION — body breaks into constellation
     if (dt >= 400 && dt < 550) {
       const disProg = (dt - 400) / 150;
       // Deep space background
@@ -8266,7 +8266,7 @@ function draw() {
         ctx.fillStyle = `rgba(255,255,255,${twinkle})`;
         ctx.fillRect(sx, sy, s % 7 === 0 ? 2 : 1, s % 7 === 0 ? 2 : 1);
       }
-      // Supernova explosion at center ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â concentric rings
+      // Supernova explosion at center — concentric rings
       const novaCenter = { x: hx, y: hy - 120 };
       const novaR = disProg * 400;
       for (let nr = 0; nr < 4; nr++) {
@@ -8287,7 +8287,7 @@ function draw() {
       ctx.beginPath();
       ctx.arc(novaCenter.x, novaCenter.y, 100, 0, Math.PI * 2);
       ctx.fill();
-      // Constellation dots forming from the explosion ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â scattered outward
+      // Constellation dots forming from the explosion — scattered outward
       const constellationPts = 30;
       for (let cp = 0; cp < constellationPts; cp++) {
         const cpAngle = (cp / constellationPts) * Math.PI * 2 + Math.sin(cp * 3) * 0.5;
@@ -8326,7 +8326,7 @@ function draw() {
       }
     }
 
-    // Phase 5 (550-750): COSMIC MOMENT ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â equation + final words
+    // Phase 5 (550-750): COSMIC MOMENT — equation + final words
     if (dt >= 550 && dt < 750) {
       const cosmicProg = (dt - 550) / 200;
       // Deep space
@@ -8351,7 +8351,7 @@ function draw() {
         ctx.fill();
       }
 
-      // E = mcÃƒâ€šÃ‚Â² appearing letter by letter
+      // E = mc² appearing letter by letter
       if (cosmicProg < 0.4) {
         const eqText = 'E = mc\u00B2';
         const eqProg = cosmicProg / 0.4;
@@ -8493,9 +8493,9 @@ function draw() {
     ctx.fillText('SKIP \u25b6\u25b6', W - 60, 27);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
-  // WIN CUTSCENE ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Walking to citizenship office + THE END
-  // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
+  // ════════════════════════════════════════════════════════════════
+  // WIN CUTSCENE — Walking to citizenship office + THE END
+  // ════════════════════════════════════════════════════════════════
   if (state === 'winCutscene') {
     const wt = winCutsceneTimer;
     
@@ -8568,7 +8568,7 @@ function draw() {
     // Phase 2 (300+): Player enters door, fade out
     if (wt >= 300 && wt < 350) {
       // Player fades as they enter
-      // (the player is already drawn by main draw ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â we overlay a fade)
+      // (the player is already drawn by main draw — we overlay a fade)
     }
     
     // Phase 3: Fade to black
@@ -8645,14 +8645,14 @@ function draw() {
     ctx.fillText('SKIP \u25b6\u25b6', W - 60, 27);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Boss intro overlay ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Boss intro overlay ──
   if (bossIntroTimer > 60) {
     const introFade = (bossIntroTimer - 60) / 30;
     ctx.fillStyle = `rgba(255,255,255,${introFade})`;
     ctx.fillRect(0, 0, W, H);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Cinematic letterbox bars during boss intro ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Cinematic letterbox bars during boss intro ──
   if (inBossFight && bossIntroTimer > 0) {
     const barH = 50 * Math.min(1, bossIntroTimer / 30);
     ctx.fillStyle = '#000';
@@ -8660,7 +8660,7 @@ function draw() {
     ctx.fillRect(0, H - barH, W, barH);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Vignette during bossfight ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â sewer darkness ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Vignette during bossfight — sewer darkness ──
   if (inBossFight) {
     const bPhase = boss ? boss.phase : 1;
     const isEpstein = state === 'epsteinfight' || state === 'phonecall';
@@ -8685,13 +8685,13 @@ function draw() {
     ctx.fillRect(0, 0, W, H);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Phone Call Cutscene Drawing ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Phone Call Cutscene Drawing ──
   if (state === 'phonecall') {
     // Dark overlay
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fillRect(0, 0, W, H);
 
-    // Phone ringing effect ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â pulsing circles
+    // Phone ringing effect — pulsing circles
     const pulse = Math.sin(Date.now() / 200) * 0.5 + 0.5;
     const ringColor = `rgba(255,200,0,${pulse * 0.3})`;
     ctx.strokeStyle = ringColor;
@@ -8801,10 +8801,10 @@ function draw() {
     ctx.fillStyle = '#ccc';
     ctx.font = 'bold 12px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('SKIP ÃƒÂ¢Ã¢â‚¬â€œÃ‚Â¶ÃƒÂ¢Ã¢â‚¬â€œÃ‚Â¶', W - 60, 27);
+    ctx.fillText('SKIP ▶▶', W - 60, 27);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ HUD ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── HUD ──
   // Distance indicator
   if (state === 'playing' && bigWall) {
     const dist = Math.max(0, bigWall.x - player.x);
@@ -8865,7 +8865,7 @@ function draw() {
     ctx.fillStyle = '#ffffff55';
     ctx.font = '10px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(_isTouchDev ? 'Ãƒâ€šÃ‚Â¡Cuidado! Use on-screen controls' : 'ÃƒÂ¢Ã¢â‚¬Â Ã‚Â ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Move  |  ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬Ëœ/Space Jump  |  Hold ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬Ëœ Climb  |  Click/F Throw  |  Ãƒâ€šÃ‚Â¡Cuidado!', W / 2, H - 10);
+    ctx.fillText(_isTouchDev ? '¡Cuidado! Use on-screen controls' : '← → Move  |  ↑/Space Jump  |  Hold ↑ Climb  |  Click/F Throw  |  ¡Cuidado!', W / 2, H - 10);
 
     // Boss HP bar on HUD (if boss alive and player near)
     if (boss && !boss.dead) {
@@ -8880,16 +8880,16 @@ function draw() {
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 12px monospace';
       ctx.textAlign = 'right';
-      ctx.fillText(`ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ TRUMP: ${boss.hp}/${boss.maxHp}`, W - 30, 30);
+      ctx.fillText(`★ TRUMP: ${boss.hp}/${boss.maxHp}`, W - 30, 30);
     }
 
-    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Touch Controls (on-screen buttons) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    // ── Touch Controls (on-screen buttons) ──
     drawTouchButtons();
   }
 
-  // Also show HP bar during bossfight ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â CINEMATIC HUD
+  // Also show HP bar during bossfight — CINEMATIC HUD
   if (state === 'bossfight') {
-    // Player HP ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â left side with icon
+    // Player HP — left side with icon
     const hpW = 200;
     ctx.fillStyle = '#00000099';
     ctx.fillRect(15, 8, hpW + 14, 30);
@@ -8911,9 +8911,9 @@ function draw() {
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 13px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`ÃƒÂ¢Ã‚ÂÃ‚Â¤ ${player.hp}/${player.maxHp}`, 28, 29);
+    ctx.fillText(`❤ ${player.hp}/${player.maxHp}`, 28, 29);
 
-    // BOSS HP ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â full width cinematic bar below player HP
+    // BOSS HP — full width cinematic bar below player HP
     if (boss && !boss.dead) {
       const bossHudW = Math.min(500, W * 0.6, W - 260);
       const bHpPct = boss.hp / boss.maxHp;
@@ -8925,7 +8925,7 @@ function draw() {
       ctx.fillRect(barX - 5, bossHudY, bossHudW + 10, 38);
 
       // Boss name + phase
-      const phaseNames = { 1: 'TRUMP', 2: 'ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ TRUMP - ENRAGED ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦', 3: 'ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ TRUMP - FINAL FORM ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦' };
+      const phaseNames = { 1: 'TRUMP', 2: '★ TRUMP - ENRAGED ★', 3: '★★ TRUMP - FINAL FORM ★★' };
       ctx.fillStyle = boss.phase === 3 ? '#ff2222' : boss.phase === 2 ? '#ff8844' : '#ffcc44';
       ctx.font = `bold ${boss.phase === 3 ? 13 : 12}px monospace`;
       ctx.textAlign = 'center';
@@ -8977,9 +8977,9 @@ function draw() {
     ctx.fillText(_isTouchDev ? 'Defeat Trump to cross!' : 'Defeat Trump to cross!  |  Click/F Throw  |  \u2190 \u2192 Move  |  \u2191/Space Jump', W / 2, H - 10);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Epstein Fight HUD ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Epstein Fight HUD ──
   if (state === 'epsteinfight') {
-    // Player HP ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â left side
+    // Player HP — left side
     const hpW = 200;
     ctx.fillStyle = '#00000099';
     ctx.fillRect(15, 8, hpW + 14, 30);
@@ -9000,9 +9000,9 @@ function draw() {
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 13px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`ÃƒÂ¢Ã‚ÂÃ‚Â¤ ${player.hp}/${player.maxHp}`, 28, 29);
+    ctx.fillText(`❤ ${player.hp}/${player.maxHp}`, 28, 29);
 
-    // EPSTEIN HP ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â cinematic bar at top center (purple themed)
+    // EPSTEIN HP — cinematic bar at top center (purple themed)
     if (epstein && !epstein.dead) {
       const eHudW = Math.min(500, W * 0.5, W - 260);
       const eHpPct = epstein.hp / epstein.maxHp;
@@ -9012,7 +9012,7 @@ function draw() {
       ctx.fillRect(barX - 5, 5, eHudW + 10, 38);
 
       // Boss name
-      const ePhaseNames = { 1: 'EPSTEIN', 2: 'ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ EPSTEIN - UNHINGED ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦' };
+      const ePhaseNames = { 1: 'EPSTEIN', 2: '★ EPSTEIN - UNHINGED ★' };
       ctx.fillStyle = epstein.phase === 2 ? '#ff44ff' : '#aa88ff';
       ctx.font = `bold ${epstein.phase === 2 ? 13 : 12}px monospace`;
       ctx.textAlign = 'center';
@@ -9064,7 +9064,7 @@ function draw() {
     ctx.fillText(_isTouchDev ? 'Defeat Epstein!' : 'Defeat Epstein!  |  Click/F Throw  |  \u2190 \u2192 Move  |  \u2191/Space Jump', W / 2, H - 10);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Fusion Cutscene Drawing ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Fusion Cutscene Drawing ──
   if (state === 'fusioncutscene') {
     // Dark overlay
     ctx.fillStyle = 'rgba(0,0,0,0.85)';
@@ -9180,7 +9180,7 @@ function draw() {
     ctx.fillText('SKIP \u25ba\u25ba', W - 60, 31);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Fusion Fight HUD ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Fusion Fight HUD ──
   if (state === 'fusionfight') {
     // Player HP
     const hpW = 200;
@@ -9205,7 +9205,7 @@ function draw() {
     ctx.textAlign = 'left';
     ctx.fillText(`\u2764 ${player.hp}/${player.maxHp}`, 28, 29);
 
-    // TRUMPSTEIN HP ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â dual color bar
+    // TRUMPSTEIN HP — dual color bar
     if (fusionBoss && !fusionBoss.dead) {
       const fHudW = Math.min(550, W * 0.55, W - 260);
       const fHpPct = fusionBoss.hp / fusionBoss.maxHp;
@@ -9224,7 +9224,7 @@ function draw() {
       ctx.fillText(fName, W/2, 19);
       ctx.shadowBlur = 0;
 
-      // Dual-colored HP bar (red ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ purple gradient)
+      // Dual-colored HP bar (red → purple gradient)
       ctx.fillStyle = '#1a0a0a';
       ctx.fillRect(barX, 24, fHudW, 16);
       const fGrad = ctx.createLinearGradient(barX, 0, barX + fHudW, 0);
@@ -9262,7 +9262,7 @@ function draw() {
     ctx.fillText(_isTouchDev ? 'Defeat TRUMPSTEIN!' : 'Defeat TRUMPSTEIN!  |  Click/F Throw  |  \u2190 \u2192 Move  |  \u2191/Space Jump', W / 2, H - 10);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Split Fight HUD ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Split Fight HUD ──
   if (state === 'splitfight') {
     // === EPIC SPLIT BOSS CINEMATIC ===
     if (bossIntroTimer > 0) {
@@ -9309,7 +9309,7 @@ function draw() {
       // Cinematic letterbox bars
       const barH = 50;
       
-      // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â COLD OPEN (0-0.03): Dramatic fade from black ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
+      // ═══ COLD OPEN (0-0.03): Dramatic fade from black ═══
       if (prog < 0.03) {
         const sp = prog / 0.03;
         // Pure black with slowly emerging text
@@ -9346,7 +9346,7 @@ function draw() {
         }
       }
       
-      // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â SCENE 1 (0.03-0.055): Phone screen UI ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
+      // ═══ SCENE 1 (0.03-0.055): Phone screen UI ═══
       if (prog >= 0.03 && prog < 0.055) {
         const sp = (prog - 0.03) / 0.025;
         // Dark table surface background
@@ -9411,7 +9411,7 @@ function draw() {
         ctx.textAlign = 'left';
         ctx.fillText('9:41 PM', phoneX + 10, phoneY + 14);
         ctx.textAlign = 'right';
-        ctx.fillText('5G ÃƒÂ¢Ã¢â‚¬â€œÃ‚Â ÃƒÂ¢Ã¢â‚¬â€œÃ‚Â ÃƒÂ¢Ã¢â‚¬â€œÃ‚Â  ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ¢â‚¬Â¹87%', phoneX + phoneW - 10, phoneY + 14);
+        ctx.fillText('5G ■■■ 🔋87%', phoneX + phoneW - 10, phoneY + 14);
         // Group call UI
         ctx.textAlign = 'center';
         const ringPulse = Math.sin(sp * Math.PI * 8) * 0.5 + 0.5;
@@ -9453,14 +9453,14 @@ function draw() {
         ctx.fillText('EPSTEIN', W/2, phoneY + 180);
         ctx.fillStyle = '#999';
         ctx.font = '11px monospace';
-        ctx.fillText('Group Call ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ 5 members', W/2, phoneY + 198);
+        ctx.fillText('Group Call • 5 members', W/2, phoneY + 198);
         ctx.fillStyle = '#666';
         ctx.font = '9px monospace';
         ctx.fillText('End-to-End Encrypted', W/2, phoneY + 215);
         // Pulsing answer text
         ctx.fillStyle = `rgba(136,68,255,${0.6 + ringPulse * 0.4})`;
         ctx.font = 'bold 13px monospace';
-        ctx.fillText(sp > 0.5 ? 'ÃƒÂ¢Ã¢â‚¬â€Ã‚Â CONNECTING...' : 'ÃƒÂ¢Ã¢â‚¬â€Ã‚Â INCOMING CALL', W/2, phoneY + 260);
+        ctx.fillText(sp > 0.5 ? '● CONNECTING...' : '● INCOMING CALL', W/2, phoneY + 260);
         // Signal strength animation
         if (sp > 0.5) {
           for (let sg = 0; sg < 4; sg++) {
@@ -9468,7 +9468,7 @@ function draw() {
             ctx.fillRect(phoneX + 30 + sg*12, phoneY + 270, 8, 4);
           }
         }
-        // Accept / Decline buttons ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â bigger, more detailed
+        // Accept / Decline buttons — bigger, more detailed
         ctx.fillStyle = '#22cc44';
         ctx.shadowColor = '#22cc44';
         ctx.shadowBlur = 10;
@@ -9490,7 +9490,7 @@ function draw() {
         ctx.fillText('Accept', W/2 - 45, phoneY + 335);
         ctx.fillText('Decline', W/2 + 45, phoneY + 335);
         ctx.globalAlpha = 1;
-        // Outer ripple effects ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â more rings
+        // Outer ripple effects — more rings
         for (let or2 = 0; or2 < 3; or2++) {
           ctx.strokeStyle = `rgba(136,68,255,${ringPulse * 0.12 / (or2+1)})`;
           ctx.lineWidth = 2;
@@ -9504,7 +9504,7 @@ function draw() {
         }
       }
       
-      // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â SCENE 2 (0.055-0.14): Epstein initiating the call ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
+      // ═══ SCENE 2 (0.055-0.14): Epstein initiating the call ═══
       if (prog >= 0.055 && prog < 0.14) {
         const sp = (prog - 0.055) / 0.085;
         ctx.save();
@@ -9543,7 +9543,7 @@ function draw() {
         ctx.restore();
         ctx.globalAlpha = 1;
         
-        // Floating dust particles ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â many more
+        // Floating dust particles — many more
         for (let dp = 0; dp < 40; dp++) {
           const dpx = (dp * 137.5 + t * 12) % W;
           const dpy = (dp * 89.3 + Math.sin(t*0.7 + dp) * 40) % H;
@@ -9576,7 +9576,7 @@ function draw() {
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(W*0.7+24, H*0.58+11, 8, -Math.PI/2, Math.PI/2); ctx.stroke();
         
-        // Epstein portrait ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â large, dramatic entrance
+        // Epstein portrait — large, dramatic entrance
         const eSize = Math.min(W * 0.28, 200);
         const ex = W * 0.5, ey = H * 0.08;
         const enterSlide = Math.min(1, sp * 2.5);
@@ -9607,9 +9607,9 @@ function draw() {
         ctx.fillText('GROUP', ex, ey + eSize * 1.02 + 8);
         ctx.fillText('CALL', ex, ey + eSize * 1.02 + 16);
         ctx.fillStyle = '#44ff88';
-        ctx.fillText('ÃƒÂ¢Ã¢â‚¬â€Ã‚Â LIVE', ex, ey + eSize * 1.02 + 26);
+        ctx.fillText('● LIVE', ex, ey + eSize * 1.02 + 26);
         
-        // Purple light rays from behind ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â more, animated
+        // Purple light rays from behind — more, animated
         if (sp > 0.2) {
           ctx.globalAlpha = Math.min(0.2, (sp - 0.2) * 0.3);
           for (let ray = 0; ray < 12; ray++) {
@@ -9668,11 +9668,11 @@ function draw() {
         ctx.restore();
       }
       
-      // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â SCENE 3 (0.14-0.24): Trump at his golden tower ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
+      // ═══ SCENE 3 (0.14-0.24): Trump at his golden tower ═══
       if (prog >= 0.14 && prog < 0.24) {
         const sp = (prog - 0.14) / 0.1;
         ctx.save();
-        // Gold background ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Trump tower penthouse
+        // Gold background — Trump tower penthouse
         const goldGrad = ctx.createLinearGradient(0, 0, W, H);
         goldGrad.addColorStop(0, '#2a1a00');
         goldGrad.addColorStop(0.3, '#3a2a10');
@@ -9693,7 +9693,7 @@ function draw() {
           }
         }
         
-        // Gold decorative columns ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â thicker, more ornate
+        // Gold decorative columns — thicker, more ornate
         for (let i = 0; i < 8; i++) {
           const cx2 = W * 0.05 + W * 0.9 * (i/7);
           // Column body
@@ -9726,7 +9726,7 @@ function draw() {
         ctx.fillStyle = '#ffffff04';
         ctx.fillRect(0, H*0.65, W, H*0.35);
         
-        // Grand chandelier ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â detailed
+        // Grand chandelier — detailed
         const chanX = W*0.5, chanY = H*0.02;
         // Chain
         ctx.strokeStyle = '#ffcc4433';
@@ -9801,7 +9801,7 @@ function draw() {
         ctx.drawImage(bossIntroImg, tx - tSize/2, H * 0.16 + (1-tEase)*60, tSize, imgH(bossIntroImg, tSize));
         ctx.shadowBlur = 0;
         
-        // Ornate gold desk ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â larger, with more items
+        // Ornate gold desk — larger, with more items
         ctx.fillStyle = '#3a2810';
         ctx.fillRect(W*0.52, H*0.48, W*0.38, H*0.14);
         ctx.strokeStyle = '#ffcc4433';
@@ -9819,7 +9819,7 @@ function draw() {
         ctx.fillRect(W*0.86, H*0.44, 22, 35); // pen holder
         ctx.fillStyle = '#332208';
         ctx.fillRect(W*0.86, H*0.44, 22, 5); // pen holder rim
-        // Gold nameplate ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â bigger
+        // Gold nameplate — bigger
         ctx.fillStyle = '#ffcc4430';
         ctx.fillRect(W*0.55, H*0.50, 70, 12);
         ctx.fillStyle = '#ffdd88';
@@ -9894,11 +9894,11 @@ function draw() {
         ctx.restore();
       }
       
-      // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â SCENE 4 (0.24-0.34): Musk at SpaceX lab ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
+      // ═══ SCENE 4 (0.24-0.34): Musk at SpaceX lab ═══
       if (prog >= 0.24 && prog < 0.34) {
         const sp = (prog - 0.24) / 0.1;
         ctx.save();
-        // Tech lab background ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â blue-tinted
+        // Tech lab background — blue-tinted
         const techGrad = ctx.createLinearGradient(0, 0, W, H);
         techGrad.addColorStop(0, '#000a1a');
         techGrad.addColorStop(0.3, '#001133');
@@ -9921,7 +9921,7 @@ function draw() {
           ctx.beginPath(); ctx.arc(px + W/6 - 7, H - 12, 3, 0, Math.PI*2); ctx.fill();
         }
         
-        // Holographic grid lines ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â with perspective
+        // Holographic grid lines — with perspective
         ctx.strokeStyle = '#4488ff0a';
         ctx.lineWidth = 1;
         for (let i = 0; i < 30; i++) {
@@ -9941,7 +9941,7 @@ function draw() {
           ctx.fillRect(dsx, 0, 2, H);
         }
         
-        // Floor ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â tech lab metal
+        // Floor — tech lab metal
         ctx.fillStyle = '#060e1a';
         ctx.fillRect(0, H*0.7, W, H*0.3);
         ctx.strokeStyle = '#4488ff08';
@@ -9967,7 +9967,7 @@ function draw() {
         ctx.textAlign = 'center';
         ctx.fillText('SPACEX HQ - CLASSIFIED LABORATORY LVL.7', W/2, H*0.05 + 20);
         
-        // Main holographic display ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â bigger, more detailed
+        // Main holographic display — bigger, more detailed
         ctx.fillStyle = '#001020';
         ctx.fillRect(W*0.05, H*0.15, W*0.35, H*0.48);
         ctx.strokeStyle = '#4488ff55';
@@ -9979,7 +9979,7 @@ function draw() {
         ctx.fillStyle = '#4488ff';
         ctx.font = '8px monospace';
         ctx.textAlign = 'left';
-        ctx.fillText('ÃƒÂ¢Ã¢â‚¬â€œÃ‚Â  NEURALINK COMBAT SYS v4.2.0', W*0.07, H*0.15 + 12);
+        ctx.fillText('■ NEURALINK COMBAT SYS v4.2.0', W*0.07, H*0.15 + 12);
         // Screen power indicator
         ctx.fillStyle = '#44ff88';
         ctx.beginPath(); ctx.arc(W*0.38, H*0.15 + 9, 3, 0, Math.PI*2); ctx.fill();
@@ -10002,7 +10002,7 @@ function draw() {
         }
         ctx.globalAlpha = 1;
         
-        // Secondary monitor ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â smaller
+        // Secondary monitor — smaller
         ctx.fillStyle = '#001020';
         ctx.fillRect(W*0.05, H*0.66, W*0.17, H*0.14);
         ctx.strokeStyle = '#4488ff33';
@@ -10019,7 +10019,7 @@ function draw() {
         }
         ctx.stroke();
         
-        // Musk ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â larger, with control panel glow
+        // Musk — larger, with control panel glow
         const mSize = Math.min(W * 0.24, 170);
         ctx.globalAlpha = Math.min(1, sp * 2);
         ctx.shadowColor = '#4488ff';
@@ -10027,7 +10027,7 @@ function draw() {
         ctx.drawImage(muskImg, W * 0.65 - mSize/2, H * 0.15, mSize, imgH(muskImg, mSize));
         ctx.shadowBlur = 0;
         
-        // Robot arm behind Musk ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â articulated
+        // Robot arm behind Musk — articulated
         if (sp > 0.2) {
           ctx.strokeStyle = '#4488ff44';
           ctx.lineWidth = 4;
@@ -10067,7 +10067,7 @@ function draw() {
           ctx.fillStyle = '#88ccff';
           ctx.font = `italic ${Math.min(18, W*0.025)}px monospace`;
           ctx.fillText('*encrypted transmission received*', W/2, H * 0.8);
-          // Notification popup ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â more detailed
+          // Notification popup — more detailed
           ctx.fillStyle = '#001a33ee';
           ctx.fillRect(W*0.3, H*0.84, W*0.4, 48);
           ctx.strokeStyle = '#4488ff44';
@@ -10075,12 +10075,12 @@ function draw() {
           // Warning icon
           ctx.fillStyle = '#ff8844';
           ctx.font = 'bold 14px monospace';
-          ctx.fillText('ÃƒÂ¢Ã…Â¡Ã‚Â ', W*0.33, H*0.84 + 20);
+          ctx.fillText('⚠', W*0.33, H*0.84 + 20);
           ctx.fillStyle = '#4488ff';
           ctx.font = '9px monospace';
           ctx.fillText('FROM: [REDACTED] | PRIORITY: OMEGA', W/2, H*0.84 + 16);
           ctx.fillStyle = '#88ccff';
-          ctx.fillText('CABAL_REGROUP.exe ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â DECRYPT & EXECUTE?', W/2, H*0.84 + 30);
+          ctx.fillText('CABAL_REGROUP.exe — DECRYPT & EXECUTE?', W/2, H*0.84 + 30);
           ctx.fillStyle = '#44ff88';
           ctx.font = '8px monospace';
           ctx.fillText('[Y] CONFIRM    [N] DENY', W/2, H*0.84 + 42);
@@ -10120,11 +10120,11 @@ function draw() {
         ctx.restore();
       }
       
-      // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â SCENE 5 (0.34-0.44): Clinton in political office ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
+      // ═══ SCENE 5 (0.34-0.44): Clinton in political office ═══
       if (prog >= 0.34 && prog < 0.44) {
         const sp = (prog - 0.34) / 0.1;
         ctx.save();
-        // Dark red office ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â richer gradient
+        // Dark red office — richer gradient
         const offGrad = ctx.createRadialGradient(W*0.4, H*0.4, 100, W*0.4, H*0.4, H);
         offGrad.addColorStop(0, '#2a0a0a');
         offGrad.addColorStop(0.5, '#1a0505');
@@ -10132,7 +10132,7 @@ function draw() {
         ctx.fillStyle = offGrad;
         ctx.fillRect(0, 0, W, H);
         
-        // Wood paneling ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â detailed with grain
+        // Wood paneling — detailed with grain
         for (let wp = 0; wp < 14; wp++) {
           const wpx = W * (wp/14);
           const wpw = W/14;
@@ -10151,7 +10151,7 @@ function draw() {
           }
         }
         
-        // Bookshelves on back wall ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â detailed books
+        // Bookshelves on back wall — detailed books
         for (let shelf = 0; shelf < 3; shelf++) {
           const shelfY = H*0.12 + shelf * H*0.18;
           // Shelf board
@@ -10169,7 +10169,7 @@ function draw() {
           }
         }
         
-        // Carpet floor ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â dark red
+        // Carpet floor — dark red
         ctx.fillStyle = '#1a0808';
         ctx.fillRect(0, H*0.68, W, H*0.32);
         // Carpet pattern
@@ -10181,7 +10181,7 @@ function draw() {
           }
         }
         
-        // Fireplace on right wall ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â with flickering fire
+        // Fireplace on right wall — with flickering fire
         ctx.fillStyle = '#1a0a0a';
         ctx.fillRect(W*0.02, H*0.28, W*0.14, H*0.35);
         ctx.fillStyle = '#120606';
@@ -10227,7 +10227,7 @@ function draw() {
         ctx.textAlign = 'center';
         ctx.fillText('UNDISCLOSED LOCATION - WASHINGTON, D.C.', W/2, H*0.05 + 20);
         
-        // Clinton portrait ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â larger
+        // Clinton portrait — larger
         const cSize = Math.min(W * 0.25, 175);
         ctx.globalAlpha = Math.min(1, sp * 2);
         ctx.shadowColor = '#cc2222';
@@ -10235,7 +10235,7 @@ function draw() {
         ctx.drawImage(clintonImg, W * 0.38 - cSize/2, H * 0.15, cSize, imgH(clintonImg, cSize));
         ctx.shadowBlur = 0;
         
-        // Mahogany desk ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â bigger, more items
+        // Mahogany desk — bigger, more items
         ctx.fillStyle = '#2a1515';
         ctx.fillRect(W*0.52, H*0.4, W*0.4, H*0.22);
         ctx.strokeStyle = '#cc222220';
@@ -10257,7 +10257,7 @@ function draw() {
         ctx.fillStyle = lampGlow;
         ctx.fillRect(W*0.78, H*0.25, W*0.2, H*0.3);
         
-        // Scattered classified papers ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â more detailed
+        // Scattered classified papers — more detailed
         for (let d = 0; d < 7; d++) {
           ctx.save();
           ctx.translate(W*0.56 + d*35, H*0.42 + Math.sin(d*2.3)*8);
@@ -10278,7 +10278,7 @@ function draw() {
           ctx.restore();
         }
         
-        // Wine glass ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â more detailed with liquid
+        // Wine glass — more detailed with liquid
         ctx.strokeStyle = '#88333344';
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -10312,7 +10312,7 @@ function draw() {
           ctx.fillStyle = '#ff8888';
           ctx.font = `italic ${Math.min(18, W*0.025)}px monospace`;
           ctx.fillText('*a familiar number appears*', W/2, H * 0.8);
-          // Desk phone ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â more detailed
+          // Desk phone — more detailed
           ctx.fillStyle = '#1a0a0a';
           ctx.fillRect(W*0.76, H*0.43, 35, 22);
           // Handset
@@ -10339,7 +10339,7 @@ function draw() {
             ctx.fillRect(W/2 + m5.width/2 + 2, H*0.82 - 16, 2, 20);
           }
         }
-        // Vignette ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â heavier, moodier
+        // Vignette — heavier, moodier
         ctx.globalAlpha = 0.55;
         const cVig = ctx.createRadialGradient(W*0.4, H*0.4, H*0.2, W*0.4, H*0.4, H*0.8);
         cVig.addColorStop(0, 'rgba(0,0,0,0)');
@@ -10350,7 +10350,7 @@ function draw() {
         ctx.restore();
       }
       
-      // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â SCENE 6 (0.44-0.59): HAWKING ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â THE GRAVE ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
+      // ═══ SCENE 6 (0.44-0.59): HAWKING — THE GRAVE ═══
       if (prog >= 0.44 && prog < 0.59) {
         const sp = (prog - 0.44) / 0.15;
         ctx.save();
@@ -10364,7 +10364,7 @@ function draw() {
         ctx.fillStyle = graveGrad;
         ctx.fillRect(0, 0, W, H);
         
-        // Stars ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â more varied, with shooting star
+        // Stars — more varied, with shooting star
         for (let star = 0; star < 60; star++) {
           const sx = (star * 97.3) % W;
           const sy = (star * 53.7) % (H * 0.45);
@@ -10449,7 +10449,7 @@ function draw() {
           ctx.stroke();
         }
         
-        // Fog near ground ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â thicker, more layers
+        // Fog near ground — thicker, more layers
         const fogY = H * 0.62;
         for (let fg = 0; fg < 10; fg++) {
           const fgx = (fg * W/10 + Math.sin(t*0.3 + fg) * 50) % W;
@@ -10536,7 +10536,7 @@ function draw() {
           }
         }
         
-        // Other graves ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â more varied, with crosses and flowers
+        // Other graves — more varied, with crosses and flowers
         ctx.fillStyle = '#1e1e26';
         for (let g = 0; g < 8; g++) {
           const gx = W * 0.05 + g * W * 0.125;
@@ -10563,7 +10563,7 @@ function draw() {
           }
         }
         
-        // MAIN gravestone ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â center, larger, more detailed
+        // MAIN gravestone — center, larger, more detailed
         const gsX = W/2, gsY = groundY;
         // Shadow behind grave
         ctx.fillStyle = '#0a0a10';
@@ -10593,7 +10593,7 @@ function draw() {
         ctx.fillStyle = '#3a3a44';
         ctx.fillRect(gsX - 3, gsY - 120, 6, 22);
         ctx.fillRect(gsX - 10, gsY - 112, 20, 5);
-        // Engraving ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â more text
+        // Engraving — more text
         ctx.fillStyle = '#606068';
         ctx.font = `bold ${Math.min(12, W*0.016)}px monospace`;
         ctx.textAlign = 'center';
@@ -10708,12 +10708,12 @@ function draw() {
             ctx.fillRect(gsX - 80, 0, 160, gsY);
           }
           
-          // Hawking rising from the ground ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â BIGGER
+          // Hawking rising from the ground — BIGGER
           const riseY = gsY - riseProg * 160;
           const hSize = Math.min(W * 0.25, 180);
           ctx.globalAlpha = Math.min(1, riseProg * 2);
           
-          // Massive ethereal gold aura ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â multi-layered
+          // Massive ethereal gold aura — multi-layered
           for (let aLayer = 0; aLayer < 3; aLayer++) {
             const aRad = hSize * (1.2 + aLayer * 0.5);
             const hAura = ctx.createRadialGradient(gsX, riseY + hSize*0.5, 10, gsX, riseY + hSize*0.5, aRad);
@@ -10726,7 +10726,7 @@ function draw() {
             ctx.fill();
           }
           
-          // The figure ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â triple shadow for ultra glow
+          // The figure — triple shadow for ultra glow
           ctx.shadowColor = '#ffd700';
           ctx.shadowBlur = 50 + riseProg * 60;
           ctx.drawImage(hawkingGoldImg, gsX - hSize/2, riseY, hSize, imgH(hawkingGoldImg, hSize));
@@ -10756,7 +10756,7 @@ function draw() {
             ctx.fillRect((dt * 73) % W, gsY + (dt * 37) % (H*0.3), 1, 1);
           }
           
-          // Dirt/debris flying up ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â MORE pieces, varied sizes
+          // Dirt/debris flying up — MORE pieces, varied sizes
           for (let d = 0; d < 16; d++) {
             const dAngle = (d / 16) * Math.PI * 2 + t * 2;
             const dDist = 30 + d * 12 + Math.sin(t*3 + d) * 15;
@@ -10773,7 +10773,7 @@ function draw() {
           }
           ctx.globalAlpha = 1;
           
-          // Energy rings radiating outward ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â MORE rings
+          // Energy rings radiating outward — MORE rings
           if (riseProg > 0.2) {
             const ringProg = (riseProg - 0.2) / 0.8;
             for (let r = 0; r < 5; r++) {
@@ -10808,7 +10808,7 @@ function draw() {
           }
         }
         
-        // Dialogue ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â dramatic slow burn
+        // Dialogue — dramatic slow burn
         ctx.textAlign = 'center';
         if (sp < 0.15) {
           const locAlpha = Math.min(1, sp * 8);
@@ -10848,7 +10848,7 @@ function draw() {
             const c1 = Math.floor(line1.length * s1);
             ctx.fillText(line1.substring(0, c1), W/2, H * 0.87);
           } else {
-            // Dramatic final line ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â grows larger
+            // Dramatic final line — grows larger
             const s2 = Math.min(1, (riseProg - 0.4) * 3);
             const finalSize = Math.min(36, W*0.048) * (1 + (1-s2)*0.3);
             ctx.font = `bold ${finalSize}px monospace`;
@@ -10860,7 +10860,7 @@ function draw() {
         ctx.restore();
       }
       
-      // ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â SCENE 7 (0.59-1.0): THE CABAL ASSEMBLED ÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚ÂÃƒÂ¢Ã¢â‚¬Â¢Ã‚Â
+      // ═══ SCENE 7 (0.59-1.0): THE CABAL ASSEMBLED ═══
       if (prog >= 0.59) {
         const sp = (prog - 0.59) / 0.41;
         ctx.save();
@@ -10874,7 +10874,7 @@ function draw() {
         ctx.fillStyle = voidGrad;
         ctx.fillRect(0, 0, W, H);
         
-        // Distant stars in void ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â twinkling
+        // Distant stars in void — twinkling
         for (let vs = 0; vs < 80; vs++) {
           const vsx = (vs * 83.7) % W;
           const vsy = (vs * 47.3) % H;
@@ -10890,7 +10890,7 @@ function draw() {
         // 0.12-0.20: Epstein spotlight reveal
         // 0.20-0.28: Musk spotlight reveal
         // 0.28-0.36: Clinton spotlight reveal
-        // 0.36-0.50: Dramatic pause ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Hawking MASSIVE reveal
+        // 0.36-0.50: Dramatic pause → Hawking MASSIVE reveal
         // 0.50-0.65: All 5 assembled, energy connecting
         // 0.65-0.80: "THE FINAL STAND" title card
         // 0.80-1.00: Final dramatic build + info + fade
@@ -10900,7 +10900,7 @@ function draw() {
         const allNames = ['TRUMP','EPSTEIN','MUSK','CLINTON','HAWKING'];
         const allTitles = ['The Tyrant','The Shadow','The Architect','The Schemer','THE MASTERMIND'];
         
-        // Rotating energy vortex ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â builds with each reveal
+        // Rotating energy vortex — builds with each reveal
         const vortexIntensity = Math.min(1, sp * 2);
         ctx.globalAlpha = 0.06 * vortexIntensity;
         for (let ring = 0; ring < 18; ring++) {
@@ -10914,7 +10914,7 @@ function draw() {
         }
         ctx.globalAlpha = 1;
         
-        // Energy rays from center ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â color-coded, build with reveals
+        // Energy rays from center — color-coded, build with reveals
         if (sp > 0.04) {
           const rayAlpha = Math.min(0.08, (sp - 0.04) * 0.2);
           for (let c = 0; c < 15; c++) {
@@ -10930,7 +10930,7 @@ function draw() {
           ctx.globalAlpha = 1;
         }
         
-        // Particle storm ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â builds up
+        // Particle storm — builds up
         const pCount = Math.floor(Math.min(60, sp * 100));
         for (let pp = 0; pp < pCount; pp++) {
           const ppx = (pp * 47.3 + t * (30 + pp%3 * 10)) % W;
@@ -11199,7 +11199,7 @@ function draw() {
           const titleEase = 1 - Math.pow(1 - titleProg, 3);
           ctx.globalAlpha = titleEase;
           
-          // Gradient title bar ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â wider, more dramatic
+          // Gradient title bar — wider, more dramatic
           const barGrad = ctx.createLinearGradient(0, H * 0.62, 0, H * 0.98);
           barGrad.addColorStop(0, 'rgba(0,0,0,0)');
           barGrad.addColorStop(0.08, 'rgba(0,0,0,0.9)');
@@ -11208,7 +11208,7 @@ function draw() {
           ctx.fillStyle = barGrad;
           ctx.fillRect(0, H * 0.62, W, H * 0.36);
           
-          // Gold border lines ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â animated expansion
+          // Gold border lines — animated expansion
           const lineExpand = Math.min(1, titleProg * 2);
           const lineHalf = W * 0.4 * lineExpand;
           ctx.strokeStyle = '#ffdd44';
@@ -11230,7 +11230,7 @@ function draw() {
           }
           ctx.globalAlpha = titleEase;
           
-          // Main title ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â MASSIVE with triple glow
+          // Main title — MASSIVE with triple glow
           ctx.fillStyle = '#ffdd44';
           const titleSize = Math.min(56, W * 0.07) * (1 + (1-titleEase)*0.5);
           ctx.font = `bold ${titleSize}px monospace`;
@@ -11249,7 +11249,7 @@ function draw() {
           ctx.fillText('\u2605 THE FINAL STAND \u2605', W/2, H * 0.74);
           ctx.shadowBlur = 0;
           
-          // Subtitle ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â typewriter effect
+          // Subtitle — typewriter effect
           if (sp > 0.72) {
             const subProg = Math.min(1, (sp - 0.72) / 0.08);
             ctx.globalAlpha = subProg;
@@ -11302,23 +11302,23 @@ function draw() {
         ctx.restore();
       }
       
-      // Scene transition ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â glitch/static effect (ENHANCED with smash cuts)
+      // Scene transition — glitch/static effect (ENHANCED with smash cuts)
       const scenes = [0.03, 0.055, 0.14, 0.24, 0.34, 0.44, 0.59];
       for (const s of scenes) {
         const dist = Math.abs(prog - s);
         if (dist < 0.02) {
           const glitchIntensity = 1 - dist / 0.02;
-          // Hard white flash ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â SMASH CUT
+          // Hard white flash — SMASH CUT
           ctx.fillStyle = `rgba(255,255,255,${glitchIntensity * 0.7})`;
           ctx.fillRect(0, 0, W, H);
-          // Glitch bars ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â more and wider
+          // Glitch bars — more and wider
           for (let gb = 0; gb < 12; gb++) {
             const gy = Math.random() * H;
             const gHt = 2 + Math.random() * 15;
             ctx.fillStyle = `rgba(${Math.random()>0.5?255:0},${Math.random()>0.5?255:0},${Math.random()>0.5?255:0},${glitchIntensity * 0.4})`;
             ctx.fillRect(0, gy, W, gHt);
           }
-          // Horizontal shift ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â more dramatic
+          // Horizontal shift — more dramatic
           if (glitchIntensity > 0.3) {
             for (let sl = 0; sl < 3; sl++) {
               const slice = Math.floor(Math.random() * H);
@@ -11345,7 +11345,7 @@ function draw() {
         }
       }
       
-      // Heartbeat pulse overlay ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â intensifies near end
+      // Heartbeat pulse overlay — intensifies near end
       const heartRate = prog > 0.5 ? 5.0 : 3.5;
       const heartbeat = Math.pow(Math.sin(t * heartRate), 20);
       if (heartbeat > 0.1) {
@@ -11357,7 +11357,7 @@ function draw() {
       // Close global zoom transform
       ctx.restore();
       
-      // Vignette overlay ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gets darker toward edges as tension builds
+      // Vignette overlay — gets darker toward edges as tension builds
       const vigIntensity = 0.3 + prog * 0.4;
       const vigGrad = ctx.createRadialGradient(W/2, H/2, W*0.25, W/2, H/2, W*0.75);
       vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
@@ -11366,13 +11366,13 @@ function draw() {
       ctx.fillStyle = vigGrad;
       ctx.fillRect(0, 0, W, H);
       
-      // Letterbox bars throughout ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â animated slide in, THICKER for cinematic feel
+      // Letterbox bars throughout — animated slide in, THICKER for cinematic feel
       const barSlide = Math.min(1, prog * 8);
       const actualBarH = (barH + 15) * barSlide;
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, W, actualBarH);
       ctx.fillRect(0, H - actualBarH, W, actualBarH);
-      // Gold trim with glow ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â double lines
+      // Gold trim with glow — double lines
       if (actualBarH > 2) {
         ctx.fillStyle = '#ffdd4422';
         ctx.fillRect(0, actualBarH - 2, W, 2);
@@ -11380,7 +11380,7 @@ function draw() {
         ctx.fillStyle = '#ffdd4411';
         ctx.fillRect(0, actualBarH - 4, W, 1);
         ctx.fillRect(0, H - actualBarH + 2, W, 1);
-        // Moving gold accent ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â TWO accents moving opposite directions
+        // Moving gold accent — TWO accents moving opposite directions
         const accentX = (t * 80) % W;
         const accentX2 = (W - (t * 120) % W);
         ctx.fillStyle = '#ffdd4455';
@@ -11406,7 +11406,7 @@ function draw() {
         ctx.fillRect(W * 0.3, actualBarH - 5, W * 0.4 * scProgress, 2);
       }
       
-      // Film grain overlay ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â more grain
+      // Film grain overlay — more grain
       ctx.globalAlpha = 0.04;
       for (let gg = 0; gg < 350; gg++) {
         const gx = Math.random() * W;
@@ -11431,7 +11431,7 @@ function draw() {
         ctx.fillRect(0, 0, W, H);
       }
       
-      // Skip hint ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â fading in
+      // Skip hint — fading in
       if (prog > 0.05) {
         ctx.fillStyle = `rgba(255,255,255,${Math.min(0.25, (prog-0.05)*0.4)})`;
         ctx.font = '10px monospace';
@@ -11463,7 +11463,7 @@ function draw() {
     ctx.textAlign = 'left';
     ctx.fillText(`\u2764 ${player.hp}/${player.maxHp}`, 28, 29);
 
-    // Mini-boss HP bars at top ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â show remaining count
+    // Mini-boss HP bars at top — show remaining count
     const alive = miniBosses.filter(m => !m.dead);
     const total = miniBosses.length;
     const miniBossW = Math.min(400, W - 260);
@@ -11475,7 +11475,7 @@ function draw() {
     ctx.shadowColor = '#ff4400';
     ctx.shadowBlur = 8;
     const othersUp = miniBosses.filter(m => !m.dead && m.name !== 'HAWKING').length;
-    const statusText = hawkingPhase2 ? 'ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ HAWKING TRANSCENDED ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦' : (othersUp === 0 ? 'ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦ HAWKING EXPOSED ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦' : `DEFEAT THEM ALL  (${total - alive.length}/${total})`);
+    const statusText = hawkingPhase2 ? '★★ HAWKING TRANSCENDED ★★' : (othersUp === 0 ? '★ HAWKING EXPOSED ★' : `DEFEAT THEM ALL  (${total - alive.length}/${total})`);
     ctx.fillStyle = hawkingPhase2 ? '#ffd700' : (othersUp === 0 ? '#44ff88' : '#ff8844');
     ctx.fillText(statusText, W/2, 19);
     ctx.shadowBlur = 0;
@@ -11497,7 +11497,7 @@ function draw() {
       ctx.fillStyle = '#fff';
       ctx.font = '6px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(isShielded ? 'ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡' + mb.name : mb.name, bx + 25, 33);
+      ctx.fillText(isShielded ? '🛡' + mb.name : mb.name, bx + 25, 33);
     });
 
     // Touch controls
@@ -11509,7 +11509,7 @@ function draw() {
     ctx.fillText(_isTouchDev ? 'Defeat them all!' : 'Defeat them all!  |  Click/F Throw  |  \u2190 \u2192 Move  |  \u2191/Space Jump', W / 2, H - 10);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Cutscene Drawing ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Cutscene Drawing ──
   if (state === 'cutscene') {
     // Black overlay fading in
     ctx.fillStyle = `rgba(0, 0, 0, ${cutscene.fadeAlpha})`;
@@ -11639,13 +11639,13 @@ function draw() {
       ctx.fillStyle = '#ccc';
       ctx.font = 'bold 14px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('SKIP ÃƒÂ¢Ã¢â‚¬â€œÃ‚Â¶ÃƒÂ¢Ã¢â‚¬â€œÃ‚Â¶', W - 60, 30);
+      ctx.fillText('SKIP ▶▶', W - 60, 30);
     }
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Boss Mid-Fight Dialogue Drawing ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Boss Mid-Fight Dialogue Drawing ──
   if (state === 'bossdialogue' && bossDialogue.active) {
-    // Semi-transparent overlay ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â arena stays visible behind
+    // Semi-transparent overlay — arena stays visible behind
     ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
     ctx.fillRect(0, 0, W, H);
 
@@ -11733,7 +11733,7 @@ function draw() {
           ctx.fillStyle = '#888';
           ctx.font = '12px monospace';
           ctx.textAlign = 'right';
-          ctx.fillText(_isTouchDev ? '[ Tap ÃƒÂ¢Ã¢â‚¬â€œÃ‚Â¸ ]' : '[ Click / SPACE ÃƒÂ¢Ã¢â‚¬â€œÃ‚Â¸ ]', boxX + boxW - 15, boxY + boxH - 12);
+          ctx.fillText(_isTouchDev ? '[ Tap ▸ ]' : '[ Click / SPACE ▸ ]', boxX + boxW - 15, boxY + boxH - 12);
         }
       }
     }
@@ -11759,9 +11759,9 @@ function draw() {
     ctx.fillText('SKIP \u25b6\u25b6', W - 60, 28);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Screens ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Screens ──
   
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ CINEMATIC INTRO ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── CINEMATIC INTRO ──
   if (state === 'intro') {
     // Phase 0: Pure black
     if (introPhase === 0) {
@@ -11857,7 +11857,7 @@ function draw() {
         ctx.globalAlpha = hintAlpha * 0.6;
         ctx.font = '13px monospace';
         ctx.fillStyle = '#888';
-        ctx.fillText(_isTouchDev ? 'Use on-screen controls to play' : 'Arrow Keys / WASD to move Ãƒâ€šÃ‚Â· Space / Up to jump Ãƒâ€šÃ‚Â· F to throw', W/2, H/2 + 60);
+        ctx.fillText(_isTouchDev ? 'Use on-screen controls to play' : 'Arrow Keys / WASD to move · Space / Up to jump · F to throw', W/2, H/2 + 60);
         ctx.globalAlpha = 1;
       }
     }
@@ -11929,7 +11929,7 @@ function draw() {
         ctx.shadowColor = '#88ff88';
         ctx.shadowBlur = 40;
         ctx.fillStyle = '#88ff88';
-        ctx.fillText('Ãƒâ€šÃ‚Â¡VAMOS!', 0, 0);
+        ctx.fillText('¡VAMOS!', 0, 0);
         ctx.shadowBlur = 0;
         ctx.restore();
       }
@@ -11947,10 +11947,10 @@ function draw() {
     }
   }
 
-  } // end if (state !== 'menu') ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â skip game-world rendering
+  } // end if (state !== 'menu') — skip game-world rendering
   
   if (state === 'menu') {
-    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ ANIMATED BACKGROUND (Geometry Dash style) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    // ── ANIMATED BACKGROUND (Geometry Dash style) ──
     // Dark desert sky bg
     const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
     bgGrad.addColorStop(0, '#0a0515');
@@ -12014,7 +12014,7 @@ function draw() {
       ctx.globalAlpha = 1;
     }
 
-    // Draw a guard shooter on the right side ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â REMOVED
+    // Draw a guard shooter on the right side — REMOVED
     
     // Foreground overlay
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
@@ -12022,7 +12022,7 @@ function draw() {
     
     ctx.textAlign = 'center';
     
-    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ TITLE with glow effect ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    // ── TITLE with glow effect ──
     const titlePulse = 1 + Math.sin(Date.now() / 600) * 0.03;
     ctx.save();
     ctx.translate(W/2, H * 0.18);
@@ -12040,7 +12040,7 @@ function draw() {
     // Subtitle
     ctx.fillStyle = '#cc6644';
     ctx.font = `${Math.min(16, W * 0.022)}px monospace`;
-    ctx.fillText('Cross the Border Ãƒâ€šÃ‚Â· Fight the Power Ãƒâ€šÃ‚Â· Survive', W/2, H * 0.24);
+    ctx.fillText('Cross the Border · Fight the Power · Survive', W/2, H * 0.24);
     
     // Decorative line
     const lineW2 = 300;
@@ -12051,7 +12051,7 @@ function draw() {
     ctx.lineTo(W/2 + lineW2/2, H * 0.27);
     ctx.stroke();
     
-    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ MENU OPTIONS ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    // ── MENU OPTIONS ──
     // Helper: draw custom menu icons
     function drawMenuIcon(type, x, y, size, color) {
       ctx.save();
@@ -12085,7 +12085,7 @@ function draw() {
         ctx.lineTo(x + s*0.2, y + s*0.1);
         ctx.stroke();
       } else if (type === 'settings') {
-        // Gear ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â circle with teeth
+        // Gear — circle with teeth
         ctx.beginPath();
         ctx.arc(x, y, s*0.25, 0, Math.PI*2);
         ctx.stroke();
@@ -12310,19 +12310,19 @@ function draw() {
       ctx.font = '10px monospace';
       ctx.fillText('v3.0', W/2, H * 0.94);
 
-      // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ CAMPAIGN MODE COMING SOON TEASER ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+      // ── CAMPAIGN MODE COMING SOON TEASER ──
       const campaignPulse = 0.7 + Math.sin(Date.now() / 800) * 0.3;
       ctx.globalAlpha = campaignPulse;
       ctx.fillStyle = '#ffaa00';
       ctx.font = 'bold 13px monospace';
       ctx.shadowColor = '#ff880088';
       ctx.shadowBlur = 10;
-      ctx.fillText('CAMPAIGN MODE ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â COMING SOON', W / 2, H * 0.97);
+      ctx.fillText('CAMPAIGN MODE — COMING SOON', W / 2, H * 0.97);
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
       
     } else if (menuState === 'multiplayer') {
-      // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ MULTIPLAYER SCREEN ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+      // ── MULTIPLAYER SCREEN ──
       ctx.fillStyle = '#44bbff';
       ctx.font = 'bold 28px monospace';
       ctx.fillText('MULTIPLAYER', W/2, H * 0.28);
@@ -12410,7 +12410,7 @@ function draw() {
       ctx.fillText(_isTouchDev ? '< Tap to go back' : 'ESC to go back', W/2, H * 0.92);
       
     } else if (menuState === 'account') {
-      // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ ACCOUNT SCREEN (Login / Register) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+      // ── ACCOUNT SCREEN (Login / Register) ──
       ctx.fillStyle = '#44bbff';
       ctx.font = 'bold 26px monospace';
       ctx.fillText(authScreen === 'register' ? 'CREATE ACCOUNT' : 'LOGIN', W/2, H * 0.28);
@@ -12507,12 +12507,12 @@ function draw() {
       ctx.fillText(_isTouchDev ? '< Tap to go back' : 'ESC to go back', W/2, H * 0.94);
       
     } else if (menuState === 'lobby') {
-      // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ LOBBY SCREEN ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+      // ── LOBBY SCREEN ──
       ctx.fillStyle = '#44bbff';
       ctx.font = 'bold 22px monospace';
       ctx.fillText('LOBBY', W/2, H * 0.06);
       
-      // Room code ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â displayed prominently with background
+      // Room code — displayed prominently with background
       const rcText = 'Room: ' + (currentRoom || '???');
       ctx.fillStyle = '#00000066';
       const rcW = ctx.measureText(rcText).width + 30;
@@ -12646,7 +12646,7 @@ function draw() {
       ctx.fillText('< LEAVE', 60, 28);
       
     } else if (menuState === 'friends') {
-      // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ FRIENDS SCREEN ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+      // ── FRIENDS SCREEN ──
       ctx.fillStyle = '#88ccff';
       ctx.font = 'bold 26px monospace';
       ctx.fillText('FRIENDS', W/2, H * 0.18);
@@ -12781,7 +12781,7 @@ function draw() {
       }
       
     } else if (menuState === 'difficulty') {
-      // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ DIFFICULTY SCREEN ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+      // ── DIFFICULTY SCREEN ──
       ctx.fillStyle = '#f0c040';
       ctx.font = 'bold 28px monospace';
       drawMenuIcon('difficulty', W/2 - 130, H * 0.32 - 4, 22, '#f0c040');
@@ -12840,7 +12840,7 @@ function draw() {
       ctx.fillText(_isTouchDev ? 'Tap to select' : 'Click / ENTER to select -- ESC to go back', W/2, H * 0.88);
       
     } else if (menuState === 'settings') {
-      // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ SETTINGS SCREEN ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+      // ── SETTINGS SCREEN ──
       ctx.fillStyle = '#f0c040';
       ctx.font = 'bold 28px monospace';
       drawMenuIcon('settings', W/2 - 100, H * 0.28 - 4, 22, '#f0c040');
@@ -12902,7 +12902,7 @@ function draw() {
       ctx.fillText(_isTouchDev ? 'Tap to toggle' : 'Click / ENTER to toggle -- ESC Back', W/2, H * 0.88);
       
     } else if (menuState === 'touchcontrols') {
-      // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ TOUCH CONTROLS CUSTOMIZATION ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+      // ── TOUCH CONTROLS CUSTOMIZATION ──
       ctx.fillStyle = '#88ddff';
       ctx.font = 'bold 24px monospace';
       ctx.fillText('TOUCH CONTROLS', W/2, H * 0.12);
@@ -12963,7 +12963,7 @@ function draw() {
       ctx.font = 'bold 14px monospace';
       ctx.fillText('<- BACK', W/2, backY + 4);
 
-      // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ PREVIEW: Draw joystick positions at bottom ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+      // ── PREVIEW: Draw joystick positions at bottom ──
       const pvTop = H * 0.7;
       const pvH = H - pvTop - 10;
       ctx.fillStyle = '#111';
@@ -13012,7 +13012,7 @@ function draw() {
       ctx.fillText(_isTouchDev ? 'Tap preset or drag joysticks' : 'Click preset or drag joysticks -- ESC Back', W/2, H * 0.97);
 
     } else if (menuState === 'controls') {
-      // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ CONTROLS SCREEN ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+      // ── CONTROLS SCREEN ──
       ctx.fillStyle = '#f0c040';
       ctx.font = 'bold 28px monospace';
       drawMenuIcon('controls', W/2 - 110, H * 0.28 - 4, 22, '#f0c040');
@@ -13057,7 +13057,7 @@ function draw() {
       ctx.fillText(_isTouchDev ? 'Tap anywhere to go back' : 'Click anywhere / ESC / ENTER to go back', W/2, H * 0.88);
       
     } else if (menuState === 'credits') {
-      // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ CREDITS SCREEN ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+      // ── CREDITS SCREEN ──
       ctx.fillStyle = '#f0c040';
       ctx.font = 'bold 28px monospace';
       drawMenuIcon('credits', W/2 - 100, H * 0.22 - 4, 22, '#f0c040');
@@ -13096,7 +13096,7 @@ function draw() {
       ctx.font = '12px monospace';
       ctx.fillText(_isTouchDev ? 'Tap anywhere to go back' : 'Click anywhere / ESC / ENTER to go back', W/2, H * 0.88);
     } else if (menuState === 'cheats') {
-      // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ CHEATS SCREEN ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+      // ── CHEATS SCREEN ──
       ctx.fillStyle = '#ff4444';
       ctx.font = 'bold 28px monospace';
       ctx.textAlign = 'center';
@@ -13226,7 +13226,7 @@ function draw() {
     }
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ TUTORIAL SCREEN ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── TUTORIAL SCREEN ──
   if (state === 'tutorial') {
     // Draw same bg as menu
     ctx.fillStyle = '#0a0515';
@@ -13341,15 +13341,15 @@ function draw() {
     const blink3 = Math.sin(Date.now() / 300) > 0;
     if (blink3) {
       if (tutorialPage < 4) {
-        ctx.fillText(_isTouchDev ? '[ TAP ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Next ]' : '[ SPACE / ENTER ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Next ]', W/2, H * 0.82);
+        ctx.fillText(_isTouchDev ? '[ TAP → Next ]' : '[ SPACE / ENTER → Next ]', W/2, H * 0.82);
       } else {
-        ctx.fillText(_isTouchDev ? '[ TAP ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ START GAME! ]' : '[ SPACE / ENTER ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ START GAME! ]', W/2, H * 0.82);
+        ctx.fillText(_isTouchDev ? '[ TAP → START GAME! ]' : '[ SPACE / ENTER → START GAME! ]', W/2, H * 0.82);
       }
     }
     if (tutorialPage > 0) {
       ctx.fillStyle = '#888';
       ctx.font = '13px monospace';
-      ctx.fillText(_isTouchDev ? 'ÃƒÂ¢Ã¢â‚¬Â Ã‚Â Tap left side' : 'ÃƒÂ¢Ã¢â‚¬Â Ã‚Â Previous', W/2 - 160, H * 0.82);
+      ctx.fillText(_isTouchDev ? '← Tap left side' : '← Previous', W/2 - 160, H * 0.82);
     }
     ctx.fillStyle = '#555';
     ctx.font = '11px monospace';
@@ -13363,11 +13363,11 @@ function draw() {
     ctx.fillStyle = '#44ff88';
     ctx.font = 'bold 40px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('Ãƒâ€šÃ‚Â¡LO LOGRASTE!', W / 2, H / 2 - 60);
+    ctx.fillText('¡LO LOGRASTE!', W / 2, H / 2 - 60);
 
     ctx.fillStyle = '#ffdd44';
     ctx.font = '18px monospace';
-    ctx.fillText('You made it across the border! Ãƒâ€šÃ‚Â¡Bienvenido!', W / 2, H / 2 - 25);
+    ctx.fillText('You made it across the border! ¡Bienvenido!', W / 2, H / 2 - 25);
 
     if (settings.showTimer) {
       ctx.fillStyle = '#aaa';
@@ -13410,13 +13410,13 @@ function draw() {
         ctx.fillText(`Retry votes: ${retryCount}/${totalPlayers}`, W/2, btnY + 68);
         if (mpRetryVotes[myUid()]) {
           ctx.fillStyle = '#88ff88';
-          ctx.fillText('ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“ You voted to retry', W/2, btnY + 86);
+          ctx.fillText('✓ You voted to retry', W/2, btnY + 86);
         }
       }
     }
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ DEATH ANIMATION (video soul shatter) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── DEATH ANIMATION (video soul shatter) ──
   if (state === 'deathAnim') {
     // Full black background
     ctx.fillStyle = '#000';
@@ -13442,14 +13442,14 @@ function draw() {
     ctx.fillStyle = '#ff4444';
     ctx.font = 'bold 36px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('Ãƒâ€šÃ‚Â¡ATRAPADO!', W / 2, H / 2 - 60);
+    ctx.fillText('¡ATRAPADO!', W / 2, H / 2 - 60);
 
     ctx.fillStyle = '#ccc';
     ctx.font = '16px monospace';
     if (mpEnabled) {
       ctx.fillText('All players have been caught!', W / 2, H / 2 - 25);
     } else {
-      ctx.fillText('La migra te atrapÃƒÆ’Ã‚Â³! Border patrol got you!', W / 2, H / 2 - 25);
+      ctx.fillText('La migra te atrapó! Border patrol got you!', W / 2, H / 2 - 25);
     }
 
     ctx.fillStyle = '#888';
@@ -13489,7 +13489,7 @@ function draw() {
         ctx.fillText(`Retry votes: ${retryCount}/${totalPlayers}`, W/2, btnY + 68);
         if (mpRetryVotes[myUid()]) {
           ctx.fillStyle = '#88ff88';
-          ctx.fillText('ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“ You voted to retry', W/2, btnY + 86);
+          ctx.fillText('✓ You voted to retry', W/2, btnY + 86);
         }
       }
     }
@@ -13501,11 +13501,11 @@ function draw() {
     ctx.fillRect(0, 0, W, 50);
     ctx.fillRect(0, H - 48, W, 48);
 
-    // Top bar ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â "SPECTATING" label + player name
+    // Top bar — "SPECTATING" label + player name
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ff6666';
     ctx.font = 'bold 14px monospace';
-    ctx.fillText('ÃƒÂ¢Ã‹Å“Ã‚Â  YOU DIED ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â SPECTATING ÃƒÂ¢Ã‹Å“Ã‚Â ', W / 2, 18);
+    ctx.fillText('☠ YOU DIED — SPECTATING ☠', W / 2, 18);
 
     const aliveList = getAlivePlayerList();
     let targetName = '???';
@@ -13516,7 +13516,7 @@ function draw() {
     ctx.font = 'bold 16px monospace';
     ctx.fillText(targetName, W / 2, 40);
 
-    // Bottom bar ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â controls hint + alive count
+    // Bottom bar — controls hint + alive count
     if (_isTouchDev && aliveList.length > 1) {
       // Draw tappable arrow buttons for touch users
       ctx.fillStyle = '#ffffff22';
@@ -13525,13 +13525,13 @@ function draw() {
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 28px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('ÃƒÂ¢Ã¢â‚¬â€Ã¢â€šÂ¬', 45, H - 16);
-      ctx.fillText('ÃƒÂ¢Ã¢â‚¬â€œÃ‚Â¶', W - 45, H - 16);
+      ctx.fillText('◀', 45, H - 16);
+      ctx.fillText('▶', W - 45, H - 16);
     }
     ctx.textAlign = 'center';
     ctx.fillStyle = '#aaaaaa';
     ctx.font = '12px monospace';
-    ctx.fillText(_isTouchDev ? 'TAP ARROWS TO SWITCH' : 'ÃƒÂ¢Ã¢â‚¬Â Ã‚Â A / D ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ to switch players', W / 2, H - 30);
+    ctx.fillText(_isTouchDev ? 'TAP ARROWS TO SWITCH' : '← A / D → to switch players', W / 2, H - 30);
     ctx.fillStyle = '#88ff88';
     ctx.font = '11px monospace';
     ctx.fillText(`${aliveList.length} player${aliveList.length !== 1 ? 's' : ''} alive`, W / 2, H - 12);
@@ -13539,8 +13539,8 @@ function draw() {
 
   ctx.restore();
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ OVERLAY HUD (outside camera transform) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
-  // FPS counter ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â positioned below HP bar to avoid overlap
+  // ── OVERLAY HUD (outside camera transform) ──
+  // FPS counter — positioned below HP bar to avoid overlap
   if (settings.showFPS) {
     if (!window._fpsData) window._fpsData = { frames: 0, last: Date.now(), fps: 60 };
     window._fpsData.frames++;
@@ -13557,7 +13557,7 @@ function draw() {
     ctx.fillText(`FPS: ${window._fpsData.fps}`, 10, fpsY);
   }
   
-  // Game timer display ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â positioned below boss bar / fullscreen btn to avoid overlap
+  // Game timer display — positioned below boss bar / fullscreen btn to avoid overlap
   if (settings.showTimer && (state === 'playing' || state === 'bossfight' || state === 'epsteinfight' || state === 'fusionfight' || state === 'splitfight')) {
     const mins = Math.floor(gameTimer / 3600);
     const secs = Math.floor((gameTimer % 3600) / 60);
@@ -13574,10 +13574,10 @@ function draw() {
     ctx.fillStyle = jumpColor;
     ctx.font = '11px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`Jumps: ${'ÃƒÂ¢Ã¢â‚¬â€Ã‚Â'.repeat(player.jumpsLeft)}${'ÃƒÂ¢Ã¢â‚¬â€Ã¢â‚¬Â¹'.repeat(player.maxJumps - player.jumpsLeft)}`, _isTouchDev ? getMoveCenterX() - 30 : 10, _isTouchDev ? getMoveCenterY() - getMoveRadius() - 35 : H - 15);
+    ctx.fillText(`Jumps: ${'●'.repeat(player.jumpsLeft)}${'○'.repeat(player.maxJumps - player.jumpsLeft)}`, _isTouchDev ? getMoveCenterX() - 30 : 10, _isTouchDev ? getMoveCenterY() - getMoveRadius() - 35 : H - 15);
   }
 
-  // Cheats active indicator ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â positioned to avoid boss HP bars
+  // Cheats active indicator — positioned to avoid boss HP bars
   const activeCheats = Object.entries(cheats).filter(([k,v]) => v);
   if (activeCheats.length > 0 && state !== 'menu') {
     ctx.save();
@@ -13601,7 +13601,7 @@ function draw() {
     ctx.restore();
   }
 
-  // Fullscreen button (always visible, top-right) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â 44x44 for touch
+  // Fullscreen button (always visible, top-right) — 44x44 for touch
   const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
   ctx.save();
   ctx.globalAlpha = 0.5;
@@ -13653,7 +13653,7 @@ function draw() {
     ctx.restore();
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Performance Mode Prompt (iPad/mobile) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ── Performance Mode Prompt (iPad/mobile) ──
   if (_showPerfPrompt) {
     ctx.save();
     ctx.globalAlpha = 0.7;
@@ -13671,7 +13671,7 @@ function draw() {
     ctx.fillStyle = '#f0c040';
     ctx.font = 'bold 20px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â± Performance Mode', W/2, by + 40);
+    ctx.fillText('📱 Performance Mode', W/2, by + 40);
     ctx.fillStyle = '#ccc';
     ctx.font = '14px monospace';
     ctx.fillText('We detected you\'re on a', W/2, by + 75);
