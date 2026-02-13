@@ -96,7 +96,10 @@ muskImg.src = 'guard4_new.png';
 const girlImg = new Image();
 girlImg.src = 'girl.png';
 const epProjectileImgs = []; // filled after load
-function setupEpImgs() { epProjectileImgs.push(epsteinFilesImg, hawkingImg, clintonImg, muskImg, girlImg); }
+function setupEpImgs() {
+  if (epProjectileImgs.length > 0) return; // prevent duplicate pushes on retry
+  epProjectileImgs.push(epsteinFilesImg, hawkingImg, clintonImg, muskImg, girlImg);
+}
 setTimeout(setupEpImgs, 500);
 
 // Helper: get image height for a given width, preserving aspect ratio (fallback 1.3x)
@@ -764,11 +767,17 @@ async function joinRoom(code) {
   }
 }
 
-// Keep a stable guest ID
+// Keep a stable guest ID — persist across refresh via sessionStorage
 let _myUid = null;
 function myUid() {
   if (currentUser) return currentUser.uid;
-  if (!_myUid) _myUid = 'guest_' + Math.floor(Math.random() * 99999);
+  if (!_myUid) {
+    _myUid = sessionStorage.getItem('guestUid');
+    if (!_myUid) {
+      _myUid = 'guest_' + Math.floor(Math.random() * 99999);
+      sessionStorage.setItem('guestUid', _myUid);
+    }
+  }
   return _myUid;
 }
 
@@ -1206,9 +1215,17 @@ function applyEnemyData() {
   if (d.boss) {
     if (!boss) {
       boss = { frameTimer: 0, phaseTriggered2: false, phaseTriggered3: false,
-        attackTimer: 0, currentAttack: 'shoot', summonCooldown: 300, shootCooldown: 50 };
+        attackTimer: 0, currentAttack: 'shoot', summonCooldown: 300, shootCooldown: 50,
+        x: d.boss.x, y: d.boss.y, w: d.boss.w || 120, h: d.boss.h || 150,
+        hp: d.boss.hp || 1, maxHp: d.boss.maxHp || 1, dead: false, phase: 1, dir: -1,
+        speed: d.boss.speed || 2, vy: 0, charging: false, slamming: false };
     }
-    boss.x += (d.boss.x - boss.x) * 0.5; boss.y += (d.boss.y - boss.y) * 0.5;
+    // Snap position BEFORE lerp if too far (teleport/spawn)
+    if (Math.abs(boss.x - d.boss.x) > 200 || Math.abs(boss.y - d.boss.y) > 200) {
+      boss.x = d.boss.x; boss.y = d.boss.y;
+    } else {
+      boss.x += (d.boss.x - boss.x) * 0.5; boss.y += (d.boss.y - boss.y) * 0.5;
+    }
     boss.w = d.boss.w; boss.h = d.boss.h;
     boss.hp = d.boss.hp; boss.maxHp = d.boss.maxHp; boss.dir = d.boss.dir;
     boss.dead = d.boss.dead; boss.phase = d.boss.phase; boss.frame = d.boss.frame;
@@ -1216,42 +1233,46 @@ function applyEnemyData() {
     boss.chargeVx = d.boss.chargeVx || 0; boss.alert = d.boss.alert;
     boss.speed = d.boss.speed; boss.vy = d.boss.vy;
     boss._slamShock = d.boss._slamShock || 0;
-    // Snap position if too far (teleport/spawn)
-    if (Math.abs(boss.x - d.boss.x) > 200 || Math.abs(boss.y - d.boss.y) > 200) {
-      boss.x = d.boss.x; boss.y = d.boss.y;
-    }
   }
   // Apply epstein
   if (d.epstein) {
     if (!epstein) {
       epstein = { frameTimer: 0, phaseTriggered2: false, attackTimer: 0, shootCooldown: 40,
-        teleportCooldown: 200, speed: 2.5, vy: 0 };
+        teleportCooldown: 200, speed: 2.5, vy: 0,
+        x: d.epstein.x, y: d.epstein.y, w: d.epstein.w || 100, h: d.epstein.h || 130,
+        hp: d.epstein.hp || 1, maxHp: d.epstein.maxHp || 1, dead: false, phase: 1, dir: -1 };
     }
-    epstein.x += (d.epstein.x - epstein.x) * 0.5; epstein.y += (d.epstein.y - epstein.y) * 0.5;
+    // Snap BEFORE lerp if too far
+    if (Math.abs(epstein.x - d.epstein.x) > 200 || Math.abs(epstein.y - d.epstein.y) > 200) {
+      epstein.x = d.epstein.x; epstein.y = d.epstein.y;
+    } else {
+      epstein.x += (d.epstein.x - epstein.x) * 0.5; epstein.y += (d.epstein.y - epstein.y) * 0.5;
+    }
     epstein.w = d.epstein.w; epstein.h = d.epstein.h;
     epstein.hp = d.epstein.hp; epstein.maxHp = d.epstein.maxHp; epstein.dir = d.epstein.dir;
     epstein.dead = d.epstein.dead; epstein.phase = d.epstein.phase; epstein.frame = d.epstein.frame;
     epstein.charging = d.epstein.charging; epstein.chargeVx = d.epstein.chargeVx || 0;
-    if (Math.abs(epstein.x - d.epstein.x) > 200 || Math.abs(epstein.y - d.epstein.y) > 200) {
-      epstein.x = d.epstein.x; epstein.y = d.epstein.y;
-    }
   }
   // Apply fusion boss
   if (d.fusion) {
     if (!fusionBoss) {
       fusionBoss = { frameTimer: 0, phaseTriggered2: false, attackTimer: 0, shootCooldown: 30,
-        slamCooldown: 200, dashCooldown: 150, speed: 3, vy: 0 };
+        slamCooldown: 200, dashCooldown: 150, speed: 3, vy: 0,
+        x: d.fusion.x, y: d.fusion.y, w: d.fusion.w || 150, h: d.fusion.h || 180,
+        hp: d.fusion.hp || 1, maxHp: d.fusion.maxHp || 1, dead: false, phase: 1, dir: -1 };
     }
-    fusionBoss.x += (d.fusion.x - fusionBoss.x) * 0.5; fusionBoss.y += (d.fusion.y - fusionBoss.y) * 0.5;
+    // Snap BEFORE lerp if too far
+    if (Math.abs(fusionBoss.x - d.fusion.x) > 200 || Math.abs(fusionBoss.y - d.fusion.y) > 200) {
+      fusionBoss.x = d.fusion.x; fusionBoss.y = d.fusion.y;
+    } else {
+      fusionBoss.x += (d.fusion.x - fusionBoss.x) * 0.5; fusionBoss.y += (d.fusion.y - fusionBoss.y) * 0.5;
+    }
     fusionBoss.w = d.fusion.w; fusionBoss.h = d.fusion.h;
     fusionBoss.hp = d.fusion.hp; fusionBoss.maxHp = d.fusion.maxHp; fusionBoss.dir = d.fusion.dir;
     fusionBoss.dead = d.fusion.dead; fusionBoss.phase = d.fusion.phase; fusionBoss.frame = d.fusion.frame;
     fusionBoss.charging = d.fusion.charging; fusionBoss.chargeVx = d.fusion.chargeVx || 0;
     fusionBoss.mergeGlow = d.fusion.mergeGlow || 0;
     fusionBoss._slamShock = d.fusion._slamShock || 0;
-    if (Math.abs(fusionBoss.x - d.fusion.x) > 200 || Math.abs(fusionBoss.y - d.fusion.y) > 200) {
-      fusionBoss.x = d.fusion.x; fusionBoss.y = d.fusion.y;
-    }
   }
   // Apply mini-bosses
   if (d.minis) {
@@ -3491,8 +3512,8 @@ function update() {
       _deathVid.currentTime = 0;
       _deathVid.play().catch(function() {});
     }
-    // Transition to dead when video ends or after timeout
-    if ((deathAnimVideoPlaying && _deathVid.ended) || deathAnimTimer > 280) {
+    // Transition to dead when video ends or after timeout (~5 sec at any FPS)
+    if ((deathAnimVideoPlaying && _deathVid.ended) || deathAnimTimer > 300) {
       _deathVid.pause();
       state = 'dead';
       restartCooldown = 20;
@@ -6089,7 +6110,7 @@ function update() {
     }
 
     // Phase 7 (850-900): Return to game, mark all dead, trigger victory
-    if (dt >= 900) {
+    if (dt === 900) {
       // Mark Hawking dead
       if (hawk) { hawk.hp = 0; hawk.dead = true; }
       // Mark ALL bosses dead (they should already be dead except Hawking)
@@ -10870,7 +10891,6 @@ function draw() {
             const finalSize = Math.min(36, W*0.048) * (1 + (1-s2)*0.3);
             ctx.font = `bold ${finalSize}px monospace`;
             ctx.fillText('"I. AM. INEVITABLE."', W/2, H * 0.87);
-            ctx.fillText('"I. AM. INEVITABLE."', W/2, H * 0.87);
           }
           ctx.shadowBlur = 0;
         }
@@ -13719,16 +13739,23 @@ function draw() {
 let _lastFrameTime = 0;
 let _lastSyncTime = 0;
 let _lastEnemySyncTime = 0;
+let _tickAccum = 0; // Sub-frame time accumulator for fixed-step updates
 function loop(timestamp) {
-  if (!_lastFrameTime) _lastFrameTime = timestamp;
+  if (!_lastFrameTime) { _lastFrameTime = timestamp; }
   const elapsed = timestamp - _lastFrameTime;
   _lastFrameTime = timestamp;
-  // Run multiple ticks per frame on slow devices (iPad 30fps) to maintain game speed
-  // Cap at 3 ticks to prevent performance death spiral
-  const ticks = Math.min(Math.max(1, Math.round(elapsed / 16.67)), 3);
+  // Fixed-step accumulator: accumulate real time, run one update per 16.67ms
+  // Handles 120Hz (8.3ms frames) correctly — ticks every other frame
+  // Handles 30Hz (33ms frames) — ticks twice per frame to catch up
+  // Cap at 3 ticks to prevent death spiral on tab-switch
+  _tickAccum += elapsed;
+  const ticks = Math.min(Math.floor(_tickAccum / 16.67), 3);
+  _tickAccum -= ticks * 16.67;
+  // Clamp accumulator to prevent runaway after long pause
+  if (_tickAccum > 50) _tickAccum = 0;
   try {
     for (let i = 0; i < ticks; i++) update();
-    draw();
+    if (ticks > 0) draw(); // Only draw if at least one update ran
   } catch (e) { console.error('Game loop error:', e); }
   requestAnimationFrame(loop);
 }
