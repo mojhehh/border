@@ -3468,8 +3468,8 @@ function update() {
   // ── Soul Shatter Death Animation Update (video) ──
   if (state === 'deathAnim') {
     deathAnimTimer++;
-    // Start video playback after brief black screen
-    if (deathAnimTimer === 20 && !deathAnimVideoPlaying) {
+    // Start video playback immediately
+    if (deathAnimTimer === 1 && !deathAnimVideoPlaying) {
       deathAnimVideoPlaying = true;
       _deathVid.currentTime = 0;
       _deathVid.play().catch(function() {});
