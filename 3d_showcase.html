@@ -2,461 +2,632 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>3D Boss Animation Showcase</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BORDER — 3D Boss Cinematic</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #000; overflow: hidden; font-family: monospace; }
-canvas { display: block; }
-#ui {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  pointer-events: none; z-index: 10;
-}
-#dialogue {
-  position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
-  width: 80%; max-width: 700px; background: rgba(0,0,0,0.85);
-  border: 2px solid #ff4400; border-radius: 8px; padding: 20px 24px;
-  color: #fff; font-size: 16px; line-height: 1.5; z-index: 20;
-  display: none; pointer-events: auto;
-  box-shadow: 0 0 30px rgba(255,68,0,0.3), inset 0 0 60px rgba(255,68,0,0.05);
-}
-#dialogue .speaker {
-  color: #ff4400; font-weight: bold; font-size: 18px; margin-bottom: 6px;
-  text-shadow: 0 0 10px #ff440088;
-}
-#dialogue .text { color: #ddd; min-height: 40px; }
-#dialogue .hint {
-  color: #666; font-size: 11px; text-align: right; margin-top: 8px;
-}
-#info {
-  position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
-  color: #888; font-size: 12px; z-index: 20; text-align: center;
-  pointer-events: auto;
-}
-#restart {
-  position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
-  background: #ff440022; border: 1px solid #ff440066; color: #ff8844;
-  padding: 8px 20px; cursor: pointer; font-family: monospace; font-size: 13px;
-  border-radius: 4px; z-index: 20; display: none; pointer-events: auto;
-}
-#restart:hover { background: #ff440044; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font-family:'Segoe UI',monospace}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+#ui{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+#flash{position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;opacity:0;pointer-events:none;z-index:15;transition:opacity 0.1s}
+#vignette{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9;
+  background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.7) 100%)}
+#subtitle{position:fixed;top:40px;left:50%;transform:translateX(-50%);color:#ffffff44;
+  font-size:11px;letter-spacing:6px;text-transform:uppercase;z-index:20;opacity:0;transition:opacity 1s}
+#dialogue{position:fixed;bottom:50px;left:50%;transform:translateX(-50%);
+  width:85%;max-width:750px;background:rgba(0,0,0,0.9);border-left:3px solid #ff4400;
+  padding:20px 28px;color:#fff;font-size:15px;line-height:1.6;z-index:20;
+  display:none;pointer-events:auto;backdrop-filter:blur(10px);
+  box-shadow:0 0 40px rgba(255,68,0,0.15),0 4px 30px rgba(0,0,0,0.8)}
+#dialogue .speaker{color:#ff4400;font-weight:700;font-size:12px;letter-spacing:3px;
+  text-transform:uppercase;margin-bottom:8px;opacity:0.9}
+#dialogue .text{color:#ccc;min-height:30px;font-size:16px}
+#dialogue .hint{color:#444;font-size:10px;text-align:right;margin-top:10px;letter-spacing:1px}
+.blue-border #dialogue{border-color:#4488ff;box-shadow:0 0 40px rgba(68,136,255,0.15),0 4px 30px rgba(0,0,0,0.8)}
+.blue-border #dialogue .speaker{color:#4488ff}
+#title-card{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;z-index:20;opacity:0;pointer-events:none}
+#title-card h1{color:#ff4400;font-size:72px;font-weight:900;letter-spacing:8px;
+  text-shadow:0 0 60px rgba(255,68,0,0.5),0 0 120px rgba(255,68,0,0.2);margin:0;
+  font-family:'Impact','Arial Black',sans-serif}
+#title-card h2{color:#fff;font-size:16px;font-weight:300;letter-spacing:12px;
+  text-transform:uppercase;margin-top:10px;opacity:0.6}
+#restart{position:fixed;bottom:30px;right:30px;background:rgba(255,68,0,0.1);
+  border:1px solid #ff440044;color:#ff884488;padding:10px 24px;cursor:pointer;
+  font-family:monospace;font-size:12px;border-radius:2px;z-index:20;display:none;
+  pointer-events:auto;letter-spacing:2px;text-transform:uppercase;transition:all 0.3s}
+#restart:hover{background:rgba(255,68,0,0.2);color:#ff8844;border-color:#ff440088}
+#skip{position:fixed;top:15px;right:20px;color:#333;font-size:10px;z-index:20;
+  cursor:pointer;pointer-events:auto;letter-spacing:2px}
+#skip:hover{color:#666}
 </style>
 </head>
 <body>
-<div id="info">3D BOSS ENTRANCE SHOWCASE — Click anywhere to advance dialogue</div>
-<button id="restart" onclick="restartDemo()">▶ REPLAY</button>
-<div id="dialogue">
-  <div class="speaker" id="dSpeaker"></div>
-  <div class="text" id="dText"></div>
-  <div class="hint">Click to continue...</div>
-</div>
+<div id="vignette"></div>
+<div id="flash"></div>
+<div id="subtitle"></div>
+<div id="title-card"><h1>THE OVERSEER</h1><h2>Architect of the Wall</h2></div>
+<div id="dialogue"><div class="speaker" id="dSpeaker"></div><div class="text" id="dText"></div><div class="hint">CLICK / TAP TO CONTINUE</div></div>
+<button id="restart" onclick="restartDemo()">&#9654; REPLAY</button>
+<div id="skip" onclick="skipToEnd()">SKIP &gt;&gt;</div>
+<canvas id="c"></canvas>
 
-<script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
-</script>
-<script type="module">
-import * as THREE from 'three';
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+<script>
+const canvas = document.getElementById('c');
+const engine = new BABYLON.Engine(canvas, true, { stencil: true, preserveDrawingBuffer: true }, true);
+engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio, 2));
 
-// ── SCENE SETUP ──
-const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x000000, 0.012);
+// ═══════════════════════════════════════════
+//  SCENE SETUP
+// ═══════════════════════════════════════════
+const scene = new BABYLON.Scene(engine);
+scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.02, 1);
+scene.ambientColor = new BABYLON.Color3(0.05, 0.05, 0.08);
+scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+scene.fogDensity = 0.015;
+scene.fogColor = new BABYLON.Color3(0.02, 0.01, 0.03);
 
-const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 1000);
-camera.position.set(0, 8, 25);
-camera.lookAt(0, 2, 0);
+// Camera
+const camera = new BABYLON.FreeCamera('cam', new BABYLON.Vector3(0, 6, 28), scene);
+camera.setTarget(new BABYLON.Vector3(0, 3, 0));
+camera.fov = 0.9;
+camera.minZ = 0.1;
+camera.maxZ = 500;
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.8;
-document.body.appendChild(renderer.domElement);
+// Glow layer
+const gl = new BABYLON.GlowLayer('glow', scene, { mainTextureSamples: 4, blurKernelSize: 40 });
+gl.intensity = 0.6;
 
-// ── ARENA FLOOR ──
-const floorGeo = new THREE.PlaneGeometry(80, 80, 40, 40);
-// Displace vertices for rocky terrain
-const posAttr = floorGeo.attributes.position;
-for (let i = 0; i < posAttr.count; i++) {
-  const x = posAttr.getX(i), y = posAttr.getY(i);
-  const dist = Math.sqrt(x*x + y*y);
-  posAttr.setZ(i, Math.sin(x*0.5)*Math.cos(y*0.3)*0.4 - dist*0.02);
-}
-floorGeo.computeVertexNormals();
-const floorMat = new THREE.MeshStandardMaterial({
-  color: 0x1a1a2e, roughness: 0.9, metalness: 0.1,
-});
-const floor = new THREE.Mesh(floorGeo, floorMat);
-floor.rotation.x = -Math.PI / 2;
-floor.receiveShadow = true;
-scene.add(floor);
+// Hemispheric ambient
+const hemi = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0, 1, 0), scene);
+hemi.intensity = 0.15;
+hemi.diffuse = new BABYLON.Color3(0.15, 0.1, 0.2);
+hemi.groundColor = new BABYLON.Color3(0.02, 0.02, 0.05);
 
-// Grid lines on floor
-const gridHelper = new THREE.GridHelper(60, 30, 0x222244, 0x111122);
-gridHelper.position.y = 0.02;
-scene.add(gridHelper);
+// ═══════════════════════════════════════════
+//  ARENA FLOOR
+// ═══════════════════════════════════════════
+const floor = BABYLON.MeshBuilder.CreateGround('floor', { width: 80, height: 80, subdivisions: 60 }, scene);
+const floorMat = new BABYLON.PBRMaterial('floorMat', scene);
+floorMat.albedoColor = new BABYLON.Color3(0.06, 0.05, 0.1);
+floorMat.metallic = 0.3;
+floorMat.roughness = 0.85;
+floorMat.emissiveColor = new BABYLON.Color3(0.02, 0.01, 0.04);
+floor.material = floorMat;
+floor.receiveShadows = true;
 
-// ── PILLARS ──
-const pillarGeo = new THREE.CylinderGeometry(0.6, 0.8, 12, 8);
-const pillarMat = new THREE.MeshStandardMaterial({ color: 0x2a1a0e, roughness: 0.7, metalness: 0.3 });
-const pillarPositions = [[-10, 6, -8], [10, 6, -8], [-10, 6, 8], [10, 6, 8], [-6, 6, -12], [6, 6, -12]];
-for (const [px, py, pz] of pillarPositions) {
-  const p = new THREE.Mesh(pillarGeo, pillarMat);
-  p.position.set(px, py, pz);
-  p.castShadow = true;
-  p.receiveShadow = true;
-  scene.add(p);
-  // Pillar top flame
-  const flameLight = new THREE.PointLight(0xff6622, 2, 15);
-  flameLight.position.set(px, py + 7, pz);
-  scene.add(flameLight);
+// Floor grid glow lines
+const gridLines = [];
+for (let i = -30; i <= 30; i += 3) {
+  const pts = [new BABYLON.Vector3(i, 0.02, -30), new BABYLON.Vector3(i, 0.02, 30)];
+  const line = BABYLON.MeshBuilder.CreateLines('gl' + i, { points: pts }, scene);
+  line.color = new BABYLON.Color3(0.08, 0.04, 0.15);
+  gridLines.push(line);
+  const pts2 = [new BABYLON.Vector3(-30, 0.02, i), new BABYLON.Vector3(30, 0.02, i)];
+  const line2 = BABYLON.MeshBuilder.CreateLines('gl2' + i, { points: pts2 }, scene);
+  line2.color = new BABYLON.Color3(0.08, 0.04, 0.15);
+  gridLines.push(line2);
 }
 
-// ── BOSS PLATFORM ──
-const platGeo = new THREE.CylinderGeometry(3, 3.5, 1.5, 6);
-const platMat = new THREE.MeshStandardMaterial({ color: 0x331100, roughness: 0.5, metalness: 0.6 });
-const platform = new THREE.Mesh(platGeo, platMat);
-platform.position.set(0, 0.5, -5);
-platform.castShadow = true;
-platform.receiveShadow = true;
-scene.add(platform);
+// ═══════════════════════════════════════════
+//  PILLARS WITH FIRE
+// ═══════════════════════════════════════════
+const pillarPositions = [[-10, -8], [10, -8], [-10, 8], [10, 8], [-6, -14], [6, -14], [-14, 0], [14, 0]];
+const pillars = [];
+const pillarLights = [];
+for (const [px, pz] of pillarPositions) {
+  const p = BABYLON.MeshBuilder.CreateCylinder('pillar', { height: 14, diameterTop: 1, diameterBottom: 1.4, tessellation: 8 }, scene);
+  const pMat = new BABYLON.PBRMaterial('pMat', scene);
+  pMat.albedoColor = new BABYLON.Color3(0.12, 0.08, 0.05);
+  pMat.metallic = 0.4;
+  pMat.roughness = 0.7;
+  p.material = pMat;
+  p.position = new BABYLON.Vector3(px, 7, pz);
+  p.receiveShadows = true;
+  pillars.push(p);
 
-// ── BOSS FIGURE (geometric humanoid) ──
-const bossGroup = new THREE.Group();
-bossGroup.position.set(0, -10, -5); // starts below ground
-bossGroup.visible = false;
+  const braz = BABYLON.MeshBuilder.CreateCylinder('braz', { height: 0.8, diameterTop: 1.8, diameterBottom: 1.2, tessellation: 6 }, scene);
+  const brazMat = new BABYLON.PBRMaterial('brazMat', scene);
+  brazMat.albedoColor = new BABYLON.Color3(0.15, 0.08, 0.02);
+  brazMat.metallic = 0.8; brazMat.roughness = 0.3;
+  braz.material = brazMat;
+  braz.position = new BABYLON.Vector3(px, 14.4, pz);
+
+  const fireSPS = new BABYLON.ParticleSystem('fire' + px, 80, scene);
+  fireSPS.createPointEmitter(new BABYLON.Vector3(-0.3, 2, -0.3), new BABYLON.Vector3(0.3, 3, 0.3));
+  fireSPS.emitter = new BABYLON.Vector3(px, 14.8, pz);
+  fireSPS.color1 = new BABYLON.Color4(1, 0.5, 0.1, 1);
+  fireSPS.color2 = new BABYLON.Color4(1, 0.2, 0, 0.8);
+  fireSPS.colorDead = new BABYLON.Color4(0.2, 0, 0, 0);
+  fireSPS.minSize = 0.3; fireSPS.maxSize = 0.8;
+  fireSPS.minLifeTime = 0.3; fireSPS.maxLifeTime = 0.8;
+  fireSPS.emitRate = 60;
+  fireSPS.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+  fireSPS.start();
+
+  const pl = new BABYLON.PointLight('pl' + px, new BABYLON.Vector3(px, 15.5, pz), scene);
+  pl.diffuse = new BABYLON.Color3(1, 0.5, 0.15);
+  pl.intensity = 3;
+  pl.range = 18;
+  pillarLights.push(pl);
+}
+
+// ═══════════════════════════════════════════
+//  BOSS PLATFORM (hexagonal with runes)
+// ═══════════════════════════════════════════
+const plat = BABYLON.MeshBuilder.CreateCylinder('plat', { height: 1.5, diameter: 8, tessellation: 6 }, scene);
+const platMat = new BABYLON.PBRMaterial('platMat', scene);
+platMat.albedoColor = new BABYLON.Color3(0.08, 0.03, 0.01);
+platMat.metallic = 0.7; platMat.roughness = 0.4;
+platMat.emissiveColor = new BABYLON.Color3(0.03, 0.01, 0);
+plat.material = platMat;
+plat.position = new BABYLON.Vector3(0, 0.5, -5);
+plat.receiveShadows = true;
+
+const runeRing = BABYLON.MeshBuilder.CreateTorus('rune', { diameter: 9, thickness: 0.12, tessellation: 64 }, scene);
+const runeMat = new BABYLON.PBRMaterial('runeMat', scene);
+runeMat.albedoColor = new BABYLON.Color3(0, 0, 0);
+runeMat.emissiveColor = new BABYLON.Color3(0.5, 0.15, 0);
+runeMat.metallic = 0; runeMat.roughness = 1;
+runeRing.material = runeMat;
+runeRing.position = new BABYLON.Vector3(0, 1.3, -5);
+runeRing.rotation.x = Math.PI / 2;
+
+const runeRing2 = BABYLON.MeshBuilder.CreateTorus('rune2', { diameter: 6, thickness: 0.08, tessellation: 48 }, scene);
+runeRing2.material = runeMat;
+runeRing2.position = new BABYLON.Vector3(0, 1.35, -5);
+runeRing2.rotation.x = Math.PI / 2;
+
+// ═══════════════════════════════════════════
+//  BOSS FIGURE
+// ═══════════════════════════════════════════
+const bossRoot = new BABYLON.TransformNode('bossRoot', scene);
+bossRoot.position = new BABYLON.Vector3(0, -15, -5);
+
+const bossMat = new BABYLON.PBRMaterial('bossMat', scene);
+bossMat.albedoColor = new BABYLON.Color3(0.08, 0.08, 0.18);
+bossMat.metallic = 0.8; bossMat.roughness = 0.3;
+bossMat.emissiveColor = new BABYLON.Color3(0, 0, 0);
 
 // Torso
-const torsoGeo = new THREE.BoxGeometry(2.2, 3, 1.2);
-const bossMat = new THREE.MeshStandardMaterial({ color: 0x1a1a3a, roughness: 0.4, metalness: 0.7 });
-const torso = new THREE.Mesh(torsoGeo, bossMat);
-torso.position.y = 5;
-torso.castShadow = true;
-bossGroup.add(torso);
+const torso = BABYLON.MeshBuilder.CreateBox('torso', { width: 2.4, height: 3.5, depth: 1.4 }, scene);
+torso.material = bossMat; torso.parent = bossRoot; torso.position.y = 5;
+
+// Shoulder armor
+const armorMat = new BABYLON.PBRMaterial('armorMat', scene);
+armorMat.albedoColor = new BABYLON.Color3(0.15, 0.05, 0.02);
+armorMat.metallic = 0.9; armorMat.roughness = 0.2;
+armorMat.emissiveColor = new BABYLON.Color3(0.1, 0.03, 0);
+const shoulderL = BABYLON.MeshBuilder.CreateBox('shL', { width: 1.2, height: 0.8, depth: 1.6 }, scene);
+shoulderL.material = armorMat; shoulderL.parent = bossRoot; shoulderL.position.set(-1.6, 6.8, 0);
+const shoulderR = shoulderL.clone('shR'); shoulderR.position.set(1.6, 6.8, 0);
 
 // Head
-const headGeo = new THREE.SphereGeometry(0.8, 16, 16);
-const headMat = new THREE.MeshStandardMaterial({ color: 0xcc9966, roughness: 0.6, metalness: 0.2 });
-const head = new THREE.Mesh(headGeo, headMat);
-head.position.y = 7.2;
-head.castShadow = true;
-bossGroup.add(head);
+const head = BABYLON.MeshBuilder.CreateSphere('head', { diameter: 1.8, segments: 16 }, scene);
+const headMat = new BABYLON.PBRMaterial('headMat', scene);
+headMat.albedoColor = new BABYLON.Color3(0.7, 0.5, 0.35);
+headMat.metallic = 0.1; headMat.roughness = 0.7;
+head.material = headMat; head.parent = bossRoot; head.position.y = 7.5;
 
-// Eyes (glowing)
-const eyeGeo = new THREE.SphereGeometry(0.15, 8, 8);
-const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 3 });
-const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
-eyeL.position.set(-0.3, 7.3, 0.65);
-bossGroup.add(eyeL);
-const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
-eyeR.position.set(0.3, 7.3, 0.65);
-bossGroup.add(eyeR);
+// Eyes
+const eyeMat = new BABYLON.PBRMaterial('eyeMat', scene);
+eyeMat.albedoColor = new BABYLON.Color3(0, 0, 0);
+eyeMat.emissiveColor = new BABYLON.Color3(1, 0, 0);
+const eyeL = BABYLON.MeshBuilder.CreateSphere('eyeL', { diameter: 0.22 }, scene);
+eyeL.material = eyeMat; eyeL.parent = bossRoot; eyeL.position.set(-0.35, 7.6, 0.75);
+const eyeR = eyeL.clone('eyeR'); eyeR.position.set(0.35, 7.6, 0.75);
 
 // Crown
-const crownGeo = new THREE.ConeGeometry(0.9, 1.2, 5);
-const crownMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.2, metalness: 0.9, emissive: 0x442200, emissiveIntensity: 0.5 });
-const crown = new THREE.Mesh(crownGeo, crownMat);
-crown.position.y = 8.3;
-crown.castShadow = true;
-bossGroup.add(crown);
+const crownMat = new BABYLON.PBRMaterial('crownMat', scene);
+crownMat.albedoColor = new BABYLON.Color3(0.9, 0.7, 0.1);
+crownMat.metallic = 1; crownMat.roughness = 0.15;
+crownMat.emissiveColor = new BABYLON.Color3(0.2, 0.12, 0);
+const crownBase = BABYLON.MeshBuilder.CreateCylinder('crownBase', { height: 0.5, diameterTop: 1.3, diameterBottom: 1.5, tessellation: 5 }, scene);
+crownBase.material = crownMat; crownBase.parent = bossRoot; crownBase.position.y = 8.5;
+for (let ci = 0; ci < 5; ci++) {
+  const spike = BABYLON.MeshBuilder.CreateCylinder('spike' + ci, { height: 0.9, diameterTop: 0, diameterBottom: 0.25, tessellation: 4 }, scene);
+  spike.material = crownMat; spike.parent = bossRoot;
+  const a = (ci / 5) * Math.PI * 2;
+  spike.position.set(Math.sin(a) * 0.55, 9.1, Math.cos(a) * 0.55);
+}
 
 // Arms
-const armGeo = new THREE.BoxGeometry(0.6, 2.5, 0.6);
-const armL = new THREE.Mesh(armGeo, bossMat);
-armL.position.set(-1.6, 4.5, 0);
-armL.rotation.z = 0.2;
-bossGroup.add(armL);
-const armR = new THREE.Mesh(armGeo, bossMat);
-armR.position.set(1.6, 4.5, 0);
-armR.rotation.z = -0.2;
-bossGroup.add(armR);
+const armL = BABYLON.MeshBuilder.CreateBox('armL', { width: 0.65, height: 2.8, depth: 0.65 }, scene);
+armL.material = bossMat; armL.parent = bossRoot; armL.position.set(-1.75, 4.5, 0); armL.rotation.z = 0.2;
+const armR = BABYLON.MeshBuilder.CreateBox('armR', { width: 0.65, height: 2.8, depth: 0.65 }, scene);
+armR.material = bossMat; armR.parent = bossRoot; armR.position.set(1.75, 4.5, 0); armR.rotation.z = -0.2;
 
-// Cape
-const capeGeo = new THREE.PlaneGeometry(3, 4, 8, 8);
-const capeMat = new THREE.MeshStandardMaterial({
-  color: 0x880000, roughness: 0.6, metalness: 0.3, side: THREE.DoubleSide
-});
-const cape = new THREE.Mesh(capeGeo, capeMat);
-cape.position.set(0, 4, -0.8);
-bossGroup.add(cape);
+// Legs
+const legL = BABYLON.MeshBuilder.CreateBox('legL', { width: 0.7, height: 3, depth: 0.7 }, scene);
+legL.material = bossMat; legL.parent = bossRoot; legL.position.set(-0.6, 1.8, 0);
+const legR = BABYLON.MeshBuilder.CreateBox('legR', { width: 0.7, height: 3, depth: 0.7 }, scene);
+legR.material = bossMat; legR.parent = bossRoot; legR.position.set(0.6, 1.8, 0);
 
-// Boss energy aura (ring)
-const auraGeo = new THREE.TorusGeometry(2.5, 0.15, 16, 32);
-const auraMat = new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xff2200, emissiveIntensity: 2, transparent: true, opacity: 0 });
-const aura = new THREE.Mesh(auraGeo, auraMat);
-aura.position.y = 4;
-aura.rotation.x = Math.PI / 2;
-bossGroup.add(aura);
-
-// Second aura ring
-const aura2Geo = new THREE.TorusGeometry(3.5, 0.1, 16, 32);
-const aura2Mat = new THREE.MeshStandardMaterial({ color: 0xff8800, emissive: 0xff4400, emissiveIntensity: 2, transparent: true, opacity: 0 });
-const aura2 = new THREE.Mesh(aura2Geo, aura2Mat);
-aura2.position.y = 4;
-aura2.rotation.x = Math.PI / 2;
-bossGroup.add(aura2);
-
-scene.add(bossGroup);
-
-// Boss point light
-const bossLight = new THREE.PointLight(0xff4400, 0, 20);
-bossLight.position.set(0, 8, -5);
-bossLight.castShadow = true;
-scene.add(bossLight);
-
-// ── PARTICLES SYSTEM ──
-const PARTICLE_COUNT = 800;
-const particlesGeo = new THREE.BufferGeometry();
-const pPositions = new Float32Array(PARTICLE_COUNT * 3);
-const pColors = new Float32Array(PARTICLE_COUNT * 3);
-const pSizes = new Float32Array(PARTICLE_COUNT);
-const pVelocities = [];
-for (let i = 0; i < PARTICLE_COUNT; i++) {
-  pPositions[i*3] = (Math.random()-0.5) * 60;
-  pPositions[i*3+1] = Math.random() * 20;
-  pPositions[i*3+2] = (Math.random()-0.5) * 60;
-  pColors[i*3] = 0.3 + Math.random() * 0.7;
-  pColors[i*3+1] = 0.1 + Math.random() * 0.3;
-  pColors[i*3+2] = Math.random() * 0.1;
-  pSizes[i] = 0.5 + Math.random() * 2;
-  pVelocities.push({ x: (Math.random()-0.5)*0.02, y: 0.01 + Math.random()*0.03, z: (Math.random()-0.5)*0.02 });
+// Cape (updatable ribbon)
+const capeMat = new BABYLON.PBRMaterial('capeMat', scene);
+capeMat.albedoColor = new BABYLON.Color3(0.5, 0.02, 0.02);
+capeMat.metallic = 0.2; capeMat.roughness = 0.6;
+capeMat.backFaceCulling = false;
+capeMat.emissiveColor = new BABYLON.Color3(0.15, 0, 0);
+const capeW = 3.5, capeH = 5, capeRows = 10, capeCols = 8;
+function buildCapePaths(t) {
+  const paths = [];
+  for (let row = 0; row <= capeRows; row++) {
+    const path = [];
+    const v = row / capeRows;
+    for (let col = 0; col <= capeCols; col++) {
+      const u = col / capeCols;
+      const zF = t ? Math.sin(t * 3 + v * 4 + u * 2) * 0.4 * v : 0;
+      const xF = t ? Math.sin(t * 2 + v * 3) * 0.15 * v : 0;
+      path.push(new BABYLON.Vector3((u - 0.5) * capeW + xF, -v * capeH + 7, -0.7 - v * 0.8 + zF));
+    }
+    paths.push(path);
+  }
+  return paths;
 }
-particlesGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
-particlesGeo.setAttribute('color', new THREE.BufferAttribute(pColors, 3));
-particlesGeo.setAttribute('size', new THREE.BufferAttribute(pSizes, 1));
+const capeRibbon = BABYLON.MeshBuilder.CreateRibbon('cape', {
+  pathArray: buildCapePaths(0), sideOrientation: BABYLON.Mesh.DOUBLESIDE, updatable: true
+}, scene);
+capeRibbon.material = capeMat;
+capeRibbon.parent = bossRoot;
 
-const particleMat = new THREE.PointsMaterial({
-  size: 0.3, vertexColors: true, transparent: true, opacity: 0.6,
-  blending: THREE.AdditiveBlending, depthWrite: false,
-});
-const particleSystem = new THREE.Points(particlesGeo, particleMat);
-scene.add(particleSystem);
+// Aura rings
+const auraMat1 = new BABYLON.PBRMaterial('aura1', scene);
+auraMat1.albedoColor = new BABYLON.Color3(0, 0, 0);
+auraMat1.emissiveColor = new BABYLON.Color3(1, 0.3, 0);
+auraMat1.alpha = 0;
+const auraRing1 = BABYLON.MeshBuilder.CreateTorus('auraR1', { diameter: 5.5, thickness: 0.18, tessellation: 48 }, scene);
+auraRing1.material = auraMat1; auraRing1.parent = bossRoot; auraRing1.position.y = 5; auraRing1.rotation.x = Math.PI / 2;
 
-// ── LIGHTNING BOLTS ──
+const auraMat2 = auraMat1.clone('aura2'); auraMat2.emissiveColor = new BABYLON.Color3(1, 0.6, 0); auraMat2.alpha = 0;
+const auraRing2 = BABYLON.MeshBuilder.CreateTorus('auraR2', { diameter: 7, thickness: 0.12, tessellation: 48 }, scene);
+auraRing2.material = auraMat2; auraRing2.parent = bossRoot; auraRing2.position.y = 5; auraRing2.rotation.x = Math.PI / 2;
+
+// Boss lights
+const bossSpot = new BABYLON.SpotLight('bossSpot', new BABYLON.Vector3(0, 22, -5), new BABYLON.Vector3(0, -1, 0), Math.PI * 0.4, 2, scene);
+bossSpot.diffuse = new BABYLON.Color3(1, 0.2, 0);
+bossSpot.intensity = 0;
+
+const bossPoint = new BABYLON.PointLight('bossPoint', new BABYLON.Vector3(0, 8, -5), scene);
+bossPoint.diffuse = new BABYLON.Color3(1, 0.4, 0.1);
+bossPoint.intensity = 0; bossPoint.range = 25;
+
+// Shadows
+const shadowGen = new BABYLON.ShadowGenerator(2048, bossSpot);
+shadowGen.useBlurExponentialShadowMap = true;
+shadowGen.blurKernel = 16;
+[torso, head, armL, armR, legL, legR, ...pillars].forEach(m => shadowGen.addShadowCaster(m));
+
+// ═══════════════════════════════════════════
+//  AMBIENT EMBERS
+// ═══════════════════════════════════════════
+const emberPS = new BABYLON.ParticleSystem('embers', 400, scene);
+emberPS.createPointEmitter(new BABYLON.Vector3(-0.2, 0.5, -0.2), new BABYLON.Vector3(0.2, 1.5, 0.2));
+emberPS.emitter = new BABYLON.Vector3(0, 0, 0);
+emberPS.minEmitBox = new BABYLON.Vector3(-35, 0, -35);
+emberPS.maxEmitBox = new BABYLON.Vector3(35, 0, 35);
+emberPS.color1 = new BABYLON.Color4(1, 0.4, 0.1, 0.8);
+emberPS.color2 = new BABYLON.Color4(1, 0.2, 0, 0.5);
+emberPS.colorDead = new BABYLON.Color4(0.1, 0, 0, 0);
+emberPS.minSize = 0.05; emberPS.maxSize = 0.2;
+emberPS.minLifeTime = 2; emberPS.maxLifeTime = 5;
+emberPS.emitRate = 30;
+emberPS.gravity = new BABYLON.Vector3(0, -0.02, 0);
+emberPS.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+emberPS.start();
+
+// ═══════════════════════════════════════════
+//  WALL BACKDROP
+// ═══════════════════════════════════════════
+const wallMat = new BABYLON.PBRMaterial('wallMat', scene);
+wallMat.albedoColor = new BABYLON.Color3(0.15, 0.12, 0.1);
+wallMat.metallic = 0.5; wallMat.roughness = 0.6;
+for (let wi = -3; wi <= 3; wi++) {
+  const wallSeg = BABYLON.MeshBuilder.CreateBox('wall' + wi, { width: 10, height: 20, depth: 2 }, scene);
+  wallSeg.material = wallMat;
+  wallSeg.position = new BABYLON.Vector3(wi * 10, 10, -22);
+  wallSeg.receiveShadows = true;
+  if (wi % 2 === 0) {
+    const wire = BABYLON.MeshBuilder.CreateTorus('wire' + wi, { diameter: 1.5, thickness: 0.08, tessellation: 16 }, scene);
+    const wireMat = new BABYLON.PBRMaterial('wireMat', scene);
+    wireMat.albedoColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+    wireMat.metallic = 0.9; wireMat.roughness = 0.4;
+    wire.material = wireMat;
+    wire.position = new BABYLON.Vector3(wi * 10, 20.5, -22);
+    wire.rotation.x = Math.PI / 2;
+  }
+}
+
+// ═══════════════════════════════════════════
+//  LIGHTNING SYSTEM
+// ═══════════════════════════════════════════
 const lightningBolts = [];
-function createLightning(start, end, color = 0x4488ff) {
-  const points = [start.clone()];
-  const segments = 8;
-  for (let i = 1; i < segments; i++) {
-    const t = i / segments;
-    const p = new THREE.Vector3().lerpVectors(start, end, t);
+function createLightning(start, end, color, branches) {
+  branches = branches || 2;
+  const col = color || new BABYLON.Color3(1, 0.3, 0);
+  const pts = [start.clone()];
+  const segs = 12;
+  for (let i = 1; i < segs; i++) {
+    const t = i / segs;
+    const p = BABYLON.Vector3.Lerp(start, end, t);
     p.x += (Math.random() - 0.5) * 3;
     p.y += (Math.random() - 0.5) * 2;
     p.z += (Math.random() - 0.5) * 3;
-    points.push(p);
+    pts.push(p);
   }
-  points.push(end.clone());
-  const geo = new THREE.BufferGeometry().setFromPoints(points);
-  const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 1, linewidth: 2 });
-  const bolt = new THREE.Line(geo, mat);
-  bolt.userData = { life: 15, maxLife: 15 };
-  scene.add(bolt);
+  pts.push(end.clone());
+  const bolt = BABYLON.MeshBuilder.CreateLines('bolt', { points: pts }, scene);
+  bolt.color = col;
+  bolt.alpha = 1;
+  bolt._life = 20; bolt._maxLife = 20;
   lightningBolts.push(bolt);
-  return bolt;
+  for (let b = 0; b < branches; b++) {
+    const bi = 3 + Math.floor(Math.random() * (segs - 4));
+    const branchEnd = pts[bi].clone();
+    branchEnd.x += (Math.random() - 0.5) * 5;
+    branchEnd.y += (Math.random() - 0.5) * 4;
+    branchEnd.z += (Math.random() - 0.5) * 5;
+    const branchPts = [pts[bi].clone()];
+    for (let j = 1; j < 5; j++) {
+      const t = j / 5;
+      const bp = BABYLON.Vector3.Lerp(pts[bi], branchEnd, t);
+      bp.x += (Math.random() - 0.5) * 1.5;
+      bp.y += (Math.random() - 0.5);
+      branchPts.push(bp);
+    }
+    branchPts.push(branchEnd);
+    const branch = BABYLON.MeshBuilder.CreateLines('branch', { points: branchPts }, scene);
+    branch.color = col;
+    branch.alpha = 0.6;
+    branch._life = 15; branch._maxLife = 15;
+    lightningBolts.push(branch);
+  }
+  const fl = new BABYLON.PointLight('fl', BABYLON.Vector3.Lerp(start, end, 0.5), scene);
+  fl.diffuse = new BABYLON.Color3(col.r, col.g, col.b);
+  fl.intensity = 8; fl.range = 20; fl._life = 8;
+  lightningBolts.push(fl);
 }
 
-// ── SHOCKWAVE RINGS ──
+// ═══════════════════════════════════════════
+//  SHOCKWAVE SYSTEM
+// ═══════════════════════════════════════════
 const shockwaves = [];
-function createShockwave(y, color = 0xff4400) {
-  const geo = new THREE.RingGeometry(0.1, 0.5, 32);
-  const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
-  const ring = new THREE.Mesh(geo, mat);
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.set(0, y, -5);
-  ring.userData = { life: 60, maxLife: 60, speed: 0.4 };
-  scene.add(ring);
+function createShockwave(pos, color) {
+  const c = color || new BABYLON.Color3(1, 0.3, 0);
+  const ring = BABYLON.MeshBuilder.CreateTorus('shock', { diameter: 1, thickness: 0.3, tessellation: 48 }, scene);
+  const mat = new BABYLON.PBRMaterial('shockMat', scene);
+  mat.albedoColor = new BABYLON.Color3(0, 0, 0);
+  mat.emissiveColor = c; mat.alpha = 0.8;
+  ring.material = mat;
+  ring.position = pos.clone();
+  ring.rotation.x = Math.PI / 2;
+  ring._life = 50; ring._maxLife = 50;
   shockwaves.push(ring);
 }
 
-// ── LIGHTING ──
-const ambientLight = new THREE.AmbientLight(0x111122, 0.5);
-scene.add(ambientLight);
+// ═══════════════════════════════════════════
+//  DEBRIS
+// ═══════════════════════════════════════════
+const debris = [];
+function spawnDebris(pos, count) {
+  for (let i = 0; i < count; i++) {
+    const rock = BABYLON.MeshBuilder.CreatePolyhedron('deb', { size: 0.2 + Math.random() * 0.4, type: Math.floor(Math.random() * 4) }, scene);
+    const mat = new BABYLON.PBRMaterial('debM', scene);
+    mat.albedoColor = new BABYLON.Color3(0.15 + Math.random() * 0.1, 0.1, 0.06);
+    mat.roughness = 0.9; mat.metallic = 0.1;
+    rock.material = mat;
+    rock.position = pos.clone();
+    rock._vx = (Math.random() - 0.5) * 0.5;
+    rock._vy = 0.2 + Math.random() * 0.5;
+    rock._vz = (Math.random() - 0.5) * 0.5;
+    rock._life = 80 + Math.floor(Math.random() * 40);
+    rock._rv = new BABYLON.Vector3((Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2);
+    debris.push(rock);
+  }
+}
 
-const mainLight = new THREE.DirectionalLight(0x4444aa, 0.3);
-mainLight.position.set(5, 15, 10);
-mainLight.castShadow = true;
-mainLight.shadow.mapSize.set(2048, 2048);
-scene.add(mainLight);
+// ═══════════════════════════════════════════
+//  ENERGY ORB (near boss hands during powerup)
+// ═══════════════════════════════════════════
+const orbMat = new BABYLON.PBRMaterial('orbMat', scene);
+orbMat.albedoColor = new BABYLON.Color3(0, 0, 0);
+orbMat.emissiveColor = new BABYLON.Color3(1, 0.4, 0);
+orbMat.alpha = 0;
+const energyOrb = BABYLON.MeshBuilder.CreateSphere('orb', { diameter: 1.2, segments: 16 }, scene);
+energyOrb.material = orbMat;
+energyOrb.parent = bossRoot;
+energyOrb.position.set(0, 4.5, 1);
+const orbPS = new BABYLON.ParticleSystem('orbPS', 200, scene);
+orbPS.createSphereEmitter(0.8);
+orbPS.emitter = energyOrb;
+orbPS.color1 = new BABYLON.Color4(1, 0.5, 0, 1);
+orbPS.color2 = new BABYLON.Color4(1, 0.2, 0, 0.6);
+orbPS.colorDead = new BABYLON.Color4(0.3, 0, 0, 0);
+orbPS.minSize = 0.05; orbPS.maxSize = 0.15;
+orbPS.minLifeTime = 0.3; orbPS.maxLifeTime = 0.6;
+orbPS.emitRate = 0;
+orbPS.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+orbPS.start();
 
-// Dramatic red spot
-const spotLight = new THREE.SpotLight(0xff2200, 0, 40, Math.PI * 0.3, 0.5, 2);
-spotLight.position.set(0, 20, -5);
-spotLight.target.position.set(0, 0, -5);
-spotLight.castShadow = true;
-scene.add(spotLight);
-scene.add(spotLight.target);
-
-// ── ANIMATION STATE ──
+// ═══════════════════════════════════════════
+//  ANIMATION STATE MACHINE
+// ═══════════════════════════════════════════
 let time = 0;
-let phase = 0; // 0=idle, 1=rumble, 2=rise, 3=reveal, 4=idle_boss, 5=dialogue
+let phase = 0; // 0:calm, 1:rumble, 2:rise, 3:reveal, 4:pause, 5:dialogue, 6:powerup, 7:title, 8:end
 let phaseTimer = 0;
 let shakeIntensity = 0;
 let dialogueIndex = -1;
-let typewriterText = '';
-let typewriterTarget = '';
-let typewriterTimer = 0;
-let dialogueSpeaker = '';
+let typeText = '';
+let typeTarget = '';
+let typeTimer = 0;
 let demoComplete = false;
 
 const dialogueLines = [
-  { speaker: '???', text: 'You dare approach my domain?', pause: 0 },
-  { speaker: '???', text: 'I have watched you struggle... crawling over that pathetic wall...', pause: 0 },
-  { speaker: 'THE OVERSEER', text: 'I am the one who BUILT the wall. Every brick. Every barbed wire.', pause: 0 },
-  { speaker: 'THE OVERSEER', text: 'And now you stand before me, thinking your journey is almost over?', pause: 0 },
-  { speaker: 'THE OVERSEER', text: 'How... AMUSING.', pause: 0 },
-  { speaker: 'THE OVERSEER', text: 'Let me show you what REAL power looks like.', pause: 0 },
+  { speaker: '???', text: 'You dare approach my domain...?', blue: true },
+  { speaker: '???', text: 'I\'ve watched every step. Every stumble. Every pathetic attempt to scale that wall.', blue: true },
+  { speaker: 'THE OVERSEER', text: 'I am the one who BUILT the wall. Every steel beam. Every razor wire. Every inch of despair.' },
+  { speaker: 'THE OVERSEER', text: 'And now you stand before me... thinking your journey is almost over?' },
+  { speaker: 'THE OVERSEER', text: 'How... AMUSING.' },
+  { speaker: 'THE OVERSEER', text: 'You\'ve fought guards. You\'ve dodged bullets. Impressive, for an insect.' },
+  { speaker: 'THE OVERSEER', text: 'But I am something DIFFERENT. I don\'t just guard the wall...' },
+  { speaker: 'THE OVERSEER', text: 'I AM the wall.' },
 ];
 
 const dialogueEl = document.getElementById('dialogue');
 const dSpeaker = document.getElementById('dSpeaker');
 const dText = document.getElementById('dText');
+const titleCard = document.getElementById('title-card');
+const subtitle = document.getElementById('subtitle');
+const flashEl = document.getElementById('flash');
 const restartBtn = document.getElementById('restart');
 
-// ── PHASE TRANSITIONS ──
-function startPhase(p) {
-  phase = p;
-  phaseTimer = 0;
+function startPhase(p) { phase = p; phaseTimer = 0; }
+
+function flash(dur) {
+  dur = dur || 150;
+  flashEl.style.opacity = '1';
+  setTimeout(function() { flashEl.style.opacity = '0'; }, dur);
 }
 
-// ── CLICK HANDLER ──
-document.addEventListener('click', () => {
-  if (demoComplete) return;
-  if (phase === 5) {
-    // Advance dialogue
-    if (typewriterText.length < typewriterTarget.length) {
-      typewriterText = typewriterTarget; // skip typewriter
-      return;
-    }
-    dialogueIndex++;
-    if (dialogueIndex < dialogueLines.length) {
-      showDialogue(dialogueLines[dialogueIndex]);
-    } else {
-      // End dialogue — boss power-up
-      dialogueEl.style.display = 'none';
-      startPhase(6);
-    }
-  }
-});
-
 function showDialogue(line) {
-  dialogueSpeaker = line.speaker;
-  typewriterTarget = line.text;
-  typewriterText = '';
-  typewriterTimer = 0;
+  typeTarget = line.text;
+  typeText = '';
+  typeTimer = 0;
   dSpeaker.textContent = line.speaker;
   dText.textContent = '';
   dialogueEl.style.display = 'block';
-  dialogueEl.style.borderColor = line.speaker === '???' ? '#4488ff' : '#ff4400';
-  dialogueEl.style.boxShadow = line.speaker === '???' ?
-    '0 0 30px rgba(68,136,255,0.3), inset 0 0 60px rgba(68,136,255,0.05)' :
-    '0 0 30px rgba(255,68,0,0.3), inset 0 0 60px rgba(255,68,0,0.05)';
-  dSpeaker.style.color = line.speaker === '???' ? '#4488ff' : '#ff4400';
-  dSpeaker.style.textShadow = line.speaker === '???' ? '0 0 10px #4488ff88' : '0 0 10px #ff440088';
+  if (line.blue) document.body.classList.add('blue-border');
+  else document.body.classList.remove('blue-border');
 }
 
-// ── MAIN LOOP ──
-function animate() {
-  requestAnimationFrame(animate);
-  time += 0.016;
+document.addEventListener('click', function() {
+  if (demoComplete) return;
+  if (phase === 5) {
+    if (typeText.length < typeTarget.length) { typeText = typeTarget; dText.textContent = typeText; return; }
+    dialogueIndex++;
+    if (dialogueIndex < dialogueLines.length) showDialogue(dialogueLines[dialogueIndex]);
+    else { dialogueEl.style.display = 'none'; startPhase(6); }
+  }
+});
+
+window.skipToEnd = function() {
+  dialogueEl.style.display = 'none';
+  startPhase(8); phaseTimer = 100;
+  bossRoot.position.y = 2;
+  bossRoot.setEnabled(true);
+  bossSpot.intensity = 5; bossPoint.intensity = 4;
+  auraMat1.alpha = 0.5; auraMat2.alpha = 0.4;
+  demoComplete = true;
+  restartBtn.style.display = 'block';
+  document.getElementById('skip').style.display = 'none';
+};
+
+// ═══════════════════════════════════════════
+//  RENDER LOOP
+// ═══════════════════════════════════════════
+let _camTarget = new BABYLON.Vector3(0, 3, 0);
+let _camPos = camera.position.clone();
+
+engine.runRenderLoop(function() {
+  const dt = engine.getDeltaTime() / 1000;
+  time += dt;
   phaseTimer++;
 
-  // ── PHASE 0: CALM (0-120 frames) ──
+  // ── PHASE 0: CALM ESTABLISHING SHOT ──
   if (phase === 0) {
-    camera.position.x = Math.sin(time * 0.3) * 2;
-    camera.position.y = 8 + Math.sin(time * 0.5) * 0.5;
-    camera.position.z = 25;
-    camera.lookAt(0, 2, 0);
-    if (phaseTimer > 120) startPhase(1);
+    _camPos.x = Math.sin(time * 0.25) * 3;
+    _camPos.y = 7 + Math.sin(time * 0.4) * 0.5;
+    _camPos.z = 28 - phaseTimer * 0.01;
+    _camTarget.set(0, 3, -5);
+    subtitle.style.opacity = phaseTimer > 30 ? '1' : '0';
+    subtitle.textContent = 'THE BORDER';
+    runeMat.emissiveColor = new BABYLON.Color3(0.3 + Math.sin(time) * 0.1, 0.08, 0);
+    if (phaseTimer > 150) { subtitle.style.opacity = '0'; startPhase(1); }
   }
 
-  // ── PHASE 1: RUMBLE (120-240) ──
+  // ── PHASE 1: RUMBLE ──
   if (phase === 1) {
-    const prog = phaseTimer / 180;
-    shakeIntensity = prog * 0.3;
-    // Camera slowly pushes in
-    camera.position.z = 25 - prog * 5;
-    camera.position.y = 8 - prog * 2;
-    camera.lookAt(0, 2, 0);
-    // Floor vibrates
-    floor.position.y = Math.sin(time * 20) * shakeIntensity * 0.1;
-    // Red light builds
-    spotLight.intensity = prog * 5;
-    // Cracks — lightning from ground
-    if (phaseTimer % 20 === 0 && phaseTimer > 60) {
-      const angle = Math.random() * Math.PI * 2;
-      const dist = 2 + Math.random() * 4;
+    const p = Math.min(1, phaseTimer / 200);
+    shakeIntensity = p * 0.4;
+    _camPos.z = 27 - p * 6;
+    _camPos.y = 7 - p * 2;
+    _camTarget.set(0, 2, -5);
+    runeMat.emissiveColor = new BABYLON.Color3(0.3 + p * 0.7, 0.08 + p * 0.2, p * 0.05);
+    plat.position.y = 0.5 + Math.sin(time * 25) * shakeIntensity * 0.08;
+    if (phaseTimer > 40 && phaseTimer % 18 === 0) {
+      const a = Math.random() * Math.PI * 2, d = 2 + Math.random() * 5;
       createLightning(
-        new THREE.Vector3(Math.cos(angle) * dist, 0, -5 + Math.sin(angle) * dist),
-        new THREE.Vector3(Math.cos(angle) * 0.5, 4 + Math.random() * 3, -5 + Math.sin(angle) * 0.5),
-        0xff4400
+        new BABYLON.Vector3(Math.cos(a) * d, 0, -5 + Math.sin(a) * d),
+        new BABYLON.Vector3(Math.cos(a) * 0.3, 3 + Math.random() * 4, -5 + Math.sin(a) * 0.3),
+        new BABYLON.Color3(1, 0.3, 0), 1
       );
+      spawnDebris(new BABYLON.Vector3(Math.cos(a) * d, 0, -5 + Math.sin(a) * d), 3);
     }
-    if (phaseTimer > 180) startPhase(2);
+    bossSpot.intensity = p * 4;
+    if (phaseTimer > 200) startPhase(2);
   }
 
-  // ── PHASE 2: BOSS RISES (240-420) ──
+  // ── PHASE 2: BOSS RISES ──
   if (phase === 2) {
-    const prog = Math.min(1, phaseTimer / 180);
-    const easedProg = 1 - Math.pow(1 - prog, 3); // ease out cubic
-    bossGroup.visible = true;
-    bossGroup.position.y = -10 + easedProg * 11.5; // rise from -10 to 1.5
-    bossGroup.rotation.y = easedProg * Math.PI * 2; // full spin during rise
-    // Intense shake
-    shakeIntensity = 0.3 + prog * 0.5;
-    // Boss light grows
-    bossLight.intensity = prog * 8;
-    // Camera dramatic
-    camera.position.z = 20 - prog * 5;
-    camera.position.y = 6 + Math.sin(prog * Math.PI) * 3;
-    camera.lookAt(0, 3 + easedProg * 3, -5);
-    // Shockwaves
-    if (phaseTimer % 30 === 0) createShockwave(0.5 + easedProg * 2);
-    // More lightning
-    if (phaseTimer % 10 === 0) {
+    const p = Math.min(1, phaseTimer / 220);
+    const ease = 1 - Math.pow(1 - p, 4);
+    bossRoot.setEnabled(true);
+    bossRoot.position.y = -15 + ease * 17;
+    bossRoot.rotation.y = ease * Math.PI * 2.5;
+    shakeIntensity = 0.3 + p * 0.6;
+    bossSpot.intensity = 4 + p * 8;
+    bossPoint.intensity = p * 6;
+    _camPos.z = 21 - p * 6;
+    _camPos.y = 5 + Math.sin(p * Math.PI) * 4;
+    _camTarget.set(0, 3 + ease * 4, -5);
+    auraMat1.alpha = p * 0.6;
+    auraMat2.alpha = p * 0.4;
+    if (phaseTimer % 25 === 0) {
+      createShockwave(new BABYLON.Vector3(0, 0.5 + ease * 3, -5));
+      spawnDebris(new BABYLON.Vector3((Math.random() - 0.5) * 6, 0, -5 + (Math.random() - 0.5) * 6), 5);
+    }
+    if (phaseTimer % 12 === 0) {
       createLightning(
-        new THREE.Vector3((Math.random()-0.5)*8, 0, -5 + (Math.random()-0.5)*8),
-        new THREE.Vector3((Math.random()-0.5)*2, 6 + Math.random()*4, -5 + (Math.random()-0.5)*2),
-        phaseTimer % 20 === 0 ? 0xff8800 : 0xff2200
+        new BABYLON.Vector3((Math.random() - 0.5) * 10, 0, -5 + (Math.random() - 0.5) * 10),
+        new BABYLON.Vector3((Math.random() - 0.5) * 2, 5 + ease * 5, -5),
+        new BABYLON.Color3(1, 0.4 + Math.random() * 0.4, Math.random() * 0.2), 2
       );
     }
-    // Aura rings appear
-    auraMat.opacity = prog * 0.7;
-    aura2Mat.opacity = prog * 0.5;
-    if (phaseTimer > 180) startPhase(3);
+    platMat.emissiveColor = new BABYLON.Color3(p * 0.3, p * 0.08, 0);
+    if (phaseTimer > 220) startPhase(3);
   }
 
-  // ── PHASE 3: REVEAL — camera swoops (420-540) ──
+  // ── PHASE 3: CAMERA SWOOPS ──
   if (phase === 3) {
-    const prog = Math.min(1, phaseTimer / 120);
-    const easedProg = prog < 0.5 ? 2*prog*prog : 1 - Math.pow(-2*prog+2, 2)/2;
-    shakeIntensity *= 0.95;
-    // Camera swoops around to front
-    const angle = Math.PI + easedProg * Math.PI;
-    camera.position.x = Math.sin(angle) * 12;
-    camera.position.z = -5 + Math.cos(angle) * 12;
-    camera.position.y = 4 + (1 - easedProg) * 4;
-    camera.lookAt(0, 6, -5);
-    bossGroup.rotation.y += 0.01;
-    // Flash at midpoint
-    if (phaseTimer === 60) {
-      shakeIntensity = 1;
-      spotLight.intensity = 20;
-      for (let i = 0; i < 5; i++) createShockwave(3);
+    const p = Math.min(1, phaseTimer / 150);
+    const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+    shakeIntensity *= 0.97;
+    const angle = Math.PI + ease * Math.PI * 1.2;
+    _camPos.x = Math.sin(angle) * 14;
+    _camPos.z = -5 + Math.cos(angle) * 14;
+    _camPos.y = 4 + (1 - ease) * 5;
+    _camTarget.set(0, 6, -5);
+    bossRoot.rotation.y += dt * 0.5;
+    if (phaseTimer === 75) {
+      flash(200);
+      shakeIntensity = 1.2;
+      for (let i = 0; i < 6; i++) createShockwave(new BABYLON.Vector3(0, 4, -5));
+      spawnDebris(new BABYLON.Vector3(0, 4, -5), 15);
     }
-    spotLight.intensity = Math.max(3, spotLight.intensity * 0.97);
-    if (phaseTimer > 120) startPhase(4);
+    bossSpot.intensity = Math.max(5, bossSpot.intensity * 0.98);
+    if (phaseTimer > 150) startPhase(4);
   }
 
-  // ── PHASE 4: IDLE BOSS (brief pause, then dialogue) ──
+  // ── PHASE 4: SETTLE ──
   if (phase === 4) {
-    // Camera settles to dialogue position
-    const prog = Math.min(1, phaseTimer / 60);
-    camera.position.x += (3 - camera.position.x) * 0.05;
-    camera.position.y += (5 - camera.position.y) * 0.05;
-    camera.position.z += (8 - camera.position.z) * 0.05;
-    camera.lookAt(0, 5.5, -5);
+    _camPos.x += (4 - _camPos.x) * 0.04;
+    _camPos.y += (5.5 - _camPos.y) * 0.04;
+    _camPos.z += (10 - _camPos.z) * 0.04;
+    _camTarget.set(0, 6, -5);
     shakeIntensity *= 0.9;
-    if (phaseTimer > 90) {
+    if (phaseTimer > 100) {
       dialogueIndex = 0;
       showDialogue(dialogueLines[0]);
       startPhase(5);
@@ -465,227 +636,217 @@ function animate() {
 
   // ── PHASE 5: DIALOGUE ──
   if (phase === 5) {
-    // Gentle camera sway
-    camera.position.x = 3 + Math.sin(time * 0.4) * 0.5;
-    camera.position.y = 5 + Math.sin(time * 0.3) * 0.3;
-    camera.lookAt(0, 5.5, -5);
-    // Typewriter effect
-    typewriterTimer++;
-    if (typewriterTimer % 2 === 0 && typewriterText.length < typewriterTarget.length) {
-      typewriterText += typewriterTarget[typewriterText.length];
-      dText.textContent = typewriterText;
+    _camPos.x = 4 + Math.sin(time * 0.3) * 0.5;
+    _camPos.y = 5.5 + Math.sin(time * 0.25) * 0.3;
+    _camPos.z = 10;
+    _camTarget.set(0, 6, -5);
+    typeTimer++;
+    if (typeTimer % 2 === 0 && typeText.length < typeTarget.length) {
+      typeText += typeTarget[typeText.length];
+      dText.textContent = typeText;
     }
-    // Boss subtle movement during dialogue
-    if (dialogueSpeaker === 'THE OVERSEER') {
-      bossGroup.children.forEach(c => {
-        if (c === armR) c.rotation.z = -0.2 + Math.sin(time * 3) * 0.15;
-      });
-      // Occasional lightning emphasis
-      if (phaseTimer % 90 === 0) {
+    if (dialogueIndex >= 2) {
+      armR.rotation.z = -0.2 + Math.sin(time * 2.5) * 0.2;
+      if (phaseTimer % 100 === 0) {
         createLightning(
-          new THREE.Vector3((Math.random()-0.5)*6, 8, -5 + (Math.random()-0.5)*6),
-          new THREE.Vector3(0, 6, -5), 0xff4400
+          new BABYLON.Vector3((Math.random() - 0.5) * 8, 10, -5 + (Math.random() - 0.5) * 8),
+          new BABYLON.Vector3(0, 7, -5), new BABYLON.Color3(1, 0.3, 0), 1
         );
-        shakeIntensity = 0.15;
+        shakeIntensity = 0.12;
       }
     }
   }
 
-  // ── PHASE 6: POWER UP FINALE ──
+  // ── PHASE 6: POWER-UP FINALE ──
   if (phase === 6) {
-    const prog = Math.min(1, phaseTimer / 240);
-    // Camera pulls back dramatically
-    camera.position.z = 8 + prog * 15;
-    camera.position.y = 5 + prog * 5;
-    camera.lookAt(0, 4, -5);
-    // Boss ascends and powers up
-    bossGroup.position.y = 1.5 + prog * 4;
-    bossGroup.rotation.y += 0.03 + prog * 0.05;
-    // Aura grows intense
-    auraMat.opacity = 0.7 + prog * 0.3;
-    aura.scale.setScalar(1 + prog * 2);
-    aura2Mat.opacity = 0.5 + prog * 0.3;
-    aura2.scale.setScalar(1 + prog * 1.5);
-    // Eyes blaze
-    eyeMat.emissiveIntensity = 3 + prog * 10;
-    // Crown glows
-    crownMat.emissiveIntensity = 0.5 + prog * 3;
-    // Light explosion
-    bossLight.intensity = 8 + prog * 20;
-    spotLight.intensity = 3 + prog * 15;
-    // Shake builds
-    shakeIntensity = prog * 0.8;
-    // Constant lightning
-    if (phaseTimer % 5 === 0) {
-      const a = Math.random() * Math.PI * 2;
-      const d = 3 + Math.random() * 8;
+    const p = Math.min(1, phaseTimer / 300);
+    _camPos.z = 10 + p * 16;
+    _camPos.y = 5.5 + p * 6;
+    _camTarget.set(0, 5, -5);
+    bossRoot.position.y = 2 + p * 5;
+    bossRoot.rotation.y += dt * (1 + p * 4);
+    auraMat1.alpha = 0.6 + p * 0.4;
+    auraRing1.scaling.setAll(1 + p * 3);
+    auraMat2.alpha = 0.4 + p * 0.4;
+    auraRing2.scaling.setAll(1 + p * 2);
+    eyeMat.emissiveColor = new BABYLON.Color3(1 + p * 4, p * 0.5, 0);
+    crownMat.emissiveColor = new BABYLON.Color3(0.2 + p * 1.5, 0.12 + p * 0.8, p * 0.2);
+    bossMat.emissiveColor = new BABYLON.Color3(p * 0.3, p * 0.05, p * 0.15);
+    bossSpot.intensity = 5 + p * 25;
+    bossPoint.intensity = 6 + p * 20;
+    shakeIntensity = p * 1.0;
+    // Energy orb grows
+    orbMat.alpha = p;
+    orbMat.emissiveColor = new BABYLON.Color3(1 + p * 2, 0.4 - p * 0.2, 0);
+    energyOrb.scaling.setAll(0.5 + p * 2);
+    orbPS.emitRate = p * 200;
+    if (phaseTimer % 4 === 0) {
+      const a = Math.random() * Math.PI * 2, d = 4 + Math.random() * 10;
       createLightning(
-        new THREE.Vector3(Math.cos(a)*d, Math.random()*12, -5 + Math.sin(a)*d),
-        new THREE.Vector3((Math.random()-0.5)*2, 5 + bossGroup.position.y, -5),
-        Math.random() > 0.5 ? 0xff4400 : 0xffcc00
+        new BABYLON.Vector3(Math.cos(a) * d, Math.random() * 15, -5 + Math.sin(a) * d),
+        new BABYLON.Vector3((Math.random() - 0.5) * 2, 5 + bossRoot.position.y, -5),
+        new BABYLON.Color3(1, 0.3 + Math.random() * 0.5, Math.random() * 0.2), 3
       );
     }
-    // Shockwaves
-    if (phaseTimer % 15 === 0) createShockwave(bossGroup.position.y);
-    // Particles rush inward
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const dx = -pPositions[i*3];
-      const dy = 5 - pPositions[i*3+1];
-      const dz = -5 - pPositions[i*3+2];
-      pPositions[i*3] += dx * 0.005 * prog;
-      pPositions[i*3+1] += dy * 0.005 * prog;
-      pPositions[i*3+2] += dz * 0.005 * prog;
+    if (phaseTimer % 12 === 0) {
+      createShockwave(new BABYLON.Vector3(0, bossRoot.position.y, -5));
+      spawnDebris(new BABYLON.Vector3((Math.random() - 0.5) * 8, 0, -5 + (Math.random() - 0.5) * 8), 4);
     }
-
-    if (phaseTimer > 240) {
-      startPhase(7);
-      // Final flash
-      spotLight.intensity = 50;
-      bossLight.intensity = 50;
-      shakeIntensity = 2;
-      for (let i = 0; i < 10; i++) createShockwave(bossGroup.position.y);
-    }
+    emberPS.emitRate = 30 + p * 200;
+    if (phaseTimer > 300) { flash(400); startPhase(7); }
   }
 
-  // ── PHASE 7: FADE / END ──
+  // ── PHASE 7: TITLE CARD ──
   if (phase === 7) {
-    spotLight.intensity *= 0.95;
-    bossLight.intensity *= 0.95;
-    shakeIntensity *= 0.93;
-    bossGroup.rotation.y += 0.02;
-    // Camera slowly pulls back
-    camera.position.z += 0.05;
-    camera.lookAt(0, 5, -5);
-    if (phaseTimer > 120 && !demoComplete) {
+    bossSpot.intensity = Math.max(5, bossSpot.intensity * 0.96);
+    bossPoint.intensity = Math.max(4, bossPoint.intensity * 0.96);
+    shakeIntensity *= 0.94;
+    bossRoot.position.y += (2 - bossRoot.position.y) * 0.02;
+    bossRoot.rotation.y += dt * 0.5;
+    _camPos.z += (15 - _camPos.z) * 0.03;
+    _camPos.y += (7 - _camPos.y) * 0.03;
+    _camTarget.set(0, 5, -5);
+    orbMat.alpha *= 0.95;
+    orbPS.emitRate = Math.max(0, orbPS.emitRate * 0.95);
+    if (phaseTimer > 40) {
+      const tp = Math.min(1, (phaseTimer - 40) / 60);
+      titleCard.style.opacity = tp;
+    }
+    eyeMat.emissiveColor = new BABYLON.Color3(1, 0, 0);
+    crownMat.emissiveColor = new BABYLON.Color3(0.3, 0.15, 0);
+    bossMat.emissiveColor = new BABYLON.Color3(0.03, 0.01, 0.05);
+    auraMat1.alpha = 0.5; auraRing1.scaling.setAll(1);
+    auraMat2.alpha = 0.4; auraRing2.scaling.setAll(1);
+    emberPS.emitRate = 40;
+    if (phaseTimer > 240) { titleCard.style.opacity = '0'; startPhase(8); }
+  }
+
+  // ── PHASE 8: IDLE END ──
+  if (phase === 8) {
+    bossSpot.intensity = 5 + Math.sin(time * 2) * 0.5;
+    bossPoint.intensity = 4;
+    shakeIntensity *= 0.95;
+    _camPos.x = 6 * Math.sin(time * 0.15);
+    _camPos.y = 5 + Math.sin(time * 0.2) * 0.5;
+    _camPos.z = 15 + Math.sin(time * 0.1) * 2;
+    _camTarget.set(0, 5, -5);
+    bossRoot.rotation.y += dt * 0.3;
+    orbMat.alpha = 0; orbPS.emitRate = 0;
+    if (phaseTimer > 60 && !demoComplete) {
       demoComplete = true;
       restartBtn.style.display = 'block';
+      document.getElementById('skip').style.display = 'none';
     }
   }
 
-  // ── ALWAYS: Boss idle animations ──
-  if (bossGroup.visible) {
-    // Floating bob
-    const baseY = bossGroup.position.y;
-    // Cape flutter
-    const capePos = cape.geometry.attributes.position;
-    for (let i = 0; i < capePos.count; i++) {
-      const y = capePos.getY(i);
-      capePos.setZ(i, Math.sin(time * 3 + y * 2) * 0.3 * (1 + Math.abs(y) * 0.3));
+  // ═══════════════════════════════════════════
+  //  ALWAYS-ON UPDATES
+  // ═══════════════════════════════════════════
+  camera.position = BABYLON.Vector3.Lerp(camera.position, _camPos, 0.08);
+  if (shakeIntensity > 0.005) {
+    camera.position.x += (Math.random() - 0.5) * shakeIntensity;
+    camera.position.y += (Math.random() - 0.5) * shakeIntensity * 0.6;
+  }
+  camera.setTarget(_camTarget);
+
+  if (bossRoot.getEnabled()) {
+    const bob = Math.sin(time * 1.5) * 0.15;
+    if (phase >= 4 && phase <= 5) bossRoot.position.y = 2 + bob;
+    auraRing1.rotation.z = time * 1.5;
+    auraRing2.rotation.z = -time;
+    runeRing.rotation.z = time * 0.3;
+    runeRing2.rotation.z = -time * 0.5;
+    if (phase >= 4 && phase <= 5) {
+      const ep = Math.sin(time * 3) * 0.5 + 0.5;
+      eyeMat.emissiveColor = new BABYLON.Color3(1 + ep, ep * 0.2, 0);
     }
-    capePos.needsUpdate = true;
-    // Aura rotation
-    aura.rotation.z = time * 2;
-    aura2.rotation.z = -time * 1.5;
-    // Eye pulsing
-    if (phase >= 4) {
-      const pulse = Math.sin(time * 4) * 0.5 + 0.5;
-      eyeMat.emissiveIntensity = 3 + pulse * 3;
-    }
+    BABYLON.MeshBuilder.CreateRibbon(null, { pathArray: buildCapePaths(time), instance: capeRibbon });
   }
 
-  // ── ALWAYS: Update particles ──
-  for (let i = 0; i < PARTICLE_COUNT; i++) {
-    pPositions[i*3] += pVelocities[i].x;
-    pPositions[i*3+1] += pVelocities[i].y;
-    pPositions[i*3+2] += pVelocities[i].z;
-    if (pPositions[i*3+1] > 20) {
-      pPositions[i*3] = (Math.random()-0.5) * 60;
-      pPositions[i*3+1] = 0;
-      pPositions[i*3+2] = (Math.random()-0.5) * 60;
-    }
+  // Pillar flicker
+  for (let i = 0; i < pillarLights.length; i++) {
+    pillarLights[i].intensity = 2.5 + Math.sin(time * 8 + i * 2.5) * 1.2;
   }
-  particlesGeo.attributes.position.needsUpdate = true;
 
-  // ── ALWAYS: Update lightning ──
+  // Lightning update
   for (let i = lightningBolts.length - 1; i >= 0; i--) {
-    const bolt = lightningBolts[i];
-    bolt.userData.life--;
-    bolt.material.opacity = bolt.userData.life / bolt.userData.maxLife;
-    if (bolt.userData.life <= 0) {
-      scene.remove(bolt);
-      bolt.geometry.dispose();
-      bolt.material.dispose();
-      lightningBolts.splice(i, 1);
-    }
+    const b = lightningBolts[i];
+    b._life--;
+    if (b instanceof BABYLON.LinesMesh) b.alpha = b._life / b._maxLife;
+    else if (b instanceof BABYLON.PointLight) b.intensity = (b._life / 8) * 8;
+    if (b._life <= 0) { if (b.dispose) b.dispose(); lightningBolts.splice(i, 1); }
   }
 
-  // ── ALWAYS: Update shockwaves ──
+  // Shockwave update
   for (let i = shockwaves.length - 1; i >= 0; i--) {
     const sw = shockwaves[i];
-    sw.userData.life--;
-    const prog = 1 - sw.userData.life / sw.userData.maxLife;
-    sw.scale.setScalar(1 + prog * 20);
-    sw.material.opacity = (1 - prog) * 0.6;
-    if (sw.userData.life <= 0) {
-      scene.remove(sw);
-      sw.geometry.dispose();
-      sw.material.dispose();
-      shockwaves.splice(i, 1);
-    }
+    sw._life--;
+    const p = 1 - sw._life / sw._maxLife;
+    sw.scaling.setAll(1 + p * 25);
+    sw.material.alpha = (1 - p) * 0.6;
+    if (sw._life <= 0) { sw.dispose(); sw.material.dispose(); shockwaves.splice(i, 1); }
   }
 
-  // ── ALWAYS: Pillar flame flicker ──
-  scene.children.forEach(c => {
-    if (c instanceof THREE.PointLight && c !== bossLight && c !== spotLight) {
-      c.intensity = 1.5 + Math.sin(time * 10 + c.position.x) * 0.8;
-    }
-  });
-
-  // ── Camera shake ──
-  if (shakeIntensity > 0.01) {
-    camera.position.x += (Math.random() - 0.5) * shakeIntensity;
-    camera.position.y += (Math.random() - 0.5) * shakeIntensity * 0.5;
+  // Debris update
+  for (let i = debris.length - 1; i >= 0; i--) {
+    const d = debris[i];
+    d._life--;
+    d.position.x += d._vx;
+    d.position.y += d._vy;
+    d.position.z += d._vz;
+    d._vy -= 0.012;
+    d.rotation.x += d._rv.x;
+    d.rotation.y += d._rv.y;
+    if (d.position.y < 0) { d.position.y = 0; d._vy *= -0.3; d._vx *= 0.7; d._vz *= 0.7; }
+    if (d._life <= 0) { d.dispose(); d.material.dispose(); debris.splice(i, 1); }
   }
 
-  renderer.render(scene, camera);
-}
+  // Grid pulse
+  const gridPulse = 0.04 + Math.sin(time * 0.8) * 0.03;
+  for (const l of gridLines) l.color = new BABYLON.Color3(gridPulse * 2, gridPulse, gridPulse * 3);
 
-// ── RESTART ──
-window.restartDemo = function() {
-  time = 0;
-  phase = 0;
-  phaseTimer = 0;
-  shakeIntensity = 0;
-  dialogueIndex = -1;
-  typewriterText = '';
-  typewriterTarget = '';
-  dialogueSpeaker = '';
-  demoComplete = false;
-  bossGroup.visible = false;
-  bossGroup.position.y = -10;
-  bossGroup.rotation.y = 0;
-  bossLight.intensity = 0;
-  spotLight.intensity = 0;
-  auraMat.opacity = 0;
-  aura2Mat.opacity = 0;
-  aura.scale.setScalar(1);
-  aura2.scale.setScalar(1);
-  eyeMat.emissiveIntensity = 3;
-  crownMat.emissiveIntensity = 0.5;
-  dialogueEl.style.display = 'none';
-  restartBtn.style.display = 'none';
-  camera.position.set(0, 8, 25);
-  // Reset particles
-  for (let i = 0; i < PARTICLE_COUNT; i++) {
-    pPositions[i*3] = (Math.random()-0.5) * 60;
-    pPositions[i*3+1] = Math.random() * 20;
-    pPositions[i*3+2] = (Math.random()-0.5) * 60;
-  }
-  // Clear effects
-  for (const b of lightningBolts) { scene.remove(b); b.geometry.dispose(); b.material.dispose(); }
-  lightningBolts.length = 0;
-  for (const s of shockwaves) { scene.remove(s); s.geometry.dispose(); s.material.dispose(); }
-  shockwaves.length = 0;
-};
-
-// ── RESIZE ──
-window.addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  scene.render();
 });
 
-animate();
+// ═══════════════════════════════════════════
+//  RESTART
+// ═══════════════════════════════════════════
+window.restartDemo = function() {
+  time = 0; phase = 0; phaseTimer = 0; shakeIntensity = 0;
+  dialogueIndex = -1; typeText = ''; typeTarget = ''; demoComplete = false;
+  bossRoot.setEnabled(false);
+  bossRoot.position.y = -15;
+  bossRoot.rotation.y = 0;
+  bossSpot.intensity = 0; bossPoint.intensity = 0;
+  auraMat1.alpha = 0; auraMat2.alpha = 0;
+  auraRing1.scaling.setAll(1); auraRing2.scaling.setAll(1);
+  eyeMat.emissiveColor = new BABYLON.Color3(1, 0, 0);
+  crownMat.emissiveColor = new BABYLON.Color3(0.2, 0.12, 0);
+  bossMat.emissiveColor = new BABYLON.Color3(0, 0, 0);
+  platMat.emissiveColor = new BABYLON.Color3(0.03, 0.01, 0);
+  orbMat.alpha = 0; orbPS.emitRate = 0;
+  energyOrb.scaling.setAll(1);
+  dialogueEl.style.display = 'none';
+  restartBtn.style.display = 'none';
+  titleCard.style.opacity = '0';
+  subtitle.style.opacity = '0';
+  document.getElementById('skip').style.display = 'block';
+  _camPos = new BABYLON.Vector3(0, 7, 28);
+  _camTarget = new BABYLON.Vector3(0, 3, 0);
+  camera.position = _camPos.clone();
+  emberPS.emitRate = 30;
+  armR.rotation.z = -0.2;
+  document.body.classList.remove('blue-border');
+  for (const b of lightningBolts) { if (b.dispose) b.dispose(); }
+  lightningBolts.length = 0;
+  for (const s of shockwaves) { s.dispose(); s.material.dispose(); }
+  shockwaves.length = 0;
+  for (const d of debris) { d.dispose(); d.material.dispose(); }
+  debris.length = 0;
+};
+
+bossRoot.setEnabled(false);
+window.addEventListener('resize', function() { engine.resize(); });
 </script>
 </body>
 </html>
