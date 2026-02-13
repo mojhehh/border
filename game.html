@@ -36,9 +36,10 @@ canvas {
 <body>
 <div id="ui">
   <h1>CRUZA LA FRONTERA</h1>
-  <p>Arrow Keys / WASD to move &amp; jump · Dodge la migra · Climb the border wall!</p>
+  <p>Arrow Keys / WASD to move &amp; jump Â· Dodge la migra Â· Climb the border wall!</p>
 </div>
 <canvas id="game"></canvas>
+<video id="deathVideo" muted playsinline preload="auto" style="display:none"></video>
 <!-- Hidden input for iOS/iPad virtual keyboard -->
 <input id="hiddenInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="position:fixed;left:0;bottom:0;width:100%;height:40px;opacity:0.01;font-size:16px;z-index:9999;pointer-events:none;" />
 
@@ -51,7 +52,7 @@ canvas {
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
-// ── Load Images ──
+// â”€â”€ Load Images â”€â”€
 const playerImg = new Image();
 playerImg.src = 'player_new.png';
 const PLAYER_IMG_SCALE = 1.4; // draw image wider than hitbox to center cutout
@@ -86,15 +87,15 @@ function imgH(img, w) {
   if (img.naturalWidth && img.naturalHeight) return w * (img.naturalHeight / img.naturalWidth);
   return w * 1.3;
 }
-// ── Dynamic Sizing ──
-// Fixed internal resolution — JS resizes canvas with proper aspect ratio (letterboxing)
+// â”€â”€ Dynamic Sizing â”€â”€
+// Fixed internal resolution â€” JS resizes canvas with proper aspect ratio (letterboxing)
 const W = 1280;
 const H = 720;
 let GROUND_Y = H - 80;
 canvas.width = W;
 canvas.height = H;
 
-// Canvas letterbox scaling — maintains 16:9 on any screen
+// Canvas letterbox scaling â€” maintains 16:9 on any screen
 let canvasScale = 1, canvasOffsetX = 0, canvasOffsetY = 0;
 function resizeCanvas() {
   // Use visualViewport when available (iOS Safari address bar changes)
@@ -148,7 +149,7 @@ const PLAYER_SPEED = 5.0;
 const JUMP_FORCE = -12.5;
 const WALL_CLIMB_SPEED = 3.8;
 
-// ── Game State ──
+// â”€â”€ Game State â”€â”€
 let state = 'menu'; // menu | tutorial | intro | playing | cutscene | bossfight | bossdialogue | phonecall | epsteinfight | fusioncutscene | fusionfight | splitfight | hawkingRefusal | hawkingDeath | winCutscene | won | dead | arena | lobby
 let cameraX = 0;
 let cameraY = 0;
@@ -164,7 +165,7 @@ let bossDeathTimer = 0; // big death explosion sequence
 let screenFlash = 0; // white/red screen flash
 let screenFlashColor = '#fff';
 
-// ── In-game toast notifications ──
+// â”€â”€ In-game toast notifications â”€â”€
 let mpToasts = []; // [{text, life, color}]
 function showToast(text, color = '#ffffff') {
   mpToasts.push({ text, life: 180, color }); // ~3 seconds at 60fps
@@ -182,10 +183,20 @@ let fusionBoss = null; // fused Trump+Epstein boss
 let fusionCutsceneTimer = 0; // timer for fusion animation
 let miniBosses = []; // split mini-bosses array
 let restartCooldown = 0;
+// â”€â”€ Soul Shatter Death Animation (video-based) â”€â”€
+let deathAnimTimer = 0;
+let deathAnimVideoPlaying = false;
+const _deathVid = document.getElementById('deathVideo');
+_deathVid.src = 'data:video/webm;base64,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';
+function initDeathAnim() {
+  deathAnimTimer = 0;
+  deathAnimVideoPlaying = false;
+  _deathVid.currentTime = 0;
+}
 // Hawking Undertale-style refusal cutscene
 let hawkingRefusalTimer = 0;
 let hawkingRefusalPhase = 0; // 0=black, 1=heart appears, 2=heart cracks, 3=heart splits, 4=pieces float, 5=BUT IT REFUSED, 6=heart reforms, 7=white flash, 8=return
-let hawkingPhase2 = false; // true after refusal — Hawking is MASSIVE
+let hawkingPhase2 = false; // true after refusal â€” Hawking is MASSIVE
 let hawkingDeathTimer = 0; // epic death scene timer
 let hawkingDeathPhase = 0; // phase of the death scene
 let winCutsceneTimer = 0; // final win cutscene timer
@@ -228,7 +239,7 @@ let settings = {
   colorblind: false,
 };
 
-// ── iPad/Touch Performance Mode Prompt ──
+// â”€â”€ iPad/Touch Performance Mode Prompt â”€â”€
 let _perfPromptShown = localStorage.getItem('perfPromptDismissed') === 'true';
 let _showPerfPrompt = false;
 // Detect iPad/mobile and offer performance mode on first visit
@@ -254,7 +265,7 @@ function _declinePerfMode() {
   localStorage.setItem('perfPromptDismissed', 'true');
 }
 
-// ── TOUCH CONTROL LAYOUT SYSTEM ──
+// â”€â”€ TOUCH CONTROL LAYOUT SYSTEM â”€â”€
 const TOUCH_PRESETS = {
   default: { name: 'Default', moveX: 140, moveY: 600, moveR: 70, aimX: 1140, aimY: 600, aimR: 70 },
   lefty:   { name: 'Lefty',   moveX: 1140, moveY: 600, moveR: 70, aimX: 140, aimY: 600, aimR: 70 },
@@ -335,9 +346,9 @@ function initMenuBg() {
 }
 initMenuBg();
 
-// ══════════════════════════════════════════════════════
-// ── FIREBASE + MULTIPLAYER SYSTEM ──
-// ══════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ FIREBASE + MULTIPLAYER SYSTEM â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 // Firebase init
 const firebaseConfig = {
@@ -353,7 +364,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
-// ── Auth State ──
+// â”€â”€ Auth State â”€â”€
 let currentUser = null;       // firebase auth user
 let playerUsername = '';       // display name only
 let authError = '';            // error message to show
@@ -362,7 +373,7 @@ let authInputField = 0;       // 0=username, 1=password, 2=confirm(register)
 let authInputs = { username: '', password: '', confirm: '' };
 let authLoading = false;
 
-// ── Multiplayer State ──
+// â”€â”€ Multiplayer State â”€â”€
 let mpEnabled = false;        // is multiplayer active?
 let isHost = false;           // am I the room host?
 let currentRoom = null;       // room code string
@@ -378,7 +389,7 @@ let joinRoomInput = '';       // room code input when joining
 let mpMenuSelection = 0;      // selection in multiplayer menu
 let mpGameStarted = false;    // has game actually started in MP?
 
-// ── Friend System State ──
+// â”€â”€ Friend System State â”€â”€
 let friendsList = [];         // [{uid, username, online}]
 let friendRequests = [];      // [{uid, username}]
 let blockedUsers = [];        // [{uid, username}]
@@ -392,7 +403,7 @@ let mpDamageQueueRef = null;  // Firebase ref for guest damage events
 let mpSpectating = false;     // true when local player is dead but spectating others
 let mpSpectateTarget = null;  // uid of the player being spectated
 let mpSpectateIndex = 0;      // index into alive player list for cycling
-let mpRetryVotes = {};        // { uid: true } — players who want to retry
+let mpRetryVotes = {};        // { uid: true } â€” players who want to retry
 let mpRetrySelection = 0;     // 0 = retry, 1 = leave (for win/lose screen)
 let mpMatchSettings = null;   // { difficulty, cheats } from host lobby
 let mpSettingsSelection = 0;  // lobby settings cursor
@@ -409,7 +420,7 @@ function getAlivePlayerList() {
   return alive;
 }
 
-// Handle player death — spectate in MP, game over in solo
+// Handle player death â€” spectate in MP, game over in solo
 function handlePlayerDeath() {
   const p = player;
   if (!p.alive) return; // prevent re-entry
@@ -429,16 +440,19 @@ function handlePlayerDeath() {
       mpSpectateIndex = 0;
       mpSpectateTarget = alive[0].uid;
     } else {
-      // All players dead
-      state = 'dead';
+      // All players dead â€” play soul shatter animation
+      initDeathAnim();
+      state = 'deathAnim';
       mpSpectating = false;
     }
   } else {
-    state = 'dead';
+    // Solo death â€” play soul shatter animation
+    initDeathAnim();
+    state = 'deathAnim';
   }
 }
 
-// ── Text Input System ──  
+// â”€â”€ Text Input System â”€â”€  
 let activeTextInput = null;   // which input is active: 'username'|'password'|'confirm'|'chat'|'roomcode'|'friendadd'|null
 let textCursorBlink = 0;
 
@@ -451,7 +465,7 @@ function _focusHiddenInput(inputType) {
   _hiddenInput.setAttribute('maxlength', inputType === 'chat' ? '100' : inputType === 'roomcode' ? '6' : '20');
   _hiddenInput.type = (inputType === 'password' || inputType === 'confirm') ? 'password' : 'text';
   _hiddenInput.style.pointerEvents = 'auto';
-  // iOS requires focus in same call stack as user gesture — no setTimeout
+  // iOS requires focus in same call stack as user gesture â€” no setTimeout
   _hiddenInput.focus();
   // Fallback for older iOS
   setTimeout(() => { if (document.activeElement !== _hiddenInput) _hiddenInput.focus(); }, 100);
@@ -486,7 +500,7 @@ function deactivateTextInput() {
   activeTextInput = null;
   _blurHiddenInput();
 }
-// Sync hidden input → game state on every input event (iOS keyboard)
+// Sync hidden input â†’ game state on every input event (iOS keyboard)
 if (_hiddenInput) {
   _hiddenInput.addEventListener('input', () => {
     if (!activeTextInput) return;
@@ -514,7 +528,7 @@ if (_hiddenInput) {
     }
   });
 }
-// Capture typed text for input fields (PC keyboard — also works alongside hidden input)
+// Capture typed text for input fields (PC keyboard â€” also works alongside hidden input)
 window.addEventListener('keydown', e => {
   if (!activeTextInput) return;
   e.preventDefault();
@@ -553,7 +567,7 @@ window.addEventListener('keydown', e => {
   }
 }, true); // capture phase so it runs before game keydown
 
-// ── Auth Functions ──
+// â”€â”€ Auth Functions â”€â”€
 async function registerAccount(username, password) {
   if (authLoading) return;
   if (!username || username.length < 2) { authError = 'Username must be at least 2 characters!'; return; }
@@ -657,7 +671,7 @@ auth.onAuthStateChanged(user => {
   }
 });
 
-// ── Room Functions ──
+// â”€â”€ Room Functions â”€â”€
 function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -750,7 +764,7 @@ function setupRoomListeners(code, uid) {
   const _connHandler = connRef.on('value', snap => {
     const connected = snap.val() === true;
     if (_wasConnected && !connected) {
-      showToast('Connection lost — reconnecting...', '#ffaa00');
+      showToast('Connection lost â€” reconnecting...', '#ffaa00');
     } else if (!_wasConnected && connected) {
       showToast('Reconnected!', '#44ff88');
     }
@@ -798,12 +812,12 @@ function setupRoomListeners(code, uid) {
       startGame();
     }
     if (st === 'playing' && mpGameStarted && (state === 'won' || state === 'dead')) {
-      // Retry triggered — restart game
+      // Retry triggered â€” restart game
       mpRetryVotes = {};
       startGame();
     }
     if (st === 'restarting') {
-      // Pre-restart signal — clear votes
+      // Pre-restart signal â€” clear votes
       mpRetryVotes = {};
     }
   });
@@ -835,13 +849,13 @@ function setupRoomListeners(code, uid) {
     });
   }
   
-  // Detect room deletion (host left) — non-host gets kicked with grace period
+  // Detect room deletion (host left) â€” non-host gets kicked with grace period
   // Allow 5 seconds for host to reconnect (Safari tab switch)
   if (!isHost) {
     let _hostGraceTimeout = null;
     roomR.child('host').on('value', snap => {
       if (!snap.exists() && currentRoom === code) {
-        // Start grace period — host might come back
+        // Start grace period â€” host might come back
         if (!_hostGraceTimeout) {
           _hostGraceTimeout = setTimeout(() => {
             // Check one more time before leaving
@@ -855,7 +869,7 @@ function setupRoomListeners(code, uid) {
           }, 5000);
         }
       } else {
-        // Host is back — cancel grace period
+        // Host is back â€” cancel grace period
         if (_hostGraceTimeout) {
           clearTimeout(_hostGraceTimeout);
           _hostGraceTimeout = null;
@@ -900,14 +914,14 @@ function setupRoomListeners(code, uid) {
     roomR.child('host').onDisconnect().remove();
   }
 
-  // ── Connection resilience (Safari tab switching, brief disconnects) ──
+  // â”€â”€ Connection resilience (Safari tab switching, brief disconnects) â”€â”€
   // Re-establish onDisconnect when returning from background
   const _visHandler = () => {
     if (document.visibilityState === 'visible' && currentRoom) {
       const uid2 = myUid();
       if (!uid2) return;
       const rr = db.ref('rooms/' + currentRoom);
-      // Re-establish presence — write player back and reset onDisconnect
+      // Re-establish presence â€” write player back and reset onDisconnect
       rr.child('players/' + uid2).update({ alive: player ? player.alive : true });
       rr.child('players/' + uid2).onDisconnect().remove();
       if (isHost) {
@@ -1008,7 +1022,7 @@ function sendChatMessage() {
   chatInput = '';
 }
 
-// ── Multiplayer Sync ──
+// â”€â”€ Multiplayer Sync â”€â”€
 function syncMyPositionImmediate() {
   // Force-sync player state now (used on death, critical events)
   if (!mpEnabled || !currentRoom || !player) return;
@@ -1251,7 +1265,7 @@ function applyEnemyData() {
   } else {
     bossMinions = [];
   }
-  // Apply bullets (full replacement — guest moves them locally between syncs)
+  // Apply bullets (full replacement â€” guest moves them locally between syncs)
   if (d.bullets) {
     bullets = d.bullets.map(b => ({ x: b.x, y: b.y, vx: b.vx, vy: b.vy, life: b.life }));
   } else {
@@ -1271,7 +1285,7 @@ function applyEnemyData() {
     const syncStates = ['cutscene','bossfight','bossdialogue','phonecall','epsteinfight','fusioncutscene','fusionfight','splitfight','hawkingRefusal','hawkingDeath','winCutscene','won','dead'];
     if (syncStates.includes(d.gameState) && state !== d.gameState) {
       const oldState = state;
-      // First time entering cutscene — set up cutscene.active so rendering works
+      // First time entering cutscene â€” set up cutscene.active so rendering works
       if (d.gameState === 'cutscene' && state !== 'cutscene') {
         cutscene.active = true;
       }
@@ -1307,7 +1321,7 @@ function applyEnemyData() {
         mpSpectating = false;
         restartCooldown = 60;
       }
-      // Guest winCutscene setup — revive player, teleport past wall, set office position
+      // Guest winCutscene setup â€” revive player, teleport past wall, set office position
       if (d.gameState === 'winCutscene' && oldState !== 'winCutscene') {
         player.alive = true;
         player.hp = player.maxHp;
@@ -1394,7 +1408,7 @@ function mpHandleDamageEvent(dmg) {
     spawnParticles(mb.x + mb.w/2, mb.y + mb.h/3, mb.color || '#ffffff', 10);
     shakeTimer = 6;
     if (mb.hp <= 0) {
-      // Hawking first death — trigger refusal cutscene
+      // Hawking first death â€” trigger refusal cutscene
       if (mb.name === 'HAWKING' && !hawkingPhase2) {
         mb.hp = 1;
         hawkingRefusalTimer = 0; hawkingRefusalPhase = 0;
@@ -1404,7 +1418,7 @@ function mpHandleDamageEvent(dmg) {
         screenFlash = 40; screenFlashColor = '#44ff88'; shakeTimer = 30;
         spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#44ff88', 40);
       } else if (mb.name === 'HAWKING' && hawkingPhase2) {
-        // Hawking FINAL death — epic death scene
+        // Hawking FINAL death â€” epic death scene
         mb.hp = 1;
         hawkingDeathTimer = 0; hawkingDeathPhase = 0;
         mb._deathX = mb.x + mb.w/2; mb._deathY = mb.y + mb.h/2;
@@ -1442,7 +1456,7 @@ function mpSendCutsceneEvent(type) {
   db.ref('rooms/' + currentRoom + '/cutsceneAdvance').push({ type: type });
 }
 
-// MP Retry — vote to retry after win/lose
+// MP Retry â€” vote to retry after win/lose
 function mpVoteRetry() {
   if (!mpEnabled || !currentRoom) return;
   const uid = myUid();
@@ -1450,7 +1464,7 @@ function mpVoteRetry() {
   mpRetryVotes[uid] = true;
 }
 
-// Host triggers retry — resets game for all players
+// Host triggers retry â€” resets game for all players
 function mpTriggerRetry() {
   if (!mpEnabled || !isHost || !currentRoom) return;
   // Clear retry votes
@@ -1580,7 +1594,7 @@ function drawOtherPlayers() {
   }
 }
 
-// ── Friend System Functions ──
+// â”€â”€ Friend System Functions â”€â”€
 async function loadFriendsList() {
   if (!currentUser) return;
   authSuccessMsg = '';
@@ -1702,20 +1716,20 @@ async function unblockUser(targetUid) {
   } catch(e) { authError = 'Failed to unblock user'; }
 }
 
-// ══════════════════════════════════════════════════════
-// ── END FIREBASE / MULTIPLAYER SYSTEM ──
-// ══════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ END FIREBASE / MULTIPLAYER SYSTEM â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 let touchControls = { left: false, right: false, up: false };
 
-// Touch aim joystick state (right side) — positions from touchLayout
+// Touch aim joystick state (right side) â€” positions from touchLayout
 let touchAim = { active: false, cx: 0, cy: 0, dx: 0, dy: 0, angle: 0 };
 function getAimCenterX() { return touchLayout.aimX; }
 function getAimCenterY() { return touchLayout.aimY; }
 function getAimRadius() { return touchLayout.aimR; }
 const AIM_DEAD_ZONE = 8;
 
-// Touch movement joystick state (left side) — positions from touchLayout
+// Touch movement joystick state (left side) â€” positions from touchLayout
 function getMoveCenterX() { return touchLayout.moveX; }
 function getMoveCenterY() { return touchLayout.moveY; }
 function getMoveRadius() { return touchLayout.moveR; }
@@ -1724,7 +1738,7 @@ let moveJoystick = { active: false, dx: 0, dy: 0, touchId: null, inJumpUp: false
 const MOVE_JUMP_THRESHOLD = -25; // dy must be less than this (upward) to trigger jump
 let jumpFlashTimer = 0; // visual flash timer when jump triggers (frames)
 
-// Shared touch button renderer — called from each game state's HUD
+// Shared touch button renderer â€” called from each game state's HUD
 let _isTouchDev = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 // Auto-detect touch on first touch event (for iPad with keyboard attached)
 window.addEventListener('touchstart', () => { _isTouchDev = true; }, { once: true, passive: true });
@@ -1734,7 +1748,7 @@ function drawTouchButtons() {
   const MCX = getMoveCenterX(), MCY = getMoveCenterY(), MR = getMoveRadius();
   const ACX = getAimCenterX(), ACY = getAimCenterY(), AR = getAimRadius();
 
-  // ── LEFT SIDE: Movement joystick ──
+  // â”€â”€ LEFT SIDE: Movement joystick â”€â”€
   ctx.globalAlpha = 0.25;
   ctx.strokeStyle = '#88bbff';
   ctx.lineWidth = 3;
@@ -1781,7 +1795,7 @@ function drawTouchButtons() {
   ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
   ctx.fillText('\u25b2', MCX, MCY - MR - 14);
 
-  // ── RIGHT SIDE: Aim joystick ──
+  // â”€â”€ RIGHT SIDE: Aim joystick â”€â”€
   ctx.globalAlpha = 0.25;
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 3;
@@ -1861,7 +1875,7 @@ const epsteinPhaseDialogues = {
 };
 let bossDialogue = { active: false, texts: [], index: 0, timer: 0 };
 
-// ── Input ──
+// â”€â”€ Input â”€â”€
 const keys = {};
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
@@ -2070,7 +2084,7 @@ window.addEventListener('keydown', e => {
     return;
   }
   
-  // Spectator controls — cycle through alive players
+  // Spectator controls â€” cycle through alive players
   if (mpSpectating) {
     const alive = getAlivePlayerList();
     if (alive.length > 0) {
@@ -2097,7 +2111,7 @@ window.addEventListener('keydown', e => {
         // Retry
         if (mpEnabled) {
           mpVoteRetry();
-          // Host with all votes → trigger retry
+          // Host with all votes â†’ trigger retry
           if (isHost) {
             const totalPlayers = Object.keys(roomPlayers).length;
             const retryCount = Object.keys(mpRetryVotes).length;
@@ -2174,7 +2188,7 @@ canvas.addEventListener('click', e => {
     return; // block all clicks while prompt is up
   }
 
-  // Fullscreen button (top-right corner, always available — 46px for touch)
+  // Fullscreen button (top-right corner, always available â€” 46px for touch)
   if (cx > W - 48 && cy < 48) {
     toggleFullscreen();
     return;
@@ -2338,7 +2352,7 @@ canvas.addEventListener('click', e => {
       }
       return;
     } else if (menuState === 'account') {
-      // Account screen touch — generous touch targets
+      // Account screen touch â€” generous touch targets
       const accY = H * 0.38;
       // Username field
       if (cy > accY - 14 && cy < accY + 32) { activateTextInput('username'); return; }
@@ -2363,7 +2377,7 @@ canvas.addEventListener('click', e => {
       if (cy > H * 0.88) { authError = ''; menuState = 'multiplayer'; return; }
       return;
     } else if (menuState === 'lobby') {
-      // Chat area tap → open chat
+      // Chat area tap â†’ open chat
       if (cy > H * 0.58 && cy < H * 0.87) { chatOpen = true; activateTextInput('chat'); chatInput = ''; return; }
       // Start button (host only)
       if (isHost && cy > H * 0.87) { startMultiplayerGame(); return; }
@@ -2461,10 +2475,10 @@ window.addEventListener('keydown', e => {
   if (e.key === 'F11') { e.preventDefault(); toggleFullscreen(); }
 });
 
-// Touch controls — track active touches by ID
+// Touch controls â€” track active touches by ID
 let aimTouchId = null; // separate tracking for aim joystick
 
-// Touch button hit zones — dynamically split based on joystick positions
+// Touch button hit zones â€” dynamically split based on joystick positions
 function isInMoveZone(cx, cy) {
   // Touch is in move zone if closer to move joystick center
   const mdx = cx - getMoveCenterX(), mdy = cy - getMoveCenterY();
@@ -2498,7 +2512,7 @@ function updateTouchControlsFromActive() {
     touchControls.left = false;
     touchControls.right = false;
   }
-  // Jump from joystick-up — queue a jump for rising edge
+  // Jump from joystick-up â€” queue a jump for rising edge
   touchControls.up = moveJoystick.inJumpUp || touchJumpQueued;
 }
 
@@ -2522,7 +2536,7 @@ canvas.addEventListener('touchstart', e => {
       return;
     }
 
-    // Room code input overlay — cancel on tap outside or on CANCEL button
+    // Room code input overlay â€” cancel on tap outside or on CANCEL button
     if (activeTextInput === 'roomcode') {
       const overlayL = W/2 - 200, overlayT = H/2 - 60, overlayW = 400, overlayH = 120;
       // CANCEL button area at bottom of overlay
@@ -2530,14 +2544,14 @@ canvas.addEventListener('touchstart', e => {
       if (cx >= overlayL && cx <= overlayL + overlayW && cy >= cancelY && cy <= cancelY + cancelH) {
         deactivateTextInput(); return;
       }
-      // Tap outside overlay → cancel
+      // Tap outside overlay â†’ cancel
       if (cx < overlayL || cx > overlayL + overlayW || cy < overlayT || cy > cancelY + cancelH) {
         deactivateTextInput(); return;
       }
-      return; // tap inside overlay but not cancel — do nothing (let keyboard handle input)
+      return; // tap inside overlay but not cancel â€” do nothing (let keyboard handle input)
     }
 
-    // Any other active text input — tap outside to dismiss
+    // Any other active text input â€” tap outside to dismiss
     if (activeTextInput === 'friendadd') {
       deactivateTextInput(); return;
     }
@@ -2787,7 +2801,7 @@ canvas.addEventListener('touchstart', e => {
       if (mpEnabled && !isHost) { mpSendCutsceneEvent('advance'); } else { advanceCutscene(); } return;
     }
     if ((state === 'won' || state === 'dead') && restartCooldown <= 0) {
-      // Touch retry/leave buttons — detect which button was tapped
+      // Touch retry/leave buttons â€” detect which button was tapped
       const btnY = state === 'won' ? H/2 + 30 : H/2 + 20;
       const btnW = 160, btnH = 48;
       if (cy > btnY && cy < btnY + btnH) {
@@ -2802,9 +2816,9 @@ canvas.addEventListener('touchstart', e => {
       return;
     }
 
-    // Gameplay touch controls — joystick up to jump
+    // Gameplay touch controls â€” joystick up to jump
     if (state === 'playing' || state === 'intro' || state === 'bossfight' || state === 'epsteinfight' || state === 'fusionfight' || state === 'splitfight') {
-      // Spectator touch — tap left/right half to cycle players
+      // Spectator touch â€” tap left/right half to cycle players
       if (mpSpectating) {
         const alive = getAlivePlayerList();
         if (alive.length > 0) {
@@ -2900,7 +2914,7 @@ canvas.addEventListener('touchmove', e => {
   }
 }, { passive: false });
 
-// ── Player ──
+// â”€â”€ Player â”€â”€
 let player = createPlayer();
 function createPlayer() {
   return {
@@ -2929,13 +2943,13 @@ function createPlayer() {
   };
 }
 
-// ── Level Elements ──
+// â”€â”€ Level Elements â”€â”€
 let walls = [];
 let guards = [];
 let bigWall = null;
 let decorations = [];
 
-// ── Seeded PRNG (mulberry32) — ensures identical level on all MP clients ──
+// â”€â”€ Seeded PRNG (mulberry32) â€” ensures identical level on all MP clients â”€â”€
 let _levelSeed = 0;
 function _seedFromRoom() {
   // Derive a numeric seed from the room code so all players get the same level
@@ -3274,8 +3288,8 @@ function startGame() {
   bossIntroTimer = 0;
   bossDialogue = { active: false, texts: [], index: 0, timer: 0 };
   
-  // Build BORDER WALL arena — fills most of the screen area
-  const arenaW = 2400; // very wide — nearly full screen
+  // Build BORDER WALL arena â€” fills most of the screen area
+  const arenaW = 2400; // very wide â€” nearly full screen
   const arenaH = 800; // tall room
   const arenaLeft = bigWall.x + bigWall.w / 2 - arenaW / 2;
   const arenaRight = arenaLeft + arenaW;
@@ -3290,7 +3304,7 @@ function startGame() {
     { x: arenaLeft - 40, y: arenaTop, w: 40, h: arenaH + 30, isArena: true, isSideWall: true },
     // Right wall (fully enclosed)
     { x: arenaRight, y: arenaTop, w: 40, h: arenaH + 30, isArena: true, isSideWall: true },
-    // Elevated platforms for dodging — more of them, spread out
+    // Elevated platforms for dodging â€” more of them, spread out
     { x: arenaLeft + 120, y: arenaBottom - 180, w: 200, h: 18, isArena: true, isPlatform: true },
     { x: arenaLeft + 500, y: arenaBottom - 280, w: 220, h: 18, isArena: true, isPlatform: true },
     { x: arenaLeft + arenaW / 2 - 120, y: arenaBottom - 400, w: 240, h: 18, isArena: true, isPlatform: true },
@@ -3331,7 +3345,7 @@ function startGame() {
   restartCooldown = 30;
 }
 
-// ── Cutscene Control ──
+// â”€â”€ Cutscene Control â”€â”€
 function advanceCutscene() {
   // Mid-fight boss dialogue
   if (state === 'bossdialogue') {
@@ -3362,7 +3376,7 @@ function advanceCutscene() {
   }
 }
 
-// ── Throw Projectile ──
+// â”€â”€ Throw Projectile â”€â”€
 function throwProjectile() {
   if (!player.alive) return;
   if (state === 'hawkingDeath' || state === 'hawkingRefusal') return;
@@ -3373,7 +3387,7 @@ function throwProjectile() {
   let vx, vy;
   const pjSpd = cheats.bigProjectiles ? 20 : 12;
   if (touchAim.active) {
-    // Touch aim joystick — fire in joystick direction
+    // Touch aim joystick â€” fire in joystick direction
     vx = Math.cos(touchAim.angle) * pjSpd;
     vy = Math.sin(touchAim.angle) * pjSpd;
     p.facing = vx > 0 ? 1 : -1;
@@ -3403,12 +3417,12 @@ function throwProjectile() {
   });
 }
 
-// ── Collision ──
+// â”€â”€ Collision â”€â”€
 function rectsOverlap(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
-// ── Particles ──
+// â”€â”€ Particles â”€â”€
 const MAX_PARTICLES = 800;
 function spawnParticles(x, y, color, count) {
   if (!settings.particles) return; // respect particles setting
@@ -3426,14 +3440,14 @@ function spawnParticles(x, y, color, count) {
   }
 }
 
-// ── Colorblind-safe color helper ──
+// â”€â”€ Colorblind-safe color helper â”€â”€
 function cbColor(normal, colorblindAlt) {
   return settings.colorblind ? colorblindAlt : normal;
 }
 // Colorblind palette replacements:
-// Red (#ff4444) → Orange (#ff8800)
-// Green (#44ff44, #22aa22) → Cyan (#44ddff, #2299cc)  
-// Red+Green HP bars → Blue+Yellow scheme
+// Red (#ff4444) â†’ Orange (#ff8800)
+// Green (#44ff44, #22aa22) â†’ Cyan (#44ddff, #2299cc)  
+// Red+Green HP bars â†’ Blue+Yellow scheme
 function cbHP(pct) {
   if (settings.colorblind) {
     if (pct > 0.5) return { a: '#2299cc', b: '#44ddff' }; // high = cyan
@@ -3445,11 +3459,28 @@ function cbHP(pct) {
   return { a: '#aa2222', b: '#ff4444' }; // low = red
 }
 
-// ── Update ──
+// â”€â”€ Update â”€â”€
 function update() {
   if (restartCooldown > 0) restartCooldown--;
   if (shakeTimer > 0 && settings.screenShake) shakeTimer--;
   else if (!settings.screenShake) shakeTimer = 0;
+
+  // â”€â”€ Soul Shatter Death Animation Update (video) â”€â”€
+  if (state === 'deathAnim') {
+    deathAnimTimer++;
+    // Start video playback after brief black screen
+    if (deathAnimTimer === 20 && !deathAnimVideoPlaying) {
+      deathAnimVideoPlaying = true;
+      _deathVid.currentTime = 0;
+      _deathVid.play().catch(function() {});
+    }
+    // Transition to dead when video ends or after timeout
+    if ((deathAnimVideoPlaying && _deathVid.ended) || deathAnimTimer > 280) {
+      _deathVid.pause();
+      state = 'dead';
+      restartCooldown = 20;
+    }
+  }
 
   // Toast life management
   for (let i = mpToasts.length - 1; i >= 0; i--) {
@@ -3457,7 +3488,7 @@ function update() {
     if (mpToasts[i].life <= 0) mpToasts.splice(i, 1);
   }
   
-  // ── MULTIPLAYER SYNC ──
+  // â”€â”€ MULTIPLAYER SYNC â”€â”€
   if (mpEnabled && player) {
     syncMyPosition();
     if (isHost) syncEnemyData();
@@ -3469,7 +3500,7 @@ function update() {
     }
     if (player.alive) mpDeathSynced = false;
     
-    // Host checks if ALL players are dead → game over for everyone
+    // Host checks if ALL players are dead â†’ game over for everyone
     if (isHost && !player.alive && state !== 'dead' && state !== 'won' && state !== 'menu') {
       const anyAlive = Object.keys(roomPlayers).some(pid => {
         const rp = roomPlayers[pid];
@@ -3492,7 +3523,7 @@ function update() {
   }
   textCursorBlink = (textCursorBlink + 1) % 60;
   
-  // ── CHEAT EFFECTS ──
+  // â”€â”€ CHEAT EFFECTS â”€â”€
   if (cheats.godMode && player.alive) {
     player.hp = player.maxHp;
   }
@@ -3502,7 +3533,7 @@ function update() {
     player.iFrames = Math.max(player.iFrames, 5);
   }
 
-  // ── MENU BACKGROUND UPDATE ──
+  // â”€â”€ MENU BACKGROUND UPDATE â”€â”€
   if (state === 'menu' || state === 'tutorial') {
     menuBgTimer++;
     menuBgFloorY = H - 100;
@@ -3547,7 +3578,7 @@ function update() {
     if (state === 'menu') return; // don't update game logic
   }
 
-  // ── CINEMATIC INTRO ──
+  // â”€â”€ CINEMATIC INTRO â”€â”€
   if (state === 'intro') {
     introTimer++;
     
@@ -3684,7 +3715,7 @@ function update() {
         for (let r = 0; r < 3; r++) {
           bossVfx.push({ type: 'ring', x: boss.x + boss.w/2, y: boss.y + boss.h/2, radius: 30 + r*40, maxRadius: 250 + r*60, color: r===0?'#ff0000':r===1?'#ff8800':'#ffffff', life: 60, maxLife: 60 });
         }
-        bossVfx.push({ type: 'text', x: boss.x + boss.w/2, y: boss.y - 40, text: '🔥 TRUMP AWAITS 🔥', color: '#ff4444', size: 38, life: 180, maxLife: 180, vy: -0.3 });
+        bossVfx.push({ type: 'text', x: boss.x + boss.w/2, y: boss.y - 40, text: 'ðŸ”¥ TRUMP AWAITS ðŸ”¥', color: '#ff4444', size: 38, life: 180, maxLife: 180, vy: -0.3 });
         state = 'bossfight';
       }
     }
@@ -3717,7 +3748,7 @@ function update() {
     return;
   }
 
-  // ── PHONE CALL CUTSCENE UPDATE ──
+  // â”€â”€ PHONE CALL CUTSCENE UPDATE â”€â”€
   if (state === 'phonecall') {
     phonecallTimer--;
     // Advance dialogue automatically
@@ -3783,7 +3814,7 @@ function update() {
     return;
   }
 
-  // ── FUSION CUTSCENE UPDATE ──
+  // â”€â”€ FUSION CUTSCENE UPDATE â”€â”€
   if (state === 'fusioncutscene') {
     fusionCutsceneTimer--;
     const bArenaW = 2400;
@@ -3822,7 +3853,7 @@ function update() {
       bossVfx.push({ type: 'ring', x: centerX, y: centerY, radius: 10, maxRadius: 300, life: 30, maxLife: 30, color: '#ff8844' });
       shakeTimer = 10;
     }
-    // Final merge — spawn fusion boss
+    // Final merge â€” spawn fusion boss
     if (fusionCutsceneTimer <= 0) {
       screenFlash = 60;
       screenFlashColor = '#ffffff';
@@ -3884,14 +3915,14 @@ function update() {
     spawnParticles(p.x + p.w/2, p.y + p.h/2, hawkingPhase2 ? '#ffd700' : '#44ff88', 3);
   }
 
-  // Input — skip if dead (spectating)
+  // Input â€” skip if dead (spectating)
   if (p.alive) {
   const left = keys['ArrowLeft'] || keys['KeyA'] || touchControls.left;
   const right = keys['ArrowRight'] || keys['KeyD'] || touchControls.right;
   const up = keys['ArrowUp'] || keys['KeyW'] || keys['Space'] || touchControls.up;
 
   // If a touch jump was queued between frames (quick flick), force rising edge
-  // so double jumps aren't missed when down→up happens within one frame
+  // so double jumps aren't missed when downâ†’up happens within one frame
   if (touchJumpQueued) p.prevUp = false;
 
   // After reading touch state, reset for rising edge detection.
@@ -3908,7 +3939,7 @@ function update() {
   else if (right) { p.vx = pSpeed; p.facing = 1; }
   else { p.vx *= 0.7; }
 
-  // Jump buffer & coyote time — only set on key press (rising edge), not hold
+  // Jump buffer & coyote time â€” only set on key press (rising edge), not hold
   if (up && !p.prevUp) p.jumpBuffer = 8;
   else if (!up) p.jumpBuffer--;
   p.prevUp = up;
@@ -3939,7 +3970,7 @@ function update() {
     }
   }
 
-  // Wall jump (off small walls — NOT the big wall, which uses climb)
+  // Wall jump (off small walls â€” NOT the big wall, which uses climb)
   const _onBigWall = bigWall && state !== 'bossfight' && state !== 'bossdialogue' && rectsOverlap(
     { x: p.x - 4, y: p.y, w: p.w + 8, h: p.h }, bigWall
   );
@@ -4022,7 +4053,7 @@ function update() {
     }
   }
 
-  // Trigger cutscene when ANY player reaches top of wall (first time) — HOST ONLY
+  // Trigger cutscene when ANY player reaches top of wall (first time) â€” HOST ONLY
   if (state === 'playing' && (!mpEnabled || isHost) && bigWall && !boss && !cutscene.active) {
   let anyPlayerAtWall = p.y < bigWall.y + 80 && p.x > bigWall.x - 100 && p.x < bigWall.x + bigWall.w + 100;
   if (!anyPlayerAtWall && mpEnabled) {
@@ -4075,13 +4106,13 @@ function update() {
   }
   p.trail = p.trail.filter(t => { t.life--; return t.life > 0; });
   } else {
-    // Dead/spectating — still consume touch state to prevent stale inputs
+    // Dead/spectating â€” still consume touch state to prevent stale inputs
     touchControls.up = false;
     touchJumpQueued = false;
     moveJoystick.inJumpUp = false;
-  } // end if (p.alive) — player input/physics
+  } // end if (p.alive) â€” player input/physics
 
-  // ── Guards ──
+  // â”€â”€ Guards â”€â”€
   const _mpHost = !mpEnabled || isHost;
   for (const g of guards) {
     if (g.dead) continue;
@@ -4153,7 +4184,7 @@ function update() {
     if (g.frameTimer > 8) { g.frameTimer = 0; g.frame = (g.frame + 1) % 4; }
     } // end _mpHost guard AI
 
-    // Damage player on touch (with iFrames) — ALL players
+    // Damage player on touch (with iFrames) â€” ALL players
     if (p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, g)) {
       p.hp--;
       p.iFrames = 40;
@@ -4165,14 +4196,14 @@ function update() {
     }
   }
 
-  // Remove dead guards (single-player only — MP preserves array indices for sync)
+  // Remove dead guards (single-player only â€” MP preserves array indices for sync)
   if (!mpEnabled) {
     for (let i = guards.length - 1; i >= 0; i--) {
       if (guards[i].dead) guards.splice(i, 1);
     }
   }
 
-  // ── Boss Update ──
+  // â”€â”€ Boss Update â”€â”€
   if (boss && !boss.dead) {
    if (_mpHost) {
     const bArenaW = 2400;
@@ -4242,7 +4273,7 @@ function update() {
       }
     }
 
-    // ── Boss Attack Patterns ──
+    // â”€â”€ Boss Attack Patterns â”€â”€
     // Multiplayer: bosses target nearest player
     const bossTarget = mpEnabled ? getNearestPlayerTarget(boss.x + boss.w/2, boss.y + boss.h/2) : p;
     if (!boss.charging && !boss.slamming) {
@@ -4252,7 +4283,7 @@ function update() {
         if (boss.x < arenaLeft + 30) { boss.x = arenaLeft + 30; boss.dir = 1; }
         if (boss.x + boss.w > arenaRight - 30) { boss.x = arenaRight - boss.w - 30; boss.dir = -1; }
         
-        // Aimed shots — slower
+        // Aimed shots â€” slower
         boss.shootCooldown--;
         if (boss.shootCooldown <= 0) {
           boss.shootCooldown = 60 + Math.floor(Math.random() * 40);
@@ -4280,7 +4311,7 @@ function update() {
           spawnParticles(boss.x + boss.w/2, boss.y + boss.h/2, '#ff8800', 10);
         }
         
-        // Spread shot — fewer bullets, slower
+        // Spread shot â€” fewer bullets, slower
         boss.shootCooldown--;
         if (boss.shootCooldown <= 0) {
           boss.shootCooldown = 70 + Math.floor(Math.random() * 30);
@@ -4328,7 +4359,7 @@ function update() {
           spawnParticles(boss.x + boss.w/2, boss.y + boss.h, '#ff4444', 8);
         }
         
-        // Rapid fire — still fast but more manageable
+        // Rapid fire â€” still fast but more manageable
         boss.shootCooldown--;
         if (boss.shootCooldown <= 0) {
           boss.shootCooldown = 30 + Math.floor(Math.random() * 20);
@@ -4338,7 +4369,7 @@ function update() {
           if (dist > 0) {
             bullets.push({ x: boss.x + boss.w/2, y: boss.y + boss.h/3, vx: (dx/dist)*5.5, vy: (dy/dist)*5.5, life: 150 });
           }
-          // Extra spread bullets — less frequent
+          // Extra spread bullets â€” less frequent
           if (Math.random() < 0.2) {
             for (let a = -0.4; a <= 0.4; a += 0.4) {
               bullets.push({ x: boss.x + boss.w/2, y: boss.y + boss.h/3, vx: boss.dir * 5 * Math.cos(a), vy: 5 * Math.sin(a) - 1, life: 100 });
@@ -4428,7 +4459,7 @@ function update() {
     }
    } // end _mpHost boss AI
 
-    // Boss slam shockwave damage — ALL players
+    // Boss slam shockwave damage â€” ALL players
     if (boss._slamShock > 0) {
       boss._slamShock--;
       if (boss._slamShock > 20) { // Only damage on first few frames
@@ -4444,7 +4475,7 @@ function update() {
       }
     }
 
-    // Boss contact damage — ALL players (guest uses synced positions)
+    // Boss contact damage â€” ALL players (guest uses synced positions)
     if (boss.charging && p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, boss)) {
       p.hp -= 1;
       p.iFrames = 60;
@@ -4467,7 +4498,7 @@ function update() {
     }
   }
 
-  // ── Boss Minions Update ──
+  // â”€â”€ Boss Minions Update â”€â”€
   // Arena floor reference for minion clamping
   const mArenaH = 800;
   const mArenaTopY = bigWall.y + 40;
@@ -4479,7 +4510,7 @@ function update() {
     if (m.vy === undefined || m.vy === null) m.vy = 0;
     m.vy += GRAVITY;
     m.y += m.vy;
-    // Floor collision for minions — only land on actual floor, not mid-air platforms
+    // Floor collision for minions â€” only land on actual floor, not mid-air platforms
     let onPlatform = false;
     let platformY = mArenaFloorY;
     for (const plat of arenaPlats) {
@@ -4514,7 +4545,7 @@ function update() {
     m.frameTimer++;
     if (m.frameTimer > 8) { m.frameTimer = 0; m.frame = (m.frame + 1) % 4; }
     } // end _mpHost boss minion AI
-    // Damage player — ALL players
+    // Damage player â€” ALL players
     if (p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, m)) {
       p.hp--;
       p.iFrames = 35;
@@ -4525,14 +4556,14 @@ function update() {
       }
     }
   }
-  // Remove dead minions (single-player only — MP preserves indices for sync)
+  // Remove dead minions (single-player only â€” MP preserves indices for sync)
   if (!mpEnabled) {
     for (let i = bossMinions.length - 1; i >= 0; i--) {
       if (bossMinions[i].dead) bossMinions.splice(i, 1);
     }
   }
 
-  // ── Projectiles (player throws) ──
+  // â”€â”€ Projectiles (player throws) â”€â”€
   if (p.throwCooldown > 0) p.throwCooldown--;
   if (p.iFrames > 0 && p.alive) p.iFrames--;
 
@@ -4551,7 +4582,7 @@ function update() {
 
     // Hit guards
     let hit = false;
-    // ── GUEST: simplified collision (VFX + send damage to host) ──
+    // â”€â”€ GUEST: simplified collision (VFX + send damage to host) â”€â”€
     if (mpEnabled && !isHost) {
       for (let gi = 0; gi < guards.length; gi++) {
         const gg = guards[gi];
@@ -4609,7 +4640,7 @@ function update() {
       if (hit || proj.life <= 0) { projectiles.splice(i, 1); }
       continue;
     }
-    // ── HOST/SINGLE-PLAYER: full collision + damage + death handling ──
+    // â”€â”€ HOST/SINGLE-PLAYER: full collision + damage + death handling â”€â”€
     for (const g of guards) {
       if (g.dead) continue;
       if (rectsOverlap(proj, g)) {
@@ -4723,7 +4754,7 @@ function update() {
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/3, mb.color, 10);
           shakeTimer = 6;
           if (mb.hp <= 0) {
-            // Hawking first death — trigger Undertale refusal cutscene
+            // Hawking first death â€” trigger Undertale refusal cutscene
             if (mb.name === 'HAWKING' && !hawkingPhase2) {
               mb.hp = 1; // keep alive temporarily
               hawkingRefusalTimer = 0;
@@ -4742,7 +4773,7 @@ function update() {
               hit = true;
               break;
             }
-            // Hawking FINAL death — trigger epic death scene
+            // Hawking FINAL death â€” trigger epic death scene
             if (mb.name === 'HAWKING' && hawkingPhase2) {
               mb.hp = 1; // keep alive for cutscene
               hawkingDeathTimer = 0;
@@ -4810,7 +4841,7 @@ function update() {
     }
   }
 
-  // ── Bullets (guards shoot) ──
+  // â”€â”€ Bullets (guards shoot) â”€â”€
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
     b.x += b.vx;
@@ -4861,7 +4892,7 @@ function update() {
       const midX = p.x * 0.5 + bossX * 0.5;
       targetCamX = midX - W / 2;
     } else {
-      // No boss — center on player
+      // No boss â€” center on player
       targetCamX = p.x + p.w/2 - W / 2;
     }
     
@@ -4873,7 +4904,7 @@ function update() {
   // Faster lerp in arena for responsive tracking
   const camSpeed = inArenaState ? 0.15 : 0.1;
   
-  // Spectator camera — follow spectated player
+  // Spectator camera â€” follow spectated player
   if (mpSpectating && mpSpectateTarget && roomPlayers[mpSpectateTarget]) {
     const sp = roomPlayers[mpSpectateTarget];
     // Check if target is still alive
@@ -4902,7 +4933,7 @@ function update() {
         const targetCamY2 = sp2.y - H * 0.5 + 40;
         cameraY += (targetCamY2 - cameraY) * 0.12;
       } else {
-        // Non-arena spectating — follow vertical position if climbing
+        // Non-arena spectating â€” follow vertical position if climbing
         if (sp2.climbingBigWall || sp2.y < GROUND_Y - 130) {
           const comfortY = GROUND_Y - H * 0.6;
           const targetCamY2 = Math.min(0, sp2.y - comfortY);
@@ -4919,11 +4950,11 @@ function update() {
   if (cameraX > levelWidth - W) cameraX = levelWidth - W;
 
   // Vertical camera - follows player upward when climbing
-  // Skip when spectating — spectator vertical camera is handled above
+  // Skip when spectating â€” spectator vertical camera is handled above
   if (mpSpectating) {
     // Already handled in spectator block above
   } else if (inArenaState) {
-    // In arena — camera follows player vertically (arena is underground)
+    // In arena â€” camera follows player vertically (arena is underground)
     const arenaCenter = bigWall ? bigWall.y + 40 + 400 : GROUND_Y;
     const targetCamY = p.y - H * 0.5 + p.h/2;
     cameraY += (targetCamY - cameraY) * 0.12;
@@ -4939,7 +4970,7 @@ function update() {
   // Clamp: don't look below ground (only when not in arena)
   if (!inArenaState && cameraY > 0) cameraY = 0;
 
-  // ── VFX Updates ──
+  // â”€â”€ VFX Updates â”€â”€
   if (screenFlash > 0) screenFlash--;
   if (bossIntroTimer > 0) {
     bossIntroTimer--;
@@ -4977,7 +5008,7 @@ function update() {
       screenFlash = 30;
       screenFlashColor = '#ffffff';
       shakeTimer = 20;
-      bossVfx.push({ type: 'text', x: player.x + player.w/2 + 400, y: player.y - 60, text: '⚔ FIGHT! ⚔', life: 120, maxLife: 120, color: '#ffdd44', size: 48, vy: -0.3 });
+      bossVfx.push({ type: 'text', x: player.x + player.w/2 + 400, y: player.y - 60, text: 'âš” FIGHT! âš”', life: 120, maxLife: 120, color: '#ffdd44', size: 48, vy: -0.3 });
     }
   }
   
@@ -5007,7 +5038,7 @@ function update() {
     }
   }
 
-  // ── Epstein Boss Update ──
+  // â”€â”€ Epstein Boss Update â”€â”€
   if (epstein && !epstein.dead && state === 'epsteinfight') {
    if (_mpHost) {
     const bArenaW3 = 2400;
@@ -5047,7 +5078,7 @@ function update() {
       }
     }
 
-    // Movement — chase player
+    // Movement â€” chase player
     const epTarget = mpEnabled ? getNearestPlayerTarget(epstein.x + epstein.w/2, epstein.y + epstein.h/2) : p;
     if (epTarget.x < epstein.x) epstein.dir = -1; else epstein.dir = 1;
     if (!epstein.charging) {
@@ -5056,7 +5087,7 @@ function update() {
       if (epstein.x + epstein.w > arenaRight - 30) epstein.x = arenaRight - epstein.w - 30;
     }
 
-    // Attack: Throw files (image projectiles) — BIGGER projectiles
+    // Attack: Throw files (image projectiles) â€” BIGGER projectiles
     epstein.shootCooldown--;
     if (epstein.shootCooldown <= 0) {
       epstein.shootCooldown = epstein.phase === 2 ? 25 + Math.floor(Math.random()*20) : 45 + Math.floor(Math.random()*25);
@@ -5134,7 +5165,7 @@ function update() {
 
    } // end _mpHost epstein AI
 
-    // Contact damage — ALL players
+    // Contact damage â€” ALL players
     if (p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, epstein)) {
       p.hp -= 1;
       p.iFrames = 45;
@@ -5171,7 +5202,7 @@ function update() {
     if (ep.life <= 0) epsteinProjectiles.splice(i, 1);
   }
 
-  // Epstein death → triggers FUSION CUTSCENE
+  // Epstein death â†’ triggers FUSION CUTSCENE
   if (bossDeathTimer > 0 && epstein && epstein.dead && !fusionBoss) {
     bossDeathTimer--;
     if (bossDeathTimer % 10 === 0 && bossDeathTimer > 40) {
@@ -5191,7 +5222,7 @@ function update() {
     }
   }
 
-  // ── FUSION BOSS UPDATE ──
+  // â”€â”€ FUSION BOSS UPDATE â”€â”€
   if (fusionBoss && !fusionBoss.dead && state === 'fusionfight') {
    if (_mpHost) {
     const bArenaW = 2400;
@@ -5330,7 +5361,7 @@ function update() {
 
    } // end _mpHost fusion AI
 
-    // Contact damage — ALL players
+    // Contact damage â€” ALL players
     if (p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, fusionBoss)) {
       p.hp -= 2;
       p.iFrames = 50;
@@ -5340,7 +5371,7 @@ function update() {
       spawnParticles(p.x + p.w/2, p.y + p.h/2, '#ff4400', 12);
     }
 
-    // Fusion slam shockwave damage — ALL players
+    // Fusion slam shockwave damage â€” ALL players
     if (fusionBoss._slamShock > 0) {
       fusionBoss._slamShock--;
       if (fusionBoss._slamShock > 20) {
@@ -5359,7 +5390,7 @@ function update() {
     }
   }
 
-  // ── Fusion death → SPLIT into mini-bosses ──
+  // â”€â”€ Fusion death â†’ SPLIT into mini-bosses â”€â”€
   if (bossDeathTimer > 0 && fusionBoss && fusionBoss.dead && miniBosses.length === 0) {
     bossDeathTimer--;
     if (bossDeathTimer % 8 === 0 && bossDeathTimer > 40) {
@@ -5439,12 +5470,12 @@ function update() {
         spawnParticles(lx, ly, splitColors[lb % 5], 15);
         bossVfx.push({ type: 'ring', x: lx, y: ly, radius: 3, maxRadius: 80, life: 20, maxLife: 20, color: splitColors[lb % 5] });
       }
-      bossVfx.push({ type: 'text', x: cx, y: cy - 80, text: '⚡ THE CABAL UNLEASHED ⚡', life: 240, maxLife: 240, color: '#ffdd44', size: 42, vy: -0.2 });
+      bossVfx.push({ type: 'text', x: cx, y: cy - 80, text: 'âš¡ THE CABAL UNLEASHED âš¡', life: 240, maxLife: 240, color: '#ffdd44', size: 42, vy: -0.2 });
       bossVfx.push({ type: 'text', x: cx, y: cy - 40, text: 'FIVE AGAINST ONE', life: 200, maxLife: 200, color: '#ff4444', size: 28, vy: -0.15 });
     }
   }
 
-  // ── MINI-BOSS UPDATE (Split Fight) ──
+  // â”€â”€ MINI-BOSS UPDATE (Split Fight) â”€â”€
   if (state === 'splitfight' && miniBosses.length > 0) {
     const bArenaW = 2400;
     const arenaLeft = bigWall.x + bigWall.w/2 - bArenaW/2;
@@ -5494,7 +5525,7 @@ function update() {
       const dm = getDiffMult();
 
       if (mb.name === 'TRUMP') {
-        // Trump: Rage mode — shotgun burst + ground slam + wall of fire
+        // Trump: Rage mode â€” shotgun burst + ground slam + wall of fire
         if (mb.shootCooldown <= 0) {
           mb.shootCooldown = 50 + Math.floor(Math.random() * 20);
           // 5-way spread shotgun
@@ -5519,7 +5550,7 @@ function update() {
           if (mb._slamDelay <= 0 && !mb.dead) {
             shakeTimer = 15;
             spawnParticles(mb.x + mb.w/2, mb.y + mb.h, '#ff4400', 20);
-            // Fire wave — ground projectiles spreading left and right
+            // Fire wave â€” ground projectiles spreading left and right
             for (let fw = -1; fw <= 1; fw += 2) {
               for (let fi = 1; fi <= 3; fi++) {
                 epsteinProjectiles.push({
@@ -5529,11 +5560,11 @@ function update() {
                 });
               }
             }
-            // Trump slam shockwave — flag for ALL players
+            // Trump slam shockwave â€” flag for ALL players
             mb._slamShock = 25;
           }
         }
-        // Rage roar — speed boost + rapid fire burst every 400 frames
+        // Rage roar â€” speed boost + rapid fire burst every 400 frames
         if (mb.specialTimer % 400 === 0) {
           bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y - 30, text: 'MAGA RAGE!', life: 60, maxLife: 60, color: '#ff4400' });
           bossVfx.push({ type: 'ring', x: mb.x+mb.w/2, y: mb.y+mb.h/2, radius: 10, maxRadius: 200, life: 25, maxLife: 25, color: '#ff4400' });
@@ -5542,7 +5573,7 @@ function update() {
         }
       }
       else if (mb.name === 'EPSTEIN') {
-        // Epstein: Shadow master — homing projectiles + shadow vanish + poison trail
+        // Epstein: Shadow master â€” homing projectiles + shadow vanish + poison trail
         if (mb.shootCooldown <= 0) {
           mb.shootCooldown = 50 + Math.floor(Math.random() * 20);
           // Fire 2 homing projectiles
@@ -5557,7 +5588,7 @@ function update() {
           }
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/3, '#8844ff', 6);
         }
-        // Shadow vanish — teleport to random position every 200 frames
+        // Shadow vanish â€” teleport to random position every 200 frames
         if (mb.specialTimer % 200 === 0) {
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#8844ff', 18);
           // Leave a poison cloud at old position
@@ -5577,7 +5608,7 @@ function update() {
           bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y - 20, text: 'FROM THE SHADOWS', life: 50, maxLife: 50, color: '#8844ff' });
           shakeTimer = 6;
         }
-        // Web trap — slow projectile ring every 350 frames
+        // Web trap â€” slow projectile ring every 350 frames
         if (mb.specialTimer % 350 === 0) {
           for (let w = 0; w < 6; w++) {
             const angle = (Math.PI * 2 / 6) * w;
@@ -5591,7 +5622,7 @@ function update() {
         }
       }
       else if (mb.name === 'MUSK') {
-        // Musk: Tech genius — laser burst + drone strike + EMP dash
+        // Musk: Tech genius â€” laser burst + drone strike + EMP dash
         if (mb.shootCooldown <= 0) {
           mb.shootCooldown = 35 + Math.floor(Math.random() * 15);
           // Triple laser burst
@@ -5606,7 +5637,7 @@ function update() {
           }
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/3, '#4488ff', 6);
         }
-        // EMP dash every 100 frames — leaves electric trail
+        // EMP dash every 100 frames â€” leaves electric trail
         if (mb.specialTimer % 100 === 0) {
           const oldX = mb.x;
           mb.vx = mb.dir * 22;
@@ -5622,7 +5653,7 @@ function update() {
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, '#4488ff', 15);
           bossVfx.push({ type: 'ring', x: mb.x+mb.w/2, y: mb.y+mb.h/2, radius: 10, maxRadius: 120, life: 15, maxLife: 15, color: '#4488ff' });
         }
-        // Drone strike every 250 frames — rains projectiles from above
+        // Drone strike every 250 frames â€” rains projectiles from above
         if (mb.specialTimer % 250 === 0) {
           bossVfx.push({ type: 'text', x: mb.x+mb.w/2, y: mb.y - 30, text: 'DRONE STRIKE!', life: 60, maxLife: 60, color: '#4488ff' });
           for (let ds = 0; ds < 6; ds++) {
@@ -5637,10 +5668,10 @@ function update() {
         }
       }
       else if (mb.name === 'CLINTON') {
-        // Clinton: Political assassin — poison shots + backstab teleport + decoy
+        // Clinton: Political assassin â€” poison shots + backstab teleport + decoy
         if (mb.shootCooldown <= 0) {
           mb.shootCooldown = 60 + Math.floor(Math.random() * 30);
-          // Double shot — one aimed, one arcing
+          // Double shot â€” one aimed, one arcing
           epsteinProjectiles.push({
             x: mb.x + mb.w/2, y: mb.y + mb.h/3,
             vx: (dx/dist) * 4.5 * dm.projSpeed, vy: (dy/dist) * 4.5 * dm.projSpeed,
@@ -5671,7 +5702,7 @@ function update() {
             life: 60, rotation: 0, size: 28, imgIdx: 4,
           });
         }
-        // Decoy ring every 300 frames — circle of slow projectiles
+        // Decoy ring every 300 frames â€” circle of slow projectiles
         if (mb.specialTimer % 300 === 0) {
           for (let d = 0; d < 8; d++) {
             const angle = (Math.PI * 2 / 8) * d;
@@ -5686,7 +5717,7 @@ function update() {
       }
       else if (mb.name === 'HAWKING') {
         const isPhase2 = hawkingPhase2;
-        // Hawking: Genius supreme — orbital ring + gravity well + black hole + time warp
+        // Hawking: Genius supreme â€” orbital ring + gravity well + black hole + time warp
         if (mb.shootCooldown <= 0) {
           mb.shootCooldown = isPhase2 ? 20 : (hawkingAlone ? 30 : 55);
           // Orbital burst - bigger ring in phase 2
@@ -5708,7 +5739,7 @@ function update() {
             imgIdx: 4, homing: true,
           });
         }
-        // Gravity well — stores pull data for ALL players to check
+        // Gravity well â€” stores pull data for ALL players to check
         const gravInterval = isPhase2 ? 150 : (hawkingAlone ? 250 : 400);
         if (mb.specialTimer % gravInterval === 0) {
           bossVfx.push({ type: 'ring', x: mb.x+mb.w/2, y: mb.y+mb.h/2, radius: 300, maxRadius: 10, life: 40, maxLife: 40, color: hawkingPhase2 ? '#ffd700' : '#44ff88' });
@@ -5717,7 +5748,7 @@ function update() {
           shakeTimer = isPhase2 ? 15 : 10;
           spawnParticles(mb.x + mb.w/2, mb.y + mb.h/2, hawkingPhase2 ? '#ffd700' : '#44ff88', 25);
         }
-        // Phase 2 exclusive: Hawking radiation — random projectile rain
+        // Phase 2 exclusive: Hawking radiation â€” random projectile rain
         if (isPhase2 && mb.specialTimer % 80 === 0) {
           for (let hr = 0; hr < 4; hr++) {
             const rx = mb.x + mb.w/2 + (Math.random()-0.5)*400;
@@ -5742,7 +5773,7 @@ function update() {
 
       } // end _mpHost mini-boss AI
 
-      // Contact damage — ALL players
+      // Contact damage â€” ALL players
       const contactDmg = (mb.name === 'HAWKING' && hawkingAlone) ? (hawkingPhase2 ? 3 : 2) : 1;
       if (p.alive && !p.won && p.iFrames <= 0 && rectsOverlap(p, mb)) {
         p.hp -= contactDmg;
@@ -5753,7 +5784,7 @@ function update() {
         spawnParticles(p.x + p.w/2, p.y + p.h/2, mb.color, 8);
       }
 
-      // Hawking gravity well pull — ALL alive players
+      // Hawking gravity well pull â€” ALL alive players
       if (mb.name === 'HAWKING' && mb._gravPull && mb._gravPull.active > 0) {
         mb._gravPull.active--;
         if (!p.alive) continue;
@@ -5766,7 +5797,7 @@ function update() {
         }
       }
 
-      // Trump/mini-boss slam shockwave — ALL players
+      // Trump/mini-boss slam shockwave â€” ALL players
       if (mb._slamShock > 0) {
         mb._slamShock--;
         if (mb._slamShock > 20) {
@@ -5782,7 +5813,7 @@ function update() {
       }
     }
 
-    // Homing projectile tracking — target nearest player
+    // Homing projectile tracking â€” target nearest player
     for (const proj of epsteinProjectiles) {
       if (proj.homing && proj.life > 30) {
         const _homingTarget = mpEnabled ? getNearestPlayerTarget(proj.x, proj.y) : p;
@@ -5801,7 +5832,7 @@ function update() {
       handlePlayerDeath();
     }
 
-    // Check if all mini-bosses dead → VICTORY (skip if Hawking cutscenes are handling it)
+    // Check if all mini-bosses dead â†’ VICTORY (skip if Hawking cutscenes are handling it)
     const allDead = miniBosses.length > 0 && miniBosses.every(mb => mb.dead);
     if (allDead && state === 'splitfight') {
       bossDeathTimer = 0;
@@ -5814,7 +5845,7 @@ function update() {
         particles.push({ x: p.x + p.w/2, y: p.y + p.h/2, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed-3, life: 80+Math.random()*60, color: ['#ff4400','#8844ff','#ffdd44','#ffffff','#44ff88','#4488ff','#ff44ff'][Math.floor(Math.random()*7)], size: 3+Math.random()*8 });
       }
       bossVfx.push({ type: 'ring', x: p.x+p.w/2, y: p.y+p.h/2, radius: 10, maxRadius: 900, life: 70, maxLife: 70, color: '#ffdd44' });
-      bossVfx.push({ type: 'text', x: p.x+p.w/2, y: p.y - 50, text: '★ FREEDOM! ★', life: 200, maxLife: 200, color: '#ffdd44' });
+      bossVfx.push({ type: 'text', x: p.x+p.w/2, y: p.y - 50, text: 'â˜… FREEDOM! â˜…', life: 200, maxLife: 200, color: '#ffdd44' });
       // Teleport player out
       player.x = bigWall.x + bigWall.w + 30;
       player.y = bigWall.y - player.h;
@@ -5838,9 +5869,9 @@ function update() {
     }
   }
 
-  // ════════════════════════════════════════════════════════════════
-  // HAWKING REFUSAL — Undertale-style "But it refused." cutscene
-  // ════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // HAWKING REFUSAL â€” Undertale-style "But it refused." cutscene
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   if (state === 'hawkingRefusal') {
     hawkingRefusalTimer++;
     const t = hawkingRefusalTimer;
@@ -5857,7 +5888,7 @@ function update() {
     // 520-620: Heart pulses BRIGHTER, STRONGER, gold energy radiating
     // 620-780: Close-up normal Hawking face, lingering, dramatic
     // 780-920: Screen shakes violently + golden energy cracks + flash builds
-    // 920-1120: Golden Hawking revealed — slow, intimidating, aura radiating
+    // 920-1120: Golden Hawking revealed â€” slow, intimidating, aura radiating
     // 1120+: Return to splitfight with Phase 2 Hawking
     if (t === 1) hawkingRefusalPhase = 0;
     if (t === 60) hawkingRefusalPhase = 1;
@@ -5874,13 +5905,13 @@ function update() {
     if (t === 920) hawkingRefusalPhase = 12;
     if (t === 1120) hawkingRefusalPhase = 13;
 
-    // At the end — return to splitfight with Phase 2 Hawking
+    // At the end â€” return to splitfight with Phase 2 Hawking
     if (t === 1130) {
       hawkingPhase2 = true;
       state = 'splitfight';
       const hawk = miniBosses.find(m => m.name === 'HAWKING');
       if (hawk) {
-        // MASSIVE Hawking — 2x size, full HP reset, boosted stats
+        // MASSIVE Hawking â€” 2x size, full HP reset, boosted stats
         const dm = getDiffMult();
         hawk.w = 160;
         hawk.h = 200;
@@ -5910,9 +5941,9 @@ function update() {
     }
   }
 
-  // ════════════════════════════════════════════════════════════════
-  // HAWKING DEATH — Epic cinematic death scene
-  // ════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // HAWKING DEATH â€” Epic cinematic death scene
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   if (state === 'hawkingDeath') {
     hawkingDeathTimer++;
     const dt = hawkingDeathTimer;
@@ -5920,7 +5951,7 @@ function update() {
     const hx = hawk ? hawk._deathX || (hawk.x + hawk.w/2) : W/2;
     const hy = hawk ? hawk._deathY || (hawk.y + hawk.h/2) : H/2;
 
-    // Phase 1 (0-80): TIME FREEZE — everything stops, glitch distortion
+    // Phase 1 (0-80): TIME FREEZE â€” everything stops, glitch distortion
     if (dt < 80) {
       // Slow-mo particles dripping from Hawking
       if (dt % 4 === 0) {
@@ -5930,7 +5961,7 @@ function update() {
       if (dt > 30) shakeTimer = Math.max(shakeTimer, 3 + Math.floor((dt-30)/10));
     }
 
-    // Phase 2 (80-200): HAWKING RISES — body levitates, energy pours out
+    // Phase 2 (80-200): HAWKING RISES â€” body levitates, energy pours out
     if (dt >= 80 && dt < 200) {
       const riseProg = (dt - 80) / 120;
       if (hawk) {
@@ -5959,7 +5990,7 @@ function update() {
       if (dt % 30 === 0) { screenFlash = 8; screenFlashColor = '#ffd700'; }
     }
 
-    // Phase 3 (200-400): REALITY CRACKS — space-time tears around Hawking
+    // Phase 3 (200-400): REALITY CRACKS â€” space-time tears around Hawking
     if (dt >= 200 && dt < 400) {
       const crackProg = (dt - 200) / 200;
       // Continuous energy outpour
@@ -5985,7 +6016,7 @@ function update() {
       if (dt % 15 === 0 && crackProg > 0.5) { screenFlash = 10; screenFlashColor = '#ffffff'; }
     }
 
-    // Phase 4 (400-550): DISINTEGRATION — body breaks into stars
+    // Phase 4 (400-550): DISINTEGRATION â€” body breaks into stars
     if (dt >= 400 && dt < 550) {
       const disProg = (dt - 400) / 150;
       // Massive star burst
@@ -6007,7 +6038,7 @@ function update() {
       // Hide Hawking sprite progressively (handled in draw)
     }
 
-    // Phase 5 (550-750): COSMIC MOMENT — stars form equation, dialogue
+    // Phase 5 (550-750): COSMIC MOMENT â€” stars form equation, dialogue
     if (dt >= 550 && dt < 750) {
       // Gentle ambient particles
       if (dt % 6 === 0) {
@@ -6021,7 +6052,7 @@ function update() {
       }
     }
 
-    // Phase 6 (750-850): WHITE OUT — massive flash, peaceful transition
+    // Phase 6 (750-850): WHITE OUT â€” massive flash, peaceful transition
     if (dt >= 750 && dt <= 751) {
       screenFlash = 80;
       screenFlashColor = '#ffffff';
@@ -6057,7 +6088,7 @@ function update() {
         particles.push({ x: player.x + player.w/2, y: player.y + player.h/2, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed-3, life: 80+Math.random()*60, color: ['#ff4400','#8844ff','#ffdd44','#ffffff','#44ff88','#4488ff','#ff44ff'][Math.floor(Math.random()*7)], size: 3+Math.random()*8 });
       }
       bossVfx.push({ type: 'ring', x: player.x+player.w/2, y: player.y+player.h/2, radius: 10, maxRadius: 900, life: 70, maxLife: 70, color: '#ffdd44' });
-      bossVfx.push({ type: 'text', x: player.x+player.w/2, y: player.y - 50, text: '★ FREEDOM! ★', life: 200, maxLife: 200, color: '#ffdd44' });
+      bossVfx.push({ type: 'text', x: player.x+player.w/2, y: player.y - 50, text: 'â˜… FREEDOM! â˜…', life: 200, maxLife: 200, color: '#ffdd44' });
       if (bigWall) {
         player.x = bigWall.x + bigWall.w + 30;
         player.y = bigWall.y - player.h;
@@ -6084,9 +6115,9 @@ function update() {
     if (hawkingDeathTimer > 910) hawkingDeathTimer = 910;
   }
 
-  // ════════════════════════════════════════════════════════════════
-  // WIN CUTSCENE — Player walks to citizenship office, THE END
-  // ════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // WIN CUTSCENE â€” Player walks to citizenship office, THE END
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   if (state === 'winCutscene') {
     winCutsceneTimer++;
     const wt = winCutsceneTimer;
@@ -6108,7 +6139,7 @@ function update() {
       player.runFrame = 0;
     }
     
-    // Camera always follows player during cutscene (unclamped — player is past level edge)
+    // Camera always follows player during cutscene (unclamped â€” player is past level edge)
     cameraX = player.x - W * 0.3;
     if (cameraX < 0) cameraX = 0;
     
@@ -6247,11 +6278,11 @@ function update() {
     pt.size *= 0.97;
     return pt.life > 0;
   });
-  // Hard cap — trim oldest particles if over limit (direct pushes bypass spawnParticles cap)
+  // Hard cap â€” trim oldest particles if over limit (direct pushes bypass spawnParticles cap)
   if (particles.length > MAX_PARTICLES) particles.splice(0, particles.length - MAX_PARTICLES);
 }
 
-// ── Draw ──
+// â”€â”€ Draw â”€â”€
 function draw() {
   const shake = shakeTimer > 0 ? (Math.random() - 0.5) * (shakeTimer > 20 ? 7 : 4) : 0;
   ctx.save();
@@ -6263,7 +6294,7 @@ function draw() {
   // Skip game-world rendering when in menu (menu draws its own background)
   if (state !== 'menu') {
 
-  // Desert sunset sky — underground sewer during bossfight
+  // Desert sunset sky â€” underground sewer during bossfight
   const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
   if (inBossFight || bossDeathTimer > 0) {
     // Dark underground sewer atmosphere
@@ -6291,7 +6322,7 @@ function draw() {
     ctx.fillRect(0, 0, W, H);
   }
 
-  // Stars (top of sky only) — hidden during bossfight, with twinkle
+  // Stars (top of sky only) â€” hidden during bossfight, with twinkle
   if (!inBossFight) {
     const _starTime = Date.now() / 1000;
     for (let i = 0; i < 50; i++) {
@@ -6519,11 +6550,11 @@ function draw() {
       ctx.stroke();
     }
 
-    // ▲ CLIMB text
+    // â–² CLIMB text
     ctx.fillStyle = '#ffcc44';
     ctx.font = 'bold 11px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('▲ CLIMB ▲', bw.x + bw.w / 2, bw.y + bw.h / 2);
+    ctx.fillText('â–² CLIMB â–²', bw.x + bw.w / 2, bw.y + bw.h / 2);
 
     // Arrows
     ctx.fillStyle = '#ffcc4466';
@@ -6539,20 +6570,20 @@ function draw() {
     ctx.fillStyle = '#006847aa';
     ctx.font = 'bold 16px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('🇲🇽 MÉXICO', bw.x - 60, bw.y + 30);
+    ctx.fillText('ðŸ‡²ðŸ‡½ MÃ‰XICO', bw.x - 60, bw.y + 30);
 
     // USA label (right side)
     ctx.fillStyle = '#3c3b6eaa';
     ctx.font = 'bold 16px monospace';
-    ctx.fillText('🇺🇸 USA', bw.x + bw.w + 60, bw.y + 30);
+    ctx.fillText('ðŸ‡ºðŸ‡¸ USA', bw.x + bw.w + 60, bw.y + 30);
 
     // "EL OTRO LADO" sign
     ctx.fillStyle = '#44ff4488';
     ctx.font = 'bold 14px monospace';
-    ctx.fillText('★ EL OTRO LADO ★', bw.x + bw.w + 60, bw.y + bw.h - 20);
+    ctx.fillText('â˜… EL OTRO LADO â˜…', bw.x + bw.w + 60, bw.y + bw.h - 20);
   }
 
-  // ── BORDER WALL ARENA ──
+  // â”€â”€ BORDER WALL ARENA â”€â”€
   // Draw the full sewer background behind platforms (only during bossfight)
   const drawArena = (state === 'bossfight' || state === 'bossdialogue' || state === 'cutscene' || state === 'epsteinfight' || state === 'phonecall' || state === 'fusioncutscene' || state === 'fusionfight' || state === 'splitfight' || state === 'hawkingRefusal' || state === 'hawkingDeath' || bossDeathTimer > 0) && arenaPlats.length > 0;
   if (drawArena) {
@@ -6664,7 +6695,7 @@ function draw() {
       ctx.fillStyle = '#ffcc0033';
       ctx.font = 'bold 14px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('⚠ RESTRICTED AREA ⚠', sx + sw/2, sy + sh/2 - 50);
+      ctx.fillText('âš  RESTRICTED AREA âš ', sx + sw/2, sy + sh/2 - 50);
       ctx.fillStyle = '#ff333322';
       ctx.font = 'bold 10px monospace';
       ctx.fillText('AUTHORIZED PERSONNEL ONLY', sx + sw/2, sy + sh/2 - 35);
@@ -6771,7 +6802,7 @@ function draw() {
     }
   }
 
-  // ── Boss Minions Drawing ──
+  // â”€â”€ Boss Minions Drawing â”€â”€
   for (const m of bossMinions) {
     if (m.dead) continue;
     const mx = m.x, my = m.y;
@@ -6890,7 +6921,7 @@ function draw() {
     }
   }
 
-  // ── Boss Drawing ──
+  // â”€â”€ Boss Drawing â”€â”€
   if (boss && !boss.dead) {
     const bx = boss.x;
     const by = boss.y;
@@ -6933,7 +6964,7 @@ function draw() {
     ctx.closePath();
     ctx.stroke();
 
-    // Charge trail — fire and speed lines
+    // Charge trail â€” fire and speed lines
     if (boss.charging) {
       const trailDir = boss.chargeVx > 0 ? -1 : 1;
       for (let i = 0; i < 5; i++) {
@@ -6957,7 +6988,7 @@ function draw() {
       }
     }
 
-    // Slam warning — danger zone on ground
+    // Slam warning â€” danger zone on ground
     if (boss.slamming && boss.vy < 0) {
       const warnX = bx + boss.w/2;
       const arenaFloorY = bigWall.y + 40 + 800;
@@ -6976,10 +7007,10 @@ function draw() {
       ctx.fillStyle = `rgba(255, 0, 0, ${warnPulse})`;
       ctx.font = 'bold 24px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('⚠ INCOMING SLAM ⚠', warnX, arenaFloorY - 25);
+      ctx.fillText('âš  INCOMING SLAM âš ', warnX, arenaFloorY - 25);
     }
 
-    // Slam falling — afterimage trail
+    // Slam falling â€” afterimage trail
     if (boss.slamming && boss.vy > 2) {
       for (let ai = 1; ai <= 4; ai++) {
         ctx.globalAlpha = 0.15 / ai;
@@ -7048,8 +7079,8 @@ function draw() {
       ctx.shadowBlur = 0;
     }
 
-    // Label with phase — bigger, glowing
-    const phaseLabels = { 1: '★ TRUMP ★', 2: '★★ ENRAGED ★★', 3: '★★★ FINAL FORM ★★★' };
+    // Label with phase â€” bigger, glowing
+    const phaseLabels = { 1: 'â˜… TRUMP â˜…', 2: 'â˜…â˜… ENRAGED â˜…â˜…', 3: 'â˜…â˜…â˜… FINAL FORM â˜…â˜…â˜…' };
     ctx.shadowColor = boss.phase === 3 ? '#ff0000' : boss.phase === 2 ? '#ff6600' : '#ff4444';
     ctx.shadowBlur = boss.phase * 8;
     ctx.fillStyle = boss.phase === 3 ? '#ff0000' : boss.phase === 2 ? '#ff6600' : '#ff2222';
@@ -7058,7 +7089,7 @@ function draw() {
     ctx.fillText(phaseLabels[boss.phase], bx + boss.w / 2, by - 48);
     ctx.shadowBlur = 0;
 
-    // Boss HP bar — bigger, more detailed
+    // Boss HP bar â€” bigger, more detailed
     const bossHpW = 140;
     const bossHpPct = boss.hp / boss.maxHp;
     ctx.fillStyle = '#000000dd';
@@ -7083,7 +7114,7 @@ function draw() {
     ctx.fillRect(bx + boss.w/2 - bossHpW/2, by - 33, bossHpW * bossHpPct * 0.6, 4);
   }
 
-  // ── Boss Death VFX (ghost/fading boss) ──
+  // â”€â”€ Boss Death VFX (ghost/fading boss) â”€â”€
   if (boss && boss.dead && bossDeathTimer > 0) {
     const deathAlpha = bossDeathTimer > 30 ? 0.5 : bossDeathTimer / 60;
     ctx.globalAlpha = deathAlpha;
@@ -7180,7 +7211,7 @@ function draw() {
     ctx.restore();
   }
 
-  // Bullets — with fire trails
+  // Bullets â€” with fire trails
   for (const b of bullets) {
     // Trail behind bullet
     const speed = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
@@ -7212,7 +7243,7 @@ function draw() {
     ctx.fill();
   }
 
-  // ── Epstein Boss Drawing ──
+  // â”€â”€ Epstein Boss Drawing â”€â”€
   if (epstein && !epstein.dead) {
     const ex = epstein.x, ey = epstein.y;
     const bounce = Math.sin(epstein.frame * Math.PI / 2) * 3;
@@ -7261,7 +7292,7 @@ function draw() {
     ctx.restore();
 
     // Phase label
-    const epPhaseLabels = { 1: '★ EPSTEIN ★', 2: '★★ UNHINGED ★★' };
+    const epPhaseLabels = { 1: 'â˜… EPSTEIN â˜…', 2: 'â˜…â˜… UNHINGED â˜…â˜…' };
     ctx.fillStyle = '#ff44ff88';
     ctx.font = 'bold 11px monospace';
     ctx.textAlign = 'center';
@@ -7284,12 +7315,12 @@ function draw() {
     ctx.fill();
   }
 
-  // ── Epstein Projectiles Drawing (spinning files/people/evidence) ──
+  // â”€â”€ Epstein Projectiles Drawing (spinning files/people/evidence) â”€â”€
   for (const ep of epsteinProjectiles) {
     ctx.save();
     ctx.translate(ep.x, ep.y);
     ctx.rotate(ep.rotation);
-    // Pick image based on imgIdx — drawn BIGGER, no glow
+    // Pick image based on imgIdx â€” drawn BIGGER, no glow
     const projImg = epProjectileImgs[ep.imgIdx] || epsteinFilesImg;
     try {
       ctx.drawImage(projImg, -ep.size/2, -ep.size/2, ep.size, ep.size);
@@ -7316,7 +7347,7 @@ function draw() {
     }
   }
 
-  // ── FUSION BOSS Drawing ──
+  // â”€â”€ FUSION BOSS Drawing â”€â”€
   if (fusionBoss && !fusionBoss.dead) {
     const fx = fusionBoss.x, fy = fusionBoss.y;
     const fb = fusionBoss;
@@ -7358,7 +7389,7 @@ function draw() {
     ctx.stroke();
     ctx.restore();
 
-    // Draw BOTH Trump and Epstein images side by side (fused — half/half)
+    // Draw BOTH Trump and Epstein images side by side (fused â€” half/half)
     ctx.save();
     // Left half = Trump
     ctx.save();
@@ -7416,7 +7447,7 @@ function draw() {
     ctx.textAlign = 'center';
     ctx.shadowColor = '#ff4400';
     ctx.shadowBlur = 10;
-    ctx.fillText(fb.phase === 2 ? '★★ TRUMPSTEIN - UNLEASHED ★★' : '★ TRUMPSTEIN ★', fx + fb.w/2, fy - 50 - bounce);
+    ctx.fillText(fb.phase === 2 ? 'â˜…â˜… TRUMPSTEIN - UNLEASHED â˜…â˜…' : 'â˜… TRUMPSTEIN â˜…', fx + fb.w/2, fy - 50 - bounce);
     ctx.shadowBlur = 0;
 
     // HP bar above
@@ -7437,14 +7468,14 @@ function draw() {
     ctx.fill();
   }
 
-  // ── MINI-BOSS Drawing (Split Fight) ──
+  // â”€â”€ MINI-BOSS Drawing (Split Fight) â”€â”€
   for (const mb of miniBosses) {
     if (mb.dead) continue;
     const mx = mb.x, my = mb.y;
     const bounce = Math.sin(mb.frame * Math.PI / 2) * 2;
     const t = Date.now() / 1000;
 
-    // Color aura — MASSIVE for Hawking Phase 2
+    // Color aura â€” MASSIVE for Hawking Phase 2
     const auraRadius = (mb.name === 'HAWKING' && hawkingPhase2) ? mb.w/2 + 80 : mb.w/2 + 25;
     const mAuraGrad = ctx.createRadialGradient(mx+mb.w/2, my+mb.h/2, 5, mx+mb.w/2, my+mb.h/2, auraRadius);
     mAuraGrad.addColorStop(0, mb.color + ((mb.name === 'HAWKING' && hawkingPhase2) ? '88' : '44'));
@@ -7454,7 +7485,7 @@ function draw() {
     ctx.arc(mx + mb.w/2, my + mb.h/2, auraRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Hawking Phase 2 — extra cosmic effects (GOLD theme)
+    // Hawking Phase 2 â€” extra cosmic effects (GOLD theme)
     if (mb.name === 'HAWKING' && hawkingPhase2) {
       // Orbiting energy rings
       for (let ring = 0; ring < 3; ring++) {
@@ -7567,7 +7598,7 @@ function draw() {
     ctx.fill();
   }
 
-  // ── Boss VFX (rings, cracks, text) ──
+  // â”€â”€ Boss VFX (rings, cracks, text) â”€â”€
   for (const vfx of bossVfx) {
     const alpha = vfx.life / vfx.maxLife;
     if (vfx.type === 'ring') {
@@ -7628,14 +7659,14 @@ function draw() {
 
   ctx.restore();
 
-  // ── Screen Vignette ──
+  // â”€â”€ Screen Vignette â”€â”€
   const vg = ctx.createRadialGradient(W/2, H/2, H * 0.35, W/2, H/2, H * 0.95);
   vg.addColorStop(0, 'rgba(0,0,0,0)');
   vg.addColorStop(1, 'rgba(0,0,0,0.45)');
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, W, H);
 
-  // ── Low HP red vignette ──
+  // â”€â”€ Low HP red vignette â”€â”€
   if (player && player.alive && player.hp / player.maxHp < 0.35) {
     const hpPulse = 0.12 + Math.sin(Date.now() / 300) * 0.06;
     const rvg = ctx.createRadialGradient(W/2, H/2, H * 0.25, W/2, H/2, H * 0.85);
@@ -7645,7 +7676,7 @@ function draw() {
     ctx.fillRect(0, 0, W, H);
   }
 
-  // ── Screen Flash Effect ──
+  // â”€â”€ Screen Flash Effect â”€â”€
   if (screenFlash > 0) {
     const flashAlpha = Math.min(0.8, screenFlash / 20);
     ctx.globalAlpha = flashAlpha;
@@ -7654,9 +7685,9 @@ function draw() {
     ctx.globalAlpha = 1;
   }
 
-  // ════════════════════════════════════════════════════════════════
-  // HAWKING REFUSAL — Undertale "But it refused." full-screen drawing
-  // ════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // HAWKING REFUSAL â€” Undertale "But it refused." full-screen drawing
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   if (state === 'hawkingRefusal') {
     const t = hawkingRefusalTimer;
     const cx = W / 2;
@@ -7664,11 +7695,11 @@ function draw() {
     const heartY = H * 0.52; // heart below text
     ctx.imageSmoothingEnabled = false;
 
-    // Pure black background — instant
+    // Pure black background â€” instant
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
 
-    // ── Pixel heart (Undertale 8x7 grid) ──
+    // â”€â”€ Pixel heart (Undertale 8x7 grid) â”€â”€
     function drawPixelHeart(hx, hy, scale, color, alpha) {
       ctx.globalAlpha = alpha;
       ctx.fillStyle = color;
@@ -7792,7 +7823,7 @@ function draw() {
       ctx.fillText(displayText, cx, textY);
     }
 
-    // Phase 6: Text + heart pulse — transitions from green to GOLD (t: 530-620)
+    // Phase 6: Text + heart pulse â€” transitions from green to GOLD (t: 530-620)
     if (t >= 530 && t < 620) {
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 32px monospace';
@@ -7800,7 +7831,7 @@ function draw() {
       ctx.textBaseline = 'middle';
       ctx.fillText('* But it refused.', cx, textY);
 
-      // Heart color transitions green → gold (slower)
+      // Heart color transitions green â†’ gold (slower)
       const goldProgress = Math.min(1, (t - 540) / 60);
       const heartColor = goldProgress < 0.5 ? ((t % 8 < 4) ? '#00ff00' : '#44ff88') : ((t % 6 < 3) ? '#ffd700' : '#ffcc00');
       const heartScale = hs + (goldProgress > 0.5 ? Math.sin(t * 0.15) * 1.5 : 0);
@@ -7828,14 +7859,14 @@ function draw() {
       }
     }
 
-    // Phase 7: Close-up of NORMAL Hawking — long dramatic linger (t: 620-780)
+    // Phase 7: Close-up of NORMAL Hawking â€” long dramatic linger (t: 620-780)
     if (t >= 620 && t < 780) {
       const phaseDur = 160;
       const fadeIn = Math.min(1, (t - 620) / 30);
       // Black bg
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, W, H);
-      // Normal Hawking close-up — centered, large, slowly zooming in
+      // Normal Hawking close-up â€” centered, large, slowly zooming in
       const zoomProg = (t - 620) / phaseDur;
       const hawkSize = Math.min(W * 0.45, 320) + zoomProg * 40;
       const hawkH_val = imgH(hawkingImg, hawkSize);
@@ -7899,7 +7930,7 @@ function draw() {
         ctx.drawImage(hawkingImg, cx - hawkSize/2, H * 0.2, hawkSize, hawkH_val);
         ctx.globalAlpha = 1;
       }
-      // Gold energy cracks spreading across screen — more over time
+      // Gold energy cracks spreading across screen â€” more over time
       const crackCount = Math.floor(flashProg * 20);
       for (let c = 0; c < crackCount; c++) {
         ctx.strokeStyle = `rgba(255, 215, 0, ${0.2 + Math.random() * 0.4})`;
@@ -7916,7 +7947,7 @@ function draw() {
         ctx.stroke();
         ctx.shadowBlur = 0;
       }
-      // Golden flash builds from center — slow expansion
+      // Golden flash builds from center â€” slow expansion
       const flashGrad = ctx.createRadialGradient(cx, H * 0.4, 0, cx, H * 0.4, W * flashProg * 0.8);
       flashGrad.addColorStop(0, `rgba(255, 215, 0, ${flashProg * 0.7})`);
       flashGrad.addColorStop(0.5, `rgba(255, 200, 0, ${flashProg * 0.3})`);
@@ -7925,7 +7956,7 @@ function draw() {
       ctx.fillRect(0, 0, W, H);
       // Increasingly violent shaking
       shakeTimer = Math.max(shakeTimer, Math.ceil(5 + flashProg * 15));
-      // Deep rumble — screen flickers
+      // Deep rumble â€” screen flickers
       if (flashProg > 0.5 && Math.random() < flashProg * 0.3) {
         ctx.fillStyle = `rgba(255, 200, 0, ${Math.random() * 0.08})`;
         ctx.fillRect(0, 0, W, H);
@@ -7937,7 +7968,7 @@ function draw() {
       }
     }
 
-    // Phase 9: GOLDEN HAWKING REVEALED — slow, intimidating (t: 920-1120)
+    // Phase 9: GOLDEN HAWKING REVEALED â€” slow, intimidating (t: 920-1120)
     if (t >= 920 && t < 1120) {
       const revealProg = (t - 920) / 200;
       // White/gold flash fading to black
@@ -7948,7 +7979,7 @@ function draw() {
       }
       ctx.fillStyle = `rgba(0, 0, 0, ${bgFade})`;
       ctx.fillRect(0, 0, W, H);
-      // Golden Hawking — larger, with radiating gold aura
+      // Golden Hawking â€” larger, with radiating gold aura
       const hawkSize = Math.min(W * 0.5, 350);
       const hawkH_val = imgH(hawkingGoldImg, hawkSize);
       const hawkAlpha = Math.min(1, revealProg * 3);
@@ -7972,7 +8003,7 @@ function draw() {
       ctx.drawImage(hawkingGoldImg, cx - hawkSize/2, H * 0.2, hawkSize, hawkH_val);
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
-      // "TRANSCENDED" text — appears early, stays
+      // "TRANSCENDED" text â€” appears early, stays
       if (revealProg > 0.2) {
         const tAlpha = Math.min(1, (revealProg - 0.2) / 0.2);
         ctx.globalAlpha = tAlpha;
@@ -7985,7 +8016,7 @@ function draw() {
         ctx.shadowBlur = 0;
         ctx.globalAlpha = 1;
       }
-      // Threatening dialogue — typewriter, appears after reveal settles
+      // Threatening dialogue â€” typewriter, appears after reveal settles
       if (revealProg > 0.4) {
         const dlgProg = (revealProg - 0.4) / 0.6;
         const quotes = [
@@ -8021,7 +8052,7 @@ function draw() {
           ctx.stroke();
         }
       }
-      // Gold particles floating upward — more of them
+      // Gold particles floating upward â€” more of them
       if (revealProg > 0.1) {
         for (let gp = 0; gp < 20; gp++) {
           const gpT = Date.now()/1000;
@@ -8049,9 +8080,9 @@ function draw() {
     ctx.fillText('SKIP \u25b6\u25b6', W - 60, 27);
   }
 
-  // ════════════════════════════════════════════════════════════════
-  // HAWKING DEATH — Epic cinematic death scene drawing
-  // ════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // HAWKING DEATH â€” Epic cinematic death scene drawing
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   if (state === 'hawkingDeath') {
     const dt = hawkingDeathTimer;
     const hawk = miniBosses.find(m => m.name === 'HAWKING');
@@ -8059,7 +8090,7 @@ function draw() {
     const hy = hawk ? hawk._deathY || H/2 : H/2;
     const t = Date.now() / 1000;
 
-    // Phase 1 (0-80): TIME FREEZE — dramatic slow-mo distortion
+    // Phase 1 (0-80): TIME FREEZE â€” dramatic slow-mo distortion
     if (dt < 80) {
       const freezeProg = dt / 80;
       // Darken arena progressively
@@ -8096,7 +8127,7 @@ function draw() {
       }
     }
 
-    // Phase 2 (80-200): HAWKING RISES — levitation with energy eruption
+    // Phase 2 (80-200): HAWKING RISES â€” levitation with energy eruption
     if (dt >= 80 && dt < 200) {
       const riseProg = (dt - 80) / 120;
       // Nearly full black
@@ -8148,13 +8179,13 @@ function draw() {
       }
     }
 
-    // Phase 3 (200-400): REALITY CRACKS — space-time tears, cosmic energy
+    // Phase 3 (200-400): REALITY CRACKS â€” space-time tears, cosmic energy
     if (dt >= 200 && dt < 400) {
       const crackProg = (dt - 200) / 200;
       // Deep black background
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, W, H);
-      // Star field appearing — cosmos becoming visible
+      // Star field appearing â€” cosmos becoming visible
       const starCount = Math.floor(crackProg * 120);
       for (let s = 0; s < starCount; s++) {
         const sx = (s * 73.7 + s * s * 3.1) % W;
@@ -8164,7 +8195,7 @@ function draw() {
         const sSize = s % 11 === 0 ? 3 : (s % 5 === 0 ? 2 : 1);
         ctx.fillRect(sx, sy, sSize, sSize);
       }
-      // Reality crack lines — jagged tears in space
+      // Reality crack lines â€” jagged tears in space
       const crackCount = Math.floor(crackProg * 8);
       for (let c = 0; c < crackCount; c++) {
         const cStartX = (c * 157 + 100) % W;
@@ -8221,7 +8252,7 @@ function draw() {
       }
     }
 
-    // Phase 4 (400-550): DISINTEGRATION — body breaks into constellation
+    // Phase 4 (400-550): DISINTEGRATION â€” body breaks into constellation
     if (dt >= 400 && dt < 550) {
       const disProg = (dt - 400) / 150;
       // Deep space background
@@ -8235,7 +8266,7 @@ function draw() {
         ctx.fillStyle = `rgba(255,255,255,${twinkle})`;
         ctx.fillRect(sx, sy, s % 7 === 0 ? 2 : 1, s % 7 === 0 ? 2 : 1);
       }
-      // Supernova explosion at center — concentric rings
+      // Supernova explosion at center â€” concentric rings
       const novaCenter = { x: hx, y: hy - 120 };
       const novaR = disProg * 400;
       for (let nr = 0; nr < 4; nr++) {
@@ -8256,7 +8287,7 @@ function draw() {
       ctx.beginPath();
       ctx.arc(novaCenter.x, novaCenter.y, 100, 0, Math.PI * 2);
       ctx.fill();
-      // Constellation dots forming from the explosion — scattered outward
+      // Constellation dots forming from the explosion â€” scattered outward
       const constellationPts = 30;
       for (let cp = 0; cp < constellationPts; cp++) {
         const cpAngle = (cp / constellationPts) * Math.PI * 2 + Math.sin(cp * 3) * 0.5;
@@ -8295,7 +8326,7 @@ function draw() {
       }
     }
 
-    // Phase 5 (550-750): COSMIC MOMENT — equation + final words
+    // Phase 5 (550-750): COSMIC MOMENT â€” equation + final words
     if (dt >= 550 && dt < 750) {
       const cosmicProg = (dt - 550) / 200;
       // Deep space
@@ -8320,7 +8351,7 @@ function draw() {
         ctx.fill();
       }
 
-      // E = mc² appearing letter by letter
+      // E = mcÂ² appearing letter by letter
       if (cosmicProg < 0.4) {
         const eqText = 'E = mc\u00B2';
         const eqProg = cosmicProg / 0.4;
@@ -8462,9 +8493,9 @@ function draw() {
     ctx.fillText('SKIP \u25b6\u25b6', W - 60, 27);
   }
 
-  // ════════════════════════════════════════════════════════════════
-  // WIN CUTSCENE — Walking to citizenship office + THE END
-  // ════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // WIN CUTSCENE â€” Walking to citizenship office + THE END
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   if (state === 'winCutscene') {
     const wt = winCutsceneTimer;
     
@@ -8537,7 +8568,7 @@ function draw() {
     // Phase 2 (300+): Player enters door, fade out
     if (wt >= 300 && wt < 350) {
       // Player fades as they enter
-      // (the player is already drawn by main draw — we overlay a fade)
+      // (the player is already drawn by main draw â€” we overlay a fade)
     }
     
     // Phase 3: Fade to black
@@ -8614,14 +8645,14 @@ function draw() {
     ctx.fillText('SKIP \u25b6\u25b6', W - 60, 27);
   }
 
-  // ── Boss intro overlay ──
+  // â”€â”€ Boss intro overlay â”€â”€
   if (bossIntroTimer > 60) {
     const introFade = (bossIntroTimer - 60) / 30;
     ctx.fillStyle = `rgba(255,255,255,${introFade})`;
     ctx.fillRect(0, 0, W, H);
   }
 
-  // ── Cinematic letterbox bars during boss intro ──
+  // â”€â”€ Cinematic letterbox bars during boss intro â”€â”€
   if (inBossFight && bossIntroTimer > 0) {
     const barH = 50 * Math.min(1, bossIntroTimer / 30);
     ctx.fillStyle = '#000';
@@ -8629,7 +8660,7 @@ function draw() {
     ctx.fillRect(0, H - barH, W, barH);
   }
 
-  // ── Vignette during bossfight — sewer darkness ──
+  // â”€â”€ Vignette during bossfight â€” sewer darkness â”€â”€
   if (inBossFight) {
     const bPhase = boss ? boss.phase : 1;
     const isEpstein = state === 'epsteinfight' || state === 'phonecall';
@@ -8654,13 +8685,13 @@ function draw() {
     ctx.fillRect(0, 0, W, H);
   }
 
-  // ── Phone Call Cutscene Drawing ──
+  // â”€â”€ Phone Call Cutscene Drawing â”€â”€
   if (state === 'phonecall') {
     // Dark overlay
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fillRect(0, 0, W, H);
 
-    // Phone ringing effect — pulsing circles
+    // Phone ringing effect â€” pulsing circles
     const pulse = Math.sin(Date.now() / 200) * 0.5 + 0.5;
     const ringColor = `rgba(255,200,0,${pulse * 0.3})`;
     ctx.strokeStyle = ringColor;
@@ -8770,10 +8801,10 @@ function draw() {
     ctx.fillStyle = '#ccc';
     ctx.font = 'bold 12px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('SKIP ▶▶', W - 60, 27);
+    ctx.fillText('SKIP â–¶â–¶', W - 60, 27);
   }
 
-  // ── HUD ──
+  // â”€â”€ HUD â”€â”€
   // Distance indicator
   if (state === 'playing' && bigWall) {
     const dist = Math.max(0, bigWall.x - player.x);
@@ -8834,7 +8865,7 @@ function draw() {
     ctx.fillStyle = '#ffffff55';
     ctx.font = '10px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(_isTouchDev ? '¡Cuidado! Use on-screen controls' : '← → Move  |  ↑/Space Jump  |  Hold ↑ Climb  |  Click/F Throw  |  ¡Cuidado!', W / 2, H - 10);
+    ctx.fillText(_isTouchDev ? 'Â¡Cuidado! Use on-screen controls' : 'â† â†’ Move  |  â†‘/Space Jump  |  Hold â†‘ Climb  |  Click/F Throw  |  Â¡Cuidado!', W / 2, H - 10);
 
     // Boss HP bar on HUD (if boss alive and player near)
     if (boss && !boss.dead) {
@@ -8849,16 +8880,16 @@ function draw() {
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 12px monospace';
       ctx.textAlign = 'right';
-      ctx.fillText(`★ TRUMP: ${boss.hp}/${boss.maxHp}`, W - 30, 30);
+      ctx.fillText(`â˜… TRUMP: ${boss.hp}/${boss.maxHp}`, W - 30, 30);
     }
 
-    // ── Touch Controls (on-screen buttons) ──
+    // â”€â”€ Touch Controls (on-screen buttons) â”€â”€
     drawTouchButtons();
   }
 
-  // Also show HP bar during bossfight — CINEMATIC HUD
+  // Also show HP bar during bossfight â€” CINEMATIC HUD
   if (state === 'bossfight') {
-    // Player HP — left side with icon
+    // Player HP â€” left side with icon
     const hpW = 200;
     ctx.fillStyle = '#00000099';
     ctx.fillRect(15, 8, hpW + 14, 30);
@@ -8880,9 +8911,9 @@ function draw() {
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 13px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`❤ ${player.hp}/${player.maxHp}`, 28, 29);
+    ctx.fillText(`â¤ ${player.hp}/${player.maxHp}`, 28, 29);
 
-    // BOSS HP — full width cinematic bar below player HP
+    // BOSS HP â€” full width cinematic bar below player HP
     if (boss && !boss.dead) {
       const bossHudW = Math.min(500, W * 0.6, W - 260);
       const bHpPct = boss.hp / boss.maxHp;
@@ -8894,7 +8925,7 @@ function draw() {
       ctx.fillRect(barX - 5, bossHudY, bossHudW + 10, 38);
 
       // Boss name + phase
-      const phaseNames = { 1: 'TRUMP', 2: '★ TRUMP - ENRAGED ★', 3: '★★ TRUMP - FINAL FORM ★★' };
+      const phaseNames = { 1: 'TRUMP', 2: 'â˜… TRUMP - ENRAGED â˜…', 3: 'â˜…â˜… TRUMP - FINAL FORM â˜…â˜…' };
       ctx.fillStyle = boss.phase === 3 ? '#ff2222' : boss.phase === 2 ? '#ff8844' : '#ffcc44';
       ctx.font = `bold ${boss.phase === 3 ? 13 : 12}px monospace`;
       ctx.textAlign = 'center';
@@ -8946,9 +8977,9 @@ function draw() {
     ctx.fillText(_isTouchDev ? 'Defeat Trump to cross!' : 'Defeat Trump to cross!  |  Click/F Throw  |  \u2190 \u2192 Move  |  \u2191/Space Jump', W / 2, H - 10);
   }
 
-  // ── Epstein Fight HUD ──
+  // â”€â”€ Epstein Fight HUD â”€â”€
   if (state === 'epsteinfight') {
-    // Player HP — left side
+    // Player HP â€” left side
     const hpW = 200;
     ctx.fillStyle = '#00000099';
     ctx.fillRect(15, 8, hpW + 14, 30);
@@ -8969,9 +9000,9 @@ function draw() {
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 13px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`❤ ${player.hp}/${player.maxHp}`, 28, 29);
+    ctx.fillText(`â¤ ${player.hp}/${player.maxHp}`, 28, 29);
 
-    // EPSTEIN HP — cinematic bar at top center (purple themed)
+    // EPSTEIN HP â€” cinematic bar at top center (purple themed)
     if (epstein && !epstein.dead) {
       const eHudW = Math.min(500, W * 0.5, W - 260);
       const eHpPct = epstein.hp / epstein.maxHp;
@@ -8981,7 +9012,7 @@ function draw() {
       ctx.fillRect(barX - 5, 5, eHudW + 10, 38);
 
       // Boss name
-      const ePhaseNames = { 1: 'EPSTEIN', 2: '★ EPSTEIN - UNHINGED ★' };
+      const ePhaseNames = { 1: 'EPSTEIN', 2: 'â˜… EPSTEIN - UNHINGED â˜…' };
       ctx.fillStyle = epstein.phase === 2 ? '#ff44ff' : '#aa88ff';
       ctx.font = `bold ${epstein.phase === 2 ? 13 : 12}px monospace`;
       ctx.textAlign = 'center';
@@ -9033,7 +9064,7 @@ function draw() {
     ctx.fillText(_isTouchDev ? 'Defeat Epstein!' : 'Defeat Epstein!  |  Click/F Throw  |  \u2190 \u2192 Move  |  \u2191/Space Jump', W / 2, H - 10);
   }
 
-  // ── Fusion Cutscene Drawing ──
+  // â”€â”€ Fusion Cutscene Drawing â”€â”€
   if (state === 'fusioncutscene') {
     // Dark overlay
     ctx.fillStyle = 'rgba(0,0,0,0.85)';
@@ -9149,7 +9180,7 @@ function draw() {
     ctx.fillText('SKIP \u25ba\u25ba', W - 60, 31);
   }
 
-  // ── Fusion Fight HUD ──
+  // â”€â”€ Fusion Fight HUD â”€â”€
   if (state === 'fusionfight') {
     // Player HP
     const hpW = 200;
@@ -9174,7 +9205,7 @@ function draw() {
     ctx.textAlign = 'left';
     ctx.fillText(`\u2764 ${player.hp}/${player.maxHp}`, 28, 29);
 
-    // TRUMPSTEIN HP — dual color bar
+    // TRUMPSTEIN HP â€” dual color bar
     if (fusionBoss && !fusionBoss.dead) {
       const fHudW = Math.min(550, W * 0.55, W - 260);
       const fHpPct = fusionBoss.hp / fusionBoss.maxHp;
@@ -9193,7 +9224,7 @@ function draw() {
       ctx.fillText(fName, W/2, 19);
       ctx.shadowBlur = 0;
 
-      // Dual-colored HP bar (red → purple gradient)
+      // Dual-colored HP bar (red â†’ purple gradient)
       ctx.fillStyle = '#1a0a0a';
       ctx.fillRect(barX, 24, fHudW, 16);
       const fGrad = ctx.createLinearGradient(barX, 0, barX + fHudW, 0);
@@ -9231,7 +9262,7 @@ function draw() {
     ctx.fillText(_isTouchDev ? 'Defeat TRUMPSTEIN!' : 'Defeat TRUMPSTEIN!  |  Click/F Throw  |  \u2190 \u2192 Move  |  \u2191/Space Jump', W / 2, H - 10);
   }
 
-  // ── Split Fight HUD ──
+  // â”€â”€ Split Fight HUD â”€â”€
   if (state === 'splitfight') {
     // === EPIC SPLIT BOSS CINEMATIC ===
     if (bossIntroTimer > 0) {
@@ -9278,7 +9309,7 @@ function draw() {
       // Cinematic letterbox bars
       const barH = 50;
       
-      // ═══ COLD OPEN (0-0.03): Dramatic fade from black ═══
+      // â•â•â• COLD OPEN (0-0.03): Dramatic fade from black â•â•â•
       if (prog < 0.03) {
         const sp = prog / 0.03;
         // Pure black with slowly emerging text
@@ -9315,7 +9346,7 @@ function draw() {
         }
       }
       
-      // ═══ SCENE 1 (0.03-0.055): Phone screen UI ═══
+      // â•â•â• SCENE 1 (0.03-0.055): Phone screen UI â•â•â•
       if (prog >= 0.03 && prog < 0.055) {
         const sp = (prog - 0.03) / 0.025;
         // Dark table surface background
@@ -9380,7 +9411,7 @@ function draw() {
         ctx.textAlign = 'left';
         ctx.fillText('9:41 PM', phoneX + 10, phoneY + 14);
         ctx.textAlign = 'right';
-        ctx.fillText('5G ■■■ 🔋87%', phoneX + phoneW - 10, phoneY + 14);
+        ctx.fillText('5G â– â– â–  ðŸ”‹87%', phoneX + phoneW - 10, phoneY + 14);
         // Group call UI
         ctx.textAlign = 'center';
         const ringPulse = Math.sin(sp * Math.PI * 8) * 0.5 + 0.5;
@@ -9422,14 +9453,14 @@ function draw() {
         ctx.fillText('EPSTEIN', W/2, phoneY + 180);
         ctx.fillStyle = '#999';
         ctx.font = '11px monospace';
-        ctx.fillText('Group Call • 5 members', W/2, phoneY + 198);
+        ctx.fillText('Group Call â€¢ 5 members', W/2, phoneY + 198);
         ctx.fillStyle = '#666';
         ctx.font = '9px monospace';
         ctx.fillText('End-to-End Encrypted', W/2, phoneY + 215);
         // Pulsing answer text
         ctx.fillStyle = `rgba(136,68,255,${0.6 + ringPulse * 0.4})`;
         ctx.font = 'bold 13px monospace';
-        ctx.fillText(sp > 0.5 ? '● CONNECTING...' : '● INCOMING CALL', W/2, phoneY + 260);
+        ctx.fillText(sp > 0.5 ? 'â— CONNECTING...' : 'â— INCOMING CALL', W/2, phoneY + 260);
         // Signal strength animation
         if (sp > 0.5) {
           for (let sg = 0; sg < 4; sg++) {
@@ -9437,7 +9468,7 @@ function draw() {
             ctx.fillRect(phoneX + 30 + sg*12, phoneY + 270, 8, 4);
           }
         }
-        // Accept / Decline buttons — bigger, more detailed
+        // Accept / Decline buttons â€” bigger, more detailed
         ctx.fillStyle = '#22cc44';
         ctx.shadowColor = '#22cc44';
         ctx.shadowBlur = 10;
@@ -9459,7 +9490,7 @@ function draw() {
         ctx.fillText('Accept', W/2 - 45, phoneY + 335);
         ctx.fillText('Decline', W/2 + 45, phoneY + 335);
         ctx.globalAlpha = 1;
-        // Outer ripple effects — more rings
+        // Outer ripple effects â€” more rings
         for (let or2 = 0; or2 < 3; or2++) {
           ctx.strokeStyle = `rgba(136,68,255,${ringPulse * 0.12 / (or2+1)})`;
           ctx.lineWidth = 2;
@@ -9473,7 +9504,7 @@ function draw() {
         }
       }
       
-      // ═══ SCENE 2 (0.055-0.14): Epstein initiating the call ═══
+      // â•â•â• SCENE 2 (0.055-0.14): Epstein initiating the call â•â•â•
       if (prog >= 0.055 && prog < 0.14) {
         const sp = (prog - 0.055) / 0.085;
         ctx.save();
@@ -9512,7 +9543,7 @@ function draw() {
         ctx.restore();
         ctx.globalAlpha = 1;
         
-        // Floating dust particles — many more
+        // Floating dust particles â€” many more
         for (let dp = 0; dp < 40; dp++) {
           const dpx = (dp * 137.5 + t * 12) % W;
           const dpy = (dp * 89.3 + Math.sin(t*0.7 + dp) * 40) % H;
@@ -9545,7 +9576,7 @@ function draw() {
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(W*0.7+24, H*0.58+11, 8, -Math.PI/2, Math.PI/2); ctx.stroke();
         
-        // Epstein portrait — large, dramatic entrance
+        // Epstein portrait â€” large, dramatic entrance
         const eSize = Math.min(W * 0.28, 200);
         const ex = W * 0.5, ey = H * 0.08;
         const enterSlide = Math.min(1, sp * 2.5);
@@ -9576,9 +9607,9 @@ function draw() {
         ctx.fillText('GROUP', ex, ey + eSize * 1.02 + 8);
         ctx.fillText('CALL', ex, ey + eSize * 1.02 + 16);
         ctx.fillStyle = '#44ff88';
-        ctx.fillText('● LIVE', ex, ey + eSize * 1.02 + 26);
+        ctx.fillText('â— LIVE', ex, ey + eSize * 1.02 + 26);
         
-        // Purple light rays from behind — more, animated
+        // Purple light rays from behind â€” more, animated
         if (sp > 0.2) {
           ctx.globalAlpha = Math.min(0.2, (sp - 0.2) * 0.3);
           for (let ray = 0; ray < 12; ray++) {
@@ -9637,11 +9668,11 @@ function draw() {
         ctx.restore();
       }
       
-      // ═══ SCENE 3 (0.14-0.24): Trump at his golden tower ═══
+      // â•â•â• SCENE 3 (0.14-0.24): Trump at his golden tower â•â•â•
       if (prog >= 0.14 && prog < 0.24) {
         const sp = (prog - 0.14) / 0.1;
         ctx.save();
-        // Gold background — Trump tower penthouse
+        // Gold background â€” Trump tower penthouse
         const goldGrad = ctx.createLinearGradient(0, 0, W, H);
         goldGrad.addColorStop(0, '#2a1a00');
         goldGrad.addColorStop(0.3, '#3a2a10');
@@ -9662,7 +9693,7 @@ function draw() {
           }
         }
         
-        // Gold decorative columns — thicker, more ornate
+        // Gold decorative columns â€” thicker, more ornate
         for (let i = 0; i < 8; i++) {
           const cx2 = W * 0.05 + W * 0.9 * (i/7);
           // Column body
@@ -9695,7 +9726,7 @@ function draw() {
         ctx.fillStyle = '#ffffff04';
         ctx.fillRect(0, H*0.65, W, H*0.35);
         
-        // Grand chandelier — detailed
+        // Grand chandelier â€” detailed
         const chanX = W*0.5, chanY = H*0.02;
         // Chain
         ctx.strokeStyle = '#ffcc4433';
@@ -9770,7 +9801,7 @@ function draw() {
         ctx.drawImage(bossIntroImg, tx - tSize/2, H * 0.16 + (1-tEase)*60, tSize, imgH(bossIntroImg, tSize));
         ctx.shadowBlur = 0;
         
-        // Ornate gold desk — larger, with more items
+        // Ornate gold desk â€” larger, with more items
         ctx.fillStyle = '#3a2810';
         ctx.fillRect(W*0.52, H*0.48, W*0.38, H*0.14);
         ctx.strokeStyle = '#ffcc4433';
@@ -9788,7 +9819,7 @@ function draw() {
         ctx.fillRect(W*0.86, H*0.44, 22, 35); // pen holder
         ctx.fillStyle = '#332208';
         ctx.fillRect(W*0.86, H*0.44, 22, 5); // pen holder rim
-        // Gold nameplate — bigger
+        // Gold nameplate â€” bigger
         ctx.fillStyle = '#ffcc4430';
         ctx.fillRect(W*0.55, H*0.50, 70, 12);
         ctx.fillStyle = '#ffdd88';
@@ -9863,11 +9894,11 @@ function draw() {
         ctx.restore();
       }
       
-      // ═══ SCENE 4 (0.24-0.34): Musk at SpaceX lab ═══
+      // â•â•â• SCENE 4 (0.24-0.34): Musk at SpaceX lab â•â•â•
       if (prog >= 0.24 && prog < 0.34) {
         const sp = (prog - 0.24) / 0.1;
         ctx.save();
-        // Tech lab background — blue-tinted
+        // Tech lab background â€” blue-tinted
         const techGrad = ctx.createLinearGradient(0, 0, W, H);
         techGrad.addColorStop(0, '#000a1a');
         techGrad.addColorStop(0.3, '#001133');
@@ -9890,7 +9921,7 @@ function draw() {
           ctx.beginPath(); ctx.arc(px + W/6 - 7, H - 12, 3, 0, Math.PI*2); ctx.fill();
         }
         
-        // Holographic grid lines — with perspective
+        // Holographic grid lines â€” with perspective
         ctx.strokeStyle = '#4488ff0a';
         ctx.lineWidth = 1;
         for (let i = 0; i < 30; i++) {
@@ -9910,7 +9941,7 @@ function draw() {
           ctx.fillRect(dsx, 0, 2, H);
         }
         
-        // Floor — tech lab metal
+        // Floor â€” tech lab metal
         ctx.fillStyle = '#060e1a';
         ctx.fillRect(0, H*0.7, W, H*0.3);
         ctx.strokeStyle = '#4488ff08';
@@ -9936,7 +9967,7 @@ function draw() {
         ctx.textAlign = 'center';
         ctx.fillText('SPACEX HQ - CLASSIFIED LABORATORY LVL.7', W/2, H*0.05 + 20);
         
-        // Main holographic display — bigger, more detailed
+        // Main holographic display â€” bigger, more detailed
         ctx.fillStyle = '#001020';
         ctx.fillRect(W*0.05, H*0.15, W*0.35, H*0.48);
         ctx.strokeStyle = '#4488ff55';
@@ -9948,7 +9979,7 @@ function draw() {
         ctx.fillStyle = '#4488ff';
         ctx.font = '8px monospace';
         ctx.textAlign = 'left';
-        ctx.fillText('■ NEURALINK COMBAT SYS v4.2.0', W*0.07, H*0.15 + 12);
+        ctx.fillText('â–  NEURALINK COMBAT SYS v4.2.0', W*0.07, H*0.15 + 12);
         // Screen power indicator
         ctx.fillStyle = '#44ff88';
         ctx.beginPath(); ctx.arc(W*0.38, H*0.15 + 9, 3, 0, Math.PI*2); ctx.fill();
@@ -9971,7 +10002,7 @@ function draw() {
         }
         ctx.globalAlpha = 1;
         
-        // Secondary monitor — smaller
+        // Secondary monitor â€” smaller
         ctx.fillStyle = '#001020';
         ctx.fillRect(W*0.05, H*0.66, W*0.17, H*0.14);
         ctx.strokeStyle = '#4488ff33';
@@ -9988,7 +10019,7 @@ function draw() {
         }
         ctx.stroke();
         
-        // Musk — larger, with control panel glow
+        // Musk â€” larger, with control panel glow
         const mSize = Math.min(W * 0.24, 170);
         ctx.globalAlpha = Math.min(1, sp * 2);
         ctx.shadowColor = '#4488ff';
@@ -9996,7 +10027,7 @@ function draw() {
         ctx.drawImage(muskImg, W * 0.65 - mSize/2, H * 0.15, mSize, imgH(muskImg, mSize));
         ctx.shadowBlur = 0;
         
-        // Robot arm behind Musk — articulated
+        // Robot arm behind Musk â€” articulated
         if (sp > 0.2) {
           ctx.strokeStyle = '#4488ff44';
           ctx.lineWidth = 4;
@@ -10036,7 +10067,7 @@ function draw() {
           ctx.fillStyle = '#88ccff';
           ctx.font = `italic ${Math.min(18, W*0.025)}px monospace`;
           ctx.fillText('*encrypted transmission received*', W/2, H * 0.8);
-          // Notification popup — more detailed
+          // Notification popup â€” more detailed
           ctx.fillStyle = '#001a33ee';
           ctx.fillRect(W*0.3, H*0.84, W*0.4, 48);
           ctx.strokeStyle = '#4488ff44';
@@ -10044,12 +10075,12 @@ function draw() {
           // Warning icon
           ctx.fillStyle = '#ff8844';
           ctx.font = 'bold 14px monospace';
-          ctx.fillText('⚠', W*0.33, H*0.84 + 20);
+          ctx.fillText('âš ', W*0.33, H*0.84 + 20);
           ctx.fillStyle = '#4488ff';
           ctx.font = '9px monospace';
           ctx.fillText('FROM: [REDACTED] | PRIORITY: OMEGA', W/2, H*0.84 + 16);
           ctx.fillStyle = '#88ccff';
-          ctx.fillText('CABAL_REGROUP.exe — DECRYPT & EXECUTE?', W/2, H*0.84 + 30);
+          ctx.fillText('CABAL_REGROUP.exe â€” DECRYPT & EXECUTE?', W/2, H*0.84 + 30);
           ctx.fillStyle = '#44ff88';
           ctx.font = '8px monospace';
           ctx.fillText('[Y] CONFIRM    [N] DENY', W/2, H*0.84 + 42);
@@ -10089,11 +10120,11 @@ function draw() {
         ctx.restore();
       }
       
-      // ═══ SCENE 5 (0.34-0.44): Clinton in political office ═══
+      // â•â•â• SCENE 5 (0.34-0.44): Clinton in political office â•â•â•
       if (prog >= 0.34 && prog < 0.44) {
         const sp = (prog - 0.34) / 0.1;
         ctx.save();
-        // Dark red office — richer gradient
+        // Dark red office â€” richer gradient
         const offGrad = ctx.createRadialGradient(W*0.4, H*0.4, 100, W*0.4, H*0.4, H);
         offGrad.addColorStop(0, '#2a0a0a');
         offGrad.addColorStop(0.5, '#1a0505');
@@ -10101,7 +10132,7 @@ function draw() {
         ctx.fillStyle = offGrad;
         ctx.fillRect(0, 0, W, H);
         
-        // Wood paneling — detailed with grain
+        // Wood paneling â€” detailed with grain
         for (let wp = 0; wp < 14; wp++) {
           const wpx = W * (wp/14);
           const wpw = W/14;
@@ -10120,7 +10151,7 @@ function draw() {
           }
         }
         
-        // Bookshelves on back wall — detailed books
+        // Bookshelves on back wall â€” detailed books
         for (let shelf = 0; shelf < 3; shelf++) {
           const shelfY = H*0.12 + shelf * H*0.18;
           // Shelf board
@@ -10138,7 +10169,7 @@ function draw() {
           }
         }
         
-        // Carpet floor — dark red
+        // Carpet floor â€” dark red
         ctx.fillStyle = '#1a0808';
         ctx.fillRect(0, H*0.68, W, H*0.32);
         // Carpet pattern
@@ -10150,7 +10181,7 @@ function draw() {
           }
         }
         
-        // Fireplace on right wall — with flickering fire
+        // Fireplace on right wall â€” with flickering fire
         ctx.fillStyle = '#1a0a0a';
         ctx.fillRect(W*0.02, H*0.28, W*0.14, H*0.35);
         ctx.fillStyle = '#120606';
@@ -10196,7 +10227,7 @@ function draw() {
         ctx.textAlign = 'center';
         ctx.fillText('UNDISCLOSED LOCATION - WASHINGTON, D.C.', W/2, H*0.05 + 20);
         
-        // Clinton portrait — larger
+        // Clinton portrait â€” larger
         const cSize = Math.min(W * 0.25, 175);
         ctx.globalAlpha = Math.min(1, sp * 2);
         ctx.shadowColor = '#cc2222';
@@ -10204,7 +10235,7 @@ function draw() {
         ctx.drawImage(clintonImg, W * 0.38 - cSize/2, H * 0.15, cSize, imgH(clintonImg, cSize));
         ctx.shadowBlur = 0;
         
-        // Mahogany desk — bigger, more items
+        // Mahogany desk â€” bigger, more items
         ctx.fillStyle = '#2a1515';
         ctx.fillRect(W*0.52, H*0.4, W*0.4, H*0.22);
         ctx.strokeStyle = '#cc222220';
@@ -10226,7 +10257,7 @@ function draw() {
         ctx.fillStyle = lampGlow;
         ctx.fillRect(W*0.78, H*0.25, W*0.2, H*0.3);
         
-        // Scattered classified papers — more detailed
+        // Scattered classified papers â€” more detailed
         for (let d = 0; d < 7; d++) {
           ctx.save();
           ctx.translate(W*0.56 + d*35, H*0.42 + Math.sin(d*2.3)*8);
@@ -10247,7 +10278,7 @@ function draw() {
           ctx.restore();
         }
         
-        // Wine glass — more detailed with liquid
+        // Wine glass â€” more detailed with liquid
         ctx.strokeStyle = '#88333344';
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -10281,7 +10312,7 @@ function draw() {
           ctx.fillStyle = '#ff8888';
           ctx.font = `italic ${Math.min(18, W*0.025)}px monospace`;
           ctx.fillText('*a familiar number appears*', W/2, H * 0.8);
-          // Desk phone — more detailed
+          // Desk phone â€” more detailed
           ctx.fillStyle = '#1a0a0a';
           ctx.fillRect(W*0.76, H*0.43, 35, 22);
           // Handset
@@ -10308,7 +10339,7 @@ function draw() {
             ctx.fillRect(W/2 + m5.width/2 + 2, H*0.82 - 16, 2, 20);
           }
         }
-        // Vignette — heavier, moodier
+        // Vignette â€” heavier, moodier
         ctx.globalAlpha = 0.55;
         const cVig = ctx.createRadialGradient(W*0.4, H*0.4, H*0.2, W*0.4, H*0.4, H*0.8);
         cVig.addColorStop(0, 'rgba(0,0,0,0)');
@@ -10319,7 +10350,7 @@ function draw() {
         ctx.restore();
       }
       
-      // ═══ SCENE 6 (0.44-0.59): HAWKING — THE GRAVE ═══
+      // â•â•â• SCENE 6 (0.44-0.59): HAWKING â€” THE GRAVE â•â•â•
       if (prog >= 0.44 && prog < 0.59) {
         const sp = (prog - 0.44) / 0.15;
         ctx.save();
@@ -10333,7 +10364,7 @@ function draw() {
         ctx.fillStyle = graveGrad;
         ctx.fillRect(0, 0, W, H);
         
-        // Stars — more varied, with shooting star
+        // Stars â€” more varied, with shooting star
         for (let star = 0; star < 60; star++) {
           const sx = (star * 97.3) % W;
           const sy = (star * 53.7) % (H * 0.45);
@@ -10418,7 +10449,7 @@ function draw() {
           ctx.stroke();
         }
         
-        // Fog near ground — thicker, more layers
+        // Fog near ground â€” thicker, more layers
         const fogY = H * 0.62;
         for (let fg = 0; fg < 10; fg++) {
           const fgx = (fg * W/10 + Math.sin(t*0.3 + fg) * 50) % W;
@@ -10505,7 +10536,7 @@ function draw() {
           }
         }
         
-        // Other graves — more varied, with crosses and flowers
+        // Other graves â€” more varied, with crosses and flowers
         ctx.fillStyle = '#1e1e26';
         for (let g = 0; g < 8; g++) {
           const gx = W * 0.05 + g * W * 0.125;
@@ -10532,7 +10563,7 @@ function draw() {
           }
         }
         
-        // MAIN gravestone — center, larger, more detailed
+        // MAIN gravestone â€” center, larger, more detailed
         const gsX = W/2, gsY = groundY;
         // Shadow behind grave
         ctx.fillStyle = '#0a0a10';
@@ -10562,7 +10593,7 @@ function draw() {
         ctx.fillStyle = '#3a3a44';
         ctx.fillRect(gsX - 3, gsY - 120, 6, 22);
         ctx.fillRect(gsX - 10, gsY - 112, 20, 5);
-        // Engraving — more text
+        // Engraving â€” more text
         ctx.fillStyle = '#606068';
         ctx.font = `bold ${Math.min(12, W*0.016)}px monospace`;
         ctx.textAlign = 'center';
@@ -10677,12 +10708,12 @@ function draw() {
             ctx.fillRect(gsX - 80, 0, 160, gsY);
           }
           
-          // Hawking rising from the ground — BIGGER
+          // Hawking rising from the ground â€” BIGGER
           const riseY = gsY - riseProg * 160;
           const hSize = Math.min(W * 0.25, 180);
           ctx.globalAlpha = Math.min(1, riseProg * 2);
           
-          // Massive ethereal gold aura — multi-layered
+          // Massive ethereal gold aura â€” multi-layered
           for (let aLayer = 0; aLayer < 3; aLayer++) {
             const aRad = hSize * (1.2 + aLayer * 0.5);
             const hAura = ctx.createRadialGradient(gsX, riseY + hSize*0.5, 10, gsX, riseY + hSize*0.5, aRad);
@@ -10695,7 +10726,7 @@ function draw() {
             ctx.fill();
           }
           
-          // The figure — triple shadow for ultra glow
+          // The figure â€” triple shadow for ultra glow
           ctx.shadowColor = '#ffd700';
           ctx.shadowBlur = 50 + riseProg * 60;
           ctx.drawImage(hawkingGoldImg, gsX - hSize/2, riseY, hSize, imgH(hawkingGoldImg, hSize));
@@ -10725,7 +10756,7 @@ function draw() {
             ctx.fillRect((dt * 73) % W, gsY + (dt * 37) % (H*0.3), 1, 1);
           }
           
-          // Dirt/debris flying up — MORE pieces, varied sizes
+          // Dirt/debris flying up â€” MORE pieces, varied sizes
           for (let d = 0; d < 16; d++) {
             const dAngle = (d / 16) * Math.PI * 2 + t * 2;
             const dDist = 30 + d * 12 + Math.sin(t*3 + d) * 15;
@@ -10742,7 +10773,7 @@ function draw() {
           }
           ctx.globalAlpha = 1;
           
-          // Energy rings radiating outward — MORE rings
+          // Energy rings radiating outward â€” MORE rings
           if (riseProg > 0.2) {
             const ringProg = (riseProg - 0.2) / 0.8;
             for (let r = 0; r < 5; r++) {
@@ -10777,7 +10808,7 @@ function draw() {
           }
         }
         
-        // Dialogue — dramatic slow burn
+        // Dialogue â€” dramatic slow burn
         ctx.textAlign = 'center';
         if (sp < 0.15) {
           const locAlpha = Math.min(1, sp * 8);
@@ -10817,7 +10848,7 @@ function draw() {
             const c1 = Math.floor(line1.length * s1);
             ctx.fillText(line1.substring(0, c1), W/2, H * 0.87);
           } else {
-            // Dramatic final line — grows larger
+            // Dramatic final line â€” grows larger
             const s2 = Math.min(1, (riseProg - 0.4) * 3);
             const finalSize = Math.min(36, W*0.048) * (1 + (1-s2)*0.3);
             ctx.font = `bold ${finalSize}px monospace`;
@@ -10829,7 +10860,7 @@ function draw() {
         ctx.restore();
       }
       
-      // ═══ SCENE 7 (0.59-1.0): THE CABAL ASSEMBLED ═══
+      // â•â•â• SCENE 7 (0.59-1.0): THE CABAL ASSEMBLED â•â•â•
       if (prog >= 0.59) {
         const sp = (prog - 0.59) / 0.41;
         ctx.save();
@@ -10843,7 +10874,7 @@ function draw() {
         ctx.fillStyle = voidGrad;
         ctx.fillRect(0, 0, W, H);
         
-        // Distant stars in void — twinkling
+        // Distant stars in void â€” twinkling
         for (let vs = 0; vs < 80; vs++) {
           const vsx = (vs * 83.7) % W;
           const vsy = (vs * 47.3) % H;
@@ -10859,7 +10890,7 @@ function draw() {
         // 0.12-0.20: Epstein spotlight reveal
         // 0.20-0.28: Musk spotlight reveal
         // 0.28-0.36: Clinton spotlight reveal
-        // 0.36-0.50: Dramatic pause → Hawking MASSIVE reveal
+        // 0.36-0.50: Dramatic pause â†’ Hawking MASSIVE reveal
         // 0.50-0.65: All 5 assembled, energy connecting
         // 0.65-0.80: "THE FINAL STAND" title card
         // 0.80-1.00: Final dramatic build + info + fade
@@ -10869,7 +10900,7 @@ function draw() {
         const allNames = ['TRUMP','EPSTEIN','MUSK','CLINTON','HAWKING'];
         const allTitles = ['The Tyrant','The Shadow','The Architect','The Schemer','THE MASTERMIND'];
         
-        // Rotating energy vortex — builds with each reveal
+        // Rotating energy vortex â€” builds with each reveal
         const vortexIntensity = Math.min(1, sp * 2);
         ctx.globalAlpha = 0.06 * vortexIntensity;
         for (let ring = 0; ring < 18; ring++) {
@@ -10883,7 +10914,7 @@ function draw() {
         }
         ctx.globalAlpha = 1;
         
-        // Energy rays from center — color-coded, build with reveals
+        // Energy rays from center â€” color-coded, build with reveals
         if (sp > 0.04) {
           const rayAlpha = Math.min(0.08, (sp - 0.04) * 0.2);
           for (let c = 0; c < 15; c++) {
@@ -10899,7 +10930,7 @@ function draw() {
           ctx.globalAlpha = 1;
         }
         
-        // Particle storm — builds up
+        // Particle storm â€” builds up
         const pCount = Math.floor(Math.min(60, sp * 100));
         for (let pp = 0; pp < pCount; pp++) {
           const ppx = (pp * 47.3 + t * (30 + pp%3 * 10)) % W;
@@ -11168,7 +11199,7 @@ function draw() {
           const titleEase = 1 - Math.pow(1 - titleProg, 3);
           ctx.globalAlpha = titleEase;
           
-          // Gradient title bar — wider, more dramatic
+          // Gradient title bar â€” wider, more dramatic
           const barGrad = ctx.createLinearGradient(0, H * 0.62, 0, H * 0.98);
           barGrad.addColorStop(0, 'rgba(0,0,0,0)');
           barGrad.addColorStop(0.08, 'rgba(0,0,0,0.9)');
@@ -11177,7 +11208,7 @@ function draw() {
           ctx.fillStyle = barGrad;
           ctx.fillRect(0, H * 0.62, W, H * 0.36);
           
-          // Gold border lines — animated expansion
+          // Gold border lines â€” animated expansion
           const lineExpand = Math.min(1, titleProg * 2);
           const lineHalf = W * 0.4 * lineExpand;
           ctx.strokeStyle = '#ffdd44';
@@ -11199,7 +11230,7 @@ function draw() {
           }
           ctx.globalAlpha = titleEase;
           
-          // Main title — MASSIVE with triple glow
+          // Main title â€” MASSIVE with triple glow
           ctx.fillStyle = '#ffdd44';
           const titleSize = Math.min(56, W * 0.07) * (1 + (1-titleEase)*0.5);
           ctx.font = `bold ${titleSize}px monospace`;
@@ -11218,7 +11249,7 @@ function draw() {
           ctx.fillText('\u2605 THE FINAL STAND \u2605', W/2, H * 0.74);
           ctx.shadowBlur = 0;
           
-          // Subtitle — typewriter effect
+          // Subtitle â€” typewriter effect
           if (sp > 0.72) {
             const subProg = Math.min(1, (sp - 0.72) / 0.08);
             ctx.globalAlpha = subProg;
@@ -11271,23 +11302,23 @@ function draw() {
         ctx.restore();
       }
       
-      // Scene transition — glitch/static effect (ENHANCED with smash cuts)
+      // Scene transition â€” glitch/static effect (ENHANCED with smash cuts)
       const scenes = [0.03, 0.055, 0.14, 0.24, 0.34, 0.44, 0.59];
       for (const s of scenes) {
         const dist = Math.abs(prog - s);
         if (dist < 0.02) {
           const glitchIntensity = 1 - dist / 0.02;
-          // Hard white flash — SMASH CUT
+          // Hard white flash â€” SMASH CUT
           ctx.fillStyle = `rgba(255,255,255,${glitchIntensity * 0.7})`;
           ctx.fillRect(0, 0, W, H);
-          // Glitch bars — more and wider
+          // Glitch bars â€” more and wider
           for (let gb = 0; gb < 12; gb++) {
             const gy = Math.random() * H;
             const gHt = 2 + Math.random() * 15;
             ctx.fillStyle = `rgba(${Math.random()>0.5?255:0},${Math.random()>0.5?255:0},${Math.random()>0.5?255:0},${glitchIntensity * 0.4})`;
             ctx.fillRect(0, gy, W, gHt);
           }
-          // Horizontal shift — more dramatic
+          // Horizontal shift â€” more dramatic
           if (glitchIntensity > 0.3) {
             for (let sl = 0; sl < 3; sl++) {
               const slice = Math.floor(Math.random() * H);
@@ -11314,7 +11345,7 @@ function draw() {
         }
       }
       
-      // Heartbeat pulse overlay — intensifies near end
+      // Heartbeat pulse overlay â€” intensifies near end
       const heartRate = prog > 0.5 ? 5.0 : 3.5;
       const heartbeat = Math.pow(Math.sin(t * heartRate), 20);
       if (heartbeat > 0.1) {
@@ -11326,7 +11357,7 @@ function draw() {
       // Close global zoom transform
       ctx.restore();
       
-      // Vignette overlay — gets darker toward edges as tension builds
+      // Vignette overlay â€” gets darker toward edges as tension builds
       const vigIntensity = 0.3 + prog * 0.4;
       const vigGrad = ctx.createRadialGradient(W/2, H/2, W*0.25, W/2, H/2, W*0.75);
       vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
@@ -11335,13 +11366,13 @@ function draw() {
       ctx.fillStyle = vigGrad;
       ctx.fillRect(0, 0, W, H);
       
-      // Letterbox bars throughout — animated slide in, THICKER for cinematic feel
+      // Letterbox bars throughout â€” animated slide in, THICKER for cinematic feel
       const barSlide = Math.min(1, prog * 8);
       const actualBarH = (barH + 15) * barSlide;
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, W, actualBarH);
       ctx.fillRect(0, H - actualBarH, W, actualBarH);
-      // Gold trim with glow — double lines
+      // Gold trim with glow â€” double lines
       if (actualBarH > 2) {
         ctx.fillStyle = '#ffdd4422';
         ctx.fillRect(0, actualBarH - 2, W, 2);
@@ -11349,7 +11380,7 @@ function draw() {
         ctx.fillStyle = '#ffdd4411';
         ctx.fillRect(0, actualBarH - 4, W, 1);
         ctx.fillRect(0, H - actualBarH + 2, W, 1);
-        // Moving gold accent — TWO accents moving opposite directions
+        // Moving gold accent â€” TWO accents moving opposite directions
         const accentX = (t * 80) % W;
         const accentX2 = (W - (t * 120) % W);
         ctx.fillStyle = '#ffdd4455';
@@ -11375,7 +11406,7 @@ function draw() {
         ctx.fillRect(W * 0.3, actualBarH - 5, W * 0.4 * scProgress, 2);
       }
       
-      // Film grain overlay — more grain
+      // Film grain overlay â€” more grain
       ctx.globalAlpha = 0.04;
       for (let gg = 0; gg < 350; gg++) {
         const gx = Math.random() * W;
@@ -11400,7 +11431,7 @@ function draw() {
         ctx.fillRect(0, 0, W, H);
       }
       
-      // Skip hint — fading in
+      // Skip hint â€” fading in
       if (prog > 0.05) {
         ctx.fillStyle = `rgba(255,255,255,${Math.min(0.25, (prog-0.05)*0.4)})`;
         ctx.font = '10px monospace';
@@ -11432,7 +11463,7 @@ function draw() {
     ctx.textAlign = 'left';
     ctx.fillText(`\u2764 ${player.hp}/${player.maxHp}`, 28, 29);
 
-    // Mini-boss HP bars at top — show remaining count
+    // Mini-boss HP bars at top â€” show remaining count
     const alive = miniBosses.filter(m => !m.dead);
     const total = miniBosses.length;
     const miniBossW = Math.min(400, W - 260);
@@ -11444,7 +11475,7 @@ function draw() {
     ctx.shadowColor = '#ff4400';
     ctx.shadowBlur = 8;
     const othersUp = miniBosses.filter(m => !m.dead && m.name !== 'HAWKING').length;
-    const statusText = hawkingPhase2 ? '★★ HAWKING TRANSCENDED ★★' : (othersUp === 0 ? '★ HAWKING EXPOSED ★' : `DEFEAT THEM ALL  (${total - alive.length}/${total})`);
+    const statusText = hawkingPhase2 ? 'â˜…â˜… HAWKING TRANSCENDED â˜…â˜…' : (othersUp === 0 ? 'â˜… HAWKING EXPOSED â˜…' : `DEFEAT THEM ALL  (${total - alive.length}/${total})`);
     ctx.fillStyle = hawkingPhase2 ? '#ffd700' : (othersUp === 0 ? '#44ff88' : '#ff8844');
     ctx.fillText(statusText, W/2, 19);
     ctx.shadowBlur = 0;
@@ -11466,7 +11497,7 @@ function draw() {
       ctx.fillStyle = '#fff';
       ctx.font = '6px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(isShielded ? '🛡' + mb.name : mb.name, bx + 25, 33);
+      ctx.fillText(isShielded ? 'ðŸ›¡' + mb.name : mb.name, bx + 25, 33);
     });
 
     // Touch controls
@@ -11478,7 +11509,7 @@ function draw() {
     ctx.fillText(_isTouchDev ? 'Defeat them all!' : 'Defeat them all!  |  Click/F Throw  |  \u2190 \u2192 Move  |  \u2191/Space Jump', W / 2, H - 10);
   }
 
-  // ── Cutscene Drawing ──
+  // â”€â”€ Cutscene Drawing â”€â”€
   if (state === 'cutscene') {
     // Black overlay fading in
     ctx.fillStyle = `rgba(0, 0, 0, ${cutscene.fadeAlpha})`;
@@ -11608,13 +11639,13 @@ function draw() {
       ctx.fillStyle = '#ccc';
       ctx.font = 'bold 14px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('SKIP ▶▶', W - 60, 30);
+      ctx.fillText('SKIP â–¶â–¶', W - 60, 30);
     }
   }
 
-  // ── Boss Mid-Fight Dialogue Drawing ──
+  // â”€â”€ Boss Mid-Fight Dialogue Drawing â”€â”€
   if (state === 'bossdialogue' && bossDialogue.active) {
-    // Semi-transparent overlay — arena stays visible behind
+    // Semi-transparent overlay â€” arena stays visible behind
     ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
     ctx.fillRect(0, 0, W, H);
 
@@ -11702,7 +11733,7 @@ function draw() {
           ctx.fillStyle = '#888';
           ctx.font = '12px monospace';
           ctx.textAlign = 'right';
-          ctx.fillText(_isTouchDev ? '[ Tap ▸ ]' : '[ Click / SPACE ▸ ]', boxX + boxW - 15, boxY + boxH - 12);
+          ctx.fillText(_isTouchDev ? '[ Tap â–¸ ]' : '[ Click / SPACE â–¸ ]', boxX + boxW - 15, boxY + boxH - 12);
         }
       }
     }
@@ -11728,9 +11759,9 @@ function draw() {
     ctx.fillText('SKIP \u25b6\u25b6', W - 60, 28);
   }
 
-  // ── Screens ──
+  // â”€â”€ Screens â”€â”€
   
-  // ── CINEMATIC INTRO ──
+  // â”€â”€ CINEMATIC INTRO â”€â”€
   if (state === 'intro') {
     // Phase 0: Pure black
     if (introPhase === 0) {
@@ -11826,7 +11857,7 @@ function draw() {
         ctx.globalAlpha = hintAlpha * 0.6;
         ctx.font = '13px monospace';
         ctx.fillStyle = '#888';
-        ctx.fillText(_isTouchDev ? 'Use on-screen controls to play' : 'Arrow Keys / WASD to move · Space / Up to jump · F to throw', W/2, H/2 + 60);
+        ctx.fillText(_isTouchDev ? 'Use on-screen controls to play' : 'Arrow Keys / WASD to move Â· Space / Up to jump Â· F to throw', W/2, H/2 + 60);
         ctx.globalAlpha = 1;
       }
     }
@@ -11898,7 +11929,7 @@ function draw() {
         ctx.shadowColor = '#88ff88';
         ctx.shadowBlur = 40;
         ctx.fillStyle = '#88ff88';
-        ctx.fillText('¡VAMOS!', 0, 0);
+        ctx.fillText('Â¡VAMOS!', 0, 0);
         ctx.shadowBlur = 0;
         ctx.restore();
       }
@@ -11916,10 +11947,10 @@ function draw() {
     }
   }
 
-  } // end if (state !== 'menu') — skip game-world rendering
+  } // end if (state !== 'menu') â€” skip game-world rendering
   
   if (state === 'menu') {
-    // ── ANIMATED BACKGROUND (Geometry Dash style) ──
+    // â”€â”€ ANIMATED BACKGROUND (Geometry Dash style) â”€â”€
     // Dark desert sky bg
     const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
     bgGrad.addColorStop(0, '#0a0515');
@@ -11983,7 +12014,7 @@ function draw() {
       ctx.globalAlpha = 1;
     }
 
-    // Draw a guard shooter on the right side — REMOVED
+    // Draw a guard shooter on the right side â€” REMOVED
     
     // Foreground overlay
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
@@ -11991,7 +12022,7 @@ function draw() {
     
     ctx.textAlign = 'center';
     
-    // ── TITLE with glow effect ──
+    // â”€â”€ TITLE with glow effect â”€â”€
     const titlePulse = 1 + Math.sin(Date.now() / 600) * 0.03;
     ctx.save();
     ctx.translate(W/2, H * 0.18);
@@ -12009,7 +12040,7 @@ function draw() {
     // Subtitle
     ctx.fillStyle = '#cc6644';
     ctx.font = `${Math.min(16, W * 0.022)}px monospace`;
-    ctx.fillText('Cross the Border · Fight the Power · Survive', W/2, H * 0.24);
+    ctx.fillText('Cross the Border Â· Fight the Power Â· Survive', W/2, H * 0.24);
     
     // Decorative line
     const lineW2 = 300;
@@ -12020,7 +12051,7 @@ function draw() {
     ctx.lineTo(W/2 + lineW2/2, H * 0.27);
     ctx.stroke();
     
-    // ── MENU OPTIONS ──
+    // â”€â”€ MENU OPTIONS â”€â”€
     // Helper: draw custom menu icons
     function drawMenuIcon(type, x, y, size, color) {
       ctx.save();
@@ -12054,7 +12085,7 @@ function draw() {
         ctx.lineTo(x + s*0.2, y + s*0.1);
         ctx.stroke();
       } else if (type === 'settings') {
-        // Gear — circle with teeth
+        // Gear â€” circle with teeth
         ctx.beginPath();
         ctx.arc(x, y, s*0.25, 0, Math.PI*2);
         ctx.stroke();
@@ -12279,19 +12310,19 @@ function draw() {
       ctx.font = '10px monospace';
       ctx.fillText('v3.0', W/2, H * 0.94);
 
-      // ── CAMPAIGN MODE COMING SOON TEASER ──
+      // â”€â”€ CAMPAIGN MODE COMING SOON TEASER â”€â”€
       const campaignPulse = 0.7 + Math.sin(Date.now() / 800) * 0.3;
       ctx.globalAlpha = campaignPulse;
       ctx.fillStyle = '#ffaa00';
       ctx.font = 'bold 13px monospace';
       ctx.shadowColor = '#ff880088';
       ctx.shadowBlur = 10;
-      ctx.fillText('CAMPAIGN MODE — COMING SOON', W / 2, H * 0.97);
+      ctx.fillText('CAMPAIGN MODE â€” COMING SOON', W / 2, H * 0.97);
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
       
     } else if (menuState === 'multiplayer') {
-      // ── MULTIPLAYER SCREEN ──
+      // â”€â”€ MULTIPLAYER SCREEN â”€â”€
       ctx.fillStyle = '#44bbff';
       ctx.font = 'bold 28px monospace';
       ctx.fillText('MULTIPLAYER', W/2, H * 0.28);
@@ -12379,7 +12410,7 @@ function draw() {
       ctx.fillText(_isTouchDev ? '< Tap to go back' : 'ESC to go back', W/2, H * 0.92);
       
     } else if (menuState === 'account') {
-      // ── ACCOUNT SCREEN (Login / Register) ──
+      // â”€â”€ ACCOUNT SCREEN (Login / Register) â”€â”€
       ctx.fillStyle = '#44bbff';
       ctx.font = 'bold 26px monospace';
       ctx.fillText(authScreen === 'register' ? 'CREATE ACCOUNT' : 'LOGIN', W/2, H * 0.28);
@@ -12476,12 +12507,12 @@ function draw() {
       ctx.fillText(_isTouchDev ? '< Tap to go back' : 'ESC to go back', W/2, H * 0.94);
       
     } else if (menuState === 'lobby') {
-      // ── LOBBY SCREEN ──
+      // â”€â”€ LOBBY SCREEN â”€â”€
       ctx.fillStyle = '#44bbff';
       ctx.font = 'bold 22px monospace';
       ctx.fillText('LOBBY', W/2, H * 0.06);
       
-      // Room code — displayed prominently with background
+      // Room code â€” displayed prominently with background
       const rcText = 'Room: ' + (currentRoom || '???');
       ctx.fillStyle = '#00000066';
       const rcW = ctx.measureText(rcText).width + 30;
@@ -12615,7 +12646,7 @@ function draw() {
       ctx.fillText('< LEAVE', 60, 28);
       
     } else if (menuState === 'friends') {
-      // ── FRIENDS SCREEN ──
+      // â”€â”€ FRIENDS SCREEN â”€â”€
       ctx.fillStyle = '#88ccff';
       ctx.font = 'bold 26px monospace';
       ctx.fillText('FRIENDS', W/2, H * 0.18);
@@ -12750,7 +12781,7 @@ function draw() {
       }
       
     } else if (menuState === 'difficulty') {
-      // ── DIFFICULTY SCREEN ──
+      // â”€â”€ DIFFICULTY SCREEN â”€â”€
       ctx.fillStyle = '#f0c040';
       ctx.font = 'bold 28px monospace';
       drawMenuIcon('difficulty', W/2 - 130, H * 0.32 - 4, 22, '#f0c040');
@@ -12809,7 +12840,7 @@ function draw() {
       ctx.fillText(_isTouchDev ? 'Tap to select' : 'Click / ENTER to select -- ESC to go back', W/2, H * 0.88);
       
     } else if (menuState === 'settings') {
-      // ── SETTINGS SCREEN ──
+      // â”€â”€ SETTINGS SCREEN â”€â”€
       ctx.fillStyle = '#f0c040';
       ctx.font = 'bold 28px monospace';
       drawMenuIcon('settings', W/2 - 100, H * 0.28 - 4, 22, '#f0c040');
@@ -12871,7 +12902,7 @@ function draw() {
       ctx.fillText(_isTouchDev ? 'Tap to toggle' : 'Click / ENTER to toggle -- ESC Back', W/2, H * 0.88);
       
     } else if (menuState === 'touchcontrols') {
-      // ── TOUCH CONTROLS CUSTOMIZATION ──
+      // â”€â”€ TOUCH CONTROLS CUSTOMIZATION â”€â”€
       ctx.fillStyle = '#88ddff';
       ctx.font = 'bold 24px monospace';
       ctx.fillText('TOUCH CONTROLS', W/2, H * 0.12);
@@ -12932,7 +12963,7 @@ function draw() {
       ctx.font = 'bold 14px monospace';
       ctx.fillText('<- BACK', W/2, backY + 4);
 
-      // ── PREVIEW: Draw joystick positions at bottom ──
+      // â”€â”€ PREVIEW: Draw joystick positions at bottom â”€â”€
       const pvTop = H * 0.7;
       const pvH = H - pvTop - 10;
       ctx.fillStyle = '#111';
@@ -12981,7 +13012,7 @@ function draw() {
       ctx.fillText(_isTouchDev ? 'Tap preset or drag joysticks' : 'Click preset or drag joysticks -- ESC Back', W/2, H * 0.97);
 
     } else if (menuState === 'controls') {
-      // ── CONTROLS SCREEN ──
+      // â”€â”€ CONTROLS SCREEN â”€â”€
       ctx.fillStyle = '#f0c040';
       ctx.font = 'bold 28px monospace';
       drawMenuIcon('controls', W/2 - 110, H * 0.28 - 4, 22, '#f0c040');
@@ -13026,7 +13057,7 @@ function draw() {
       ctx.fillText(_isTouchDev ? 'Tap anywhere to go back' : 'Click anywhere / ESC / ENTER to go back', W/2, H * 0.88);
       
     } else if (menuState === 'credits') {
-      // ── CREDITS SCREEN ──
+      // â”€â”€ CREDITS SCREEN â”€â”€
       ctx.fillStyle = '#f0c040';
       ctx.font = 'bold 28px monospace';
       drawMenuIcon('credits', W/2 - 100, H * 0.22 - 4, 22, '#f0c040');
@@ -13065,7 +13096,7 @@ function draw() {
       ctx.font = '12px monospace';
       ctx.fillText(_isTouchDev ? 'Tap anywhere to go back' : 'Click anywhere / ESC / ENTER to go back', W/2, H * 0.88);
     } else if (menuState === 'cheats') {
-      // ── CHEATS SCREEN ──
+      // â”€â”€ CHEATS SCREEN â”€â”€
       ctx.fillStyle = '#ff4444';
       ctx.font = 'bold 28px monospace';
       ctx.textAlign = 'center';
@@ -13195,7 +13226,7 @@ function draw() {
     }
   }
 
-  // ── TUTORIAL SCREEN ──
+  // â”€â”€ TUTORIAL SCREEN â”€â”€
   if (state === 'tutorial') {
     // Draw same bg as menu
     ctx.fillStyle = '#0a0515';
@@ -13310,15 +13341,15 @@ function draw() {
     const blink3 = Math.sin(Date.now() / 300) > 0;
     if (blink3) {
       if (tutorialPage < 4) {
-        ctx.fillText(_isTouchDev ? '[ TAP → Next ]' : '[ SPACE / ENTER → Next ]', W/2, H * 0.82);
+        ctx.fillText(_isTouchDev ? '[ TAP â†’ Next ]' : '[ SPACE / ENTER â†’ Next ]', W/2, H * 0.82);
       } else {
-        ctx.fillText(_isTouchDev ? '[ TAP → START GAME! ]' : '[ SPACE / ENTER → START GAME! ]', W/2, H * 0.82);
+        ctx.fillText(_isTouchDev ? '[ TAP â†’ START GAME! ]' : '[ SPACE / ENTER â†’ START GAME! ]', W/2, H * 0.82);
       }
     }
     if (tutorialPage > 0) {
       ctx.fillStyle = '#888';
       ctx.font = '13px monospace';
-      ctx.fillText(_isTouchDev ? '← Tap left side' : '← Previous', W/2 - 160, H * 0.82);
+      ctx.fillText(_isTouchDev ? 'â† Tap left side' : 'â† Previous', W/2 - 160, H * 0.82);
     }
     ctx.fillStyle = '#555';
     ctx.font = '11px monospace';
@@ -13332,11 +13363,11 @@ function draw() {
     ctx.fillStyle = '#44ff88';
     ctx.font = 'bold 40px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('¡LO LOGRASTE!', W / 2, H / 2 - 60);
+    ctx.fillText('Â¡LO LOGRASTE!', W / 2, H / 2 - 60);
 
     ctx.fillStyle = '#ffdd44';
     ctx.font = '18px monospace';
-    ctx.fillText('You made it across the border! ¡Bienvenido!', W / 2, H / 2 - 25);
+    ctx.fillText('You made it across the border! Â¡Bienvenido!', W / 2, H / 2 - 25);
 
     if (settings.showTimer) {
       ctx.fillStyle = '#aaa';
@@ -13379,9 +13410,28 @@ function draw() {
         ctx.fillText(`Retry votes: ${retryCount}/${totalPlayers}`, W/2, btnY + 68);
         if (mpRetryVotes[myUid()]) {
           ctx.fillStyle = '#88ff88';
-          ctx.fillText('✓ You voted to retry', W/2, btnY + 86);
+          ctx.fillText('âœ“ You voted to retry', W/2, btnY + 86);
         }
       }
+    }
+  }
+
+  // â”€â”€ DEATH ANIMATION (video soul shatter) â”€â”€
+  if (state === 'deathAnim') {
+    // Full black background
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    // Draw video frame centered on canvas
+    if (deathAnimVideoPlaying && _deathVid.readyState >= 2) {
+      const vw = _deathVid.videoWidth || 1280;
+      const vh = _deathVid.videoHeight || 720;
+      // Scale video to fit canvas while maintaining aspect ratio
+      const scale = Math.min(W / vw, H / vh);
+      const dw = vw * scale;
+      const dh = vh * scale;
+      const dx = (W - dw) / 2;
+      const dy = (H - dh) / 2;
+      ctx.drawImage(_deathVid, dx, dy, dw, dh);
     }
   }
 
@@ -13392,14 +13442,14 @@ function draw() {
     ctx.fillStyle = '#ff4444';
     ctx.font = 'bold 36px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('¡ATRAPADO!', W / 2, H / 2 - 60);
+    ctx.fillText('Â¡ATRAPADO!', W / 2, H / 2 - 60);
 
     ctx.fillStyle = '#ccc';
     ctx.font = '16px monospace';
     if (mpEnabled) {
       ctx.fillText('All players have been caught!', W / 2, H / 2 - 25);
     } else {
-      ctx.fillText('La migra te atrapó! Border patrol got you!', W / 2, H / 2 - 25);
+      ctx.fillText('La migra te atrapÃ³! Border patrol got you!', W / 2, H / 2 - 25);
     }
 
     ctx.fillStyle = '#888';
@@ -13439,7 +13489,7 @@ function draw() {
         ctx.fillText(`Retry votes: ${retryCount}/${totalPlayers}`, W/2, btnY + 68);
         if (mpRetryVotes[myUid()]) {
           ctx.fillStyle = '#88ff88';
-          ctx.fillText('✓ You voted to retry', W/2, btnY + 86);
+          ctx.fillText('âœ“ You voted to retry', W/2, btnY + 86);
         }
       }
     }
@@ -13451,11 +13501,11 @@ function draw() {
     ctx.fillRect(0, 0, W, 50);
     ctx.fillRect(0, H - 48, W, 48);
 
-    // Top bar — "SPECTATING" label + player name
+    // Top bar â€” "SPECTATING" label + player name
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ff6666';
     ctx.font = 'bold 14px monospace';
-    ctx.fillText('☠ YOU DIED — SPECTATING ☠', W / 2, 18);
+    ctx.fillText('â˜  YOU DIED â€” SPECTATING â˜ ', W / 2, 18);
 
     const aliveList = getAlivePlayerList();
     let targetName = '???';
@@ -13466,7 +13516,7 @@ function draw() {
     ctx.font = 'bold 16px monospace';
     ctx.fillText(targetName, W / 2, 40);
 
-    // Bottom bar — controls hint + alive count
+    // Bottom bar â€” controls hint + alive count
     if (_isTouchDev && aliveList.length > 1) {
       // Draw tappable arrow buttons for touch users
       ctx.fillStyle = '#ffffff22';
@@ -13475,13 +13525,13 @@ function draw() {
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 28px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('◀', 45, H - 16);
-      ctx.fillText('▶', W - 45, H - 16);
+      ctx.fillText('â—€', 45, H - 16);
+      ctx.fillText('â–¶', W - 45, H - 16);
     }
     ctx.textAlign = 'center';
     ctx.fillStyle = '#aaaaaa';
     ctx.font = '12px monospace';
-    ctx.fillText(_isTouchDev ? 'TAP ARROWS TO SWITCH' : '← A / D → to switch players', W / 2, H - 30);
+    ctx.fillText(_isTouchDev ? 'TAP ARROWS TO SWITCH' : 'â† A / D â†’ to switch players', W / 2, H - 30);
     ctx.fillStyle = '#88ff88';
     ctx.font = '11px monospace';
     ctx.fillText(`${aliveList.length} player${aliveList.length !== 1 ? 's' : ''} alive`, W / 2, H - 12);
@@ -13489,8 +13539,8 @@ function draw() {
 
   ctx.restore();
 
-  // ── OVERLAY HUD (outside camera transform) ──
-  // FPS counter — positioned below HP bar to avoid overlap
+  // â”€â”€ OVERLAY HUD (outside camera transform) â”€â”€
+  // FPS counter â€” positioned below HP bar to avoid overlap
   if (settings.showFPS) {
     if (!window._fpsData) window._fpsData = { frames: 0, last: Date.now(), fps: 60 };
     window._fpsData.frames++;
@@ -13507,7 +13557,7 @@ function draw() {
     ctx.fillText(`FPS: ${window._fpsData.fps}`, 10, fpsY);
   }
   
-  // Game timer display — positioned below boss bar / fullscreen btn to avoid overlap
+  // Game timer display â€” positioned below boss bar / fullscreen btn to avoid overlap
   if (settings.showTimer && (state === 'playing' || state === 'bossfight' || state === 'epsteinfight' || state === 'fusionfight' || state === 'splitfight')) {
     const mins = Math.floor(gameTimer / 3600);
     const secs = Math.floor((gameTimer % 3600) / 60);
@@ -13524,10 +13574,10 @@ function draw() {
     ctx.fillStyle = jumpColor;
     ctx.font = '11px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`Jumps: ${'●'.repeat(player.jumpsLeft)}${'○'.repeat(player.maxJumps - player.jumpsLeft)}`, _isTouchDev ? getMoveCenterX() - 30 : 10, _isTouchDev ? getMoveCenterY() - getMoveRadius() - 35 : H - 15);
+    ctx.fillText(`Jumps: ${'â—'.repeat(player.jumpsLeft)}${'â—‹'.repeat(player.maxJumps - player.jumpsLeft)}`, _isTouchDev ? getMoveCenterX() - 30 : 10, _isTouchDev ? getMoveCenterY() - getMoveRadius() - 35 : H - 15);
   }
 
-  // Cheats active indicator — positioned to avoid boss HP bars
+  // Cheats active indicator â€” positioned to avoid boss HP bars
   const activeCheats = Object.entries(cheats).filter(([k,v]) => v);
   if (activeCheats.length > 0 && state !== 'menu') {
     ctx.save();
@@ -13551,7 +13601,7 @@ function draw() {
     ctx.restore();
   }
 
-  // Fullscreen button (always visible, top-right) — 44x44 for touch
+  // Fullscreen button (always visible, top-right) â€” 44x44 for touch
   const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
   ctx.save();
   ctx.globalAlpha = 0.5;
@@ -13603,7 +13653,7 @@ function draw() {
     ctx.restore();
   }
 
-  // ── Performance Mode Prompt (iPad/mobile) ──
+  // â”€â”€ Performance Mode Prompt (iPad/mobile) â”€â”€
   if (_showPerfPrompt) {
     ctx.save();
     ctx.globalAlpha = 0.7;
@@ -13621,7 +13671,7 @@ function draw() {
     ctx.fillStyle = '#f0c040';
     ctx.font = 'bold 20px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('📱 Performance Mode', W/2, by + 40);
+    ctx.fillText('ðŸ“± Performance Mode', W/2, by + 40);
     ctx.fillStyle = '#ccc';
     ctx.font = '14px monospace';
     ctx.fillText('We detected you\'re on a', W/2, by + 75);
