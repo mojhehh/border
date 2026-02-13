@@ -749,7 +749,7 @@ engine.runRenderLoop(function() {
   }
   camera.setTarget(_camTarget);
 
-  if (bossRoot.getEnabled()) {
+  if (bossRoot.isEnabled()) {
     const bob = Math.sin(time * 1.5) * 0.15;
     if (phase >= 4 && phase <= 5) bossRoot.position.y = 2 + bob;
     auraRing1.rotation.z = time * 1.5;
