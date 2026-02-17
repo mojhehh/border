@@ -1,0 +1,2093 @@
+# 📘 Complete Discord.py Cheat Sheet & Reference
+
+> Comprehensive reference for **discord.py v2.x** — events, commands, UI components, embeds, permissions, intents, and more.
+
+---
+
+# 📌 Table of Contents
+
+1. [[#🔹 Bot Setup & Intents]]
+2. [[#🔹 All Events]]
+3. [[#🔹 Prefix Commands & Decorators]]
+4. [[#🔹 Application (Slash) Commands]]
+5. [[#🔹 Hybrid Commands]]
+6. [[#🔹 Context (`ctx`) Reference]]
+7. [[#🔹 Interaction Reference]]
+8. [[#🔹 Embeds]]
+9. [[#🔹 Files & Attachments]]
+10. [[#🔹 UI Components (Views, Buttons, Selects, Modals)]]
+11. [[#🔹 Guild (Server) Functions]]
+12. [[#🔹 Member Functions]]
+13. [[#🔹 Channel Functions]]
+14. [[#🔹 Role Functions]]
+15. [[#🔹 Message Functions]]
+16. [[#🔹 Voice & Audio]]
+17. [[#🔹 Stage Channels]]
+18. [[#🔹 Threads & Forums]]
+19. [[#🔹 Permissions]]
+20. [[#🔹 Webhooks]]
+21. [[#🔹 Audit Logs]]
+22. [[#🔹 Scheduled Events]]
+23. [[#🔹 AutoMod]]
+24. [[#🔹 Cogs & Extensions]]
+25. [[#🔹 Tasks (Background Loops)]]
+26. [[#🔹 Utilities & Helpers]]
+27. [[#🔹 Error Handling]]
+28. [[#🔹 Common Patterns & Snippets]]
+
+---
+
+# 🔹 Bot Setup & Intents
+
+#discordpy #setup #intents
+
+### Basic Bot Setup
+
+```python
+import discord
+from discord.ext import commands
+
+intents = discord.Intents.default()
+intents.message_content = True       # Required for reading message content
+intents.members = True               # Required for member events
+intents.presences = True             # Required for presence/status updates
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+    await bot.tree.sync()  # Sync slash commands
+
+bot.run("YOUR_TOKEN")
+```
+
+### All Intents Flags
+
+| Intent | What It Enables |
+|---|---|
+| `Intents.guilds` | Guild create/update/delete, channel/role events |
+| `Intents.members` | Member join/remove/update events (PRIVILEGED) |
+| `Intents.bans` | Ban/unban events |
+| `Intents.emojis_and_stickers` | Emoji/sticker update events |
+| `Intents.integrations` | Integration events |
+| `Intents.webhooks` | Webhook update events |
+| `Intents.invites` | Invite create/delete events |
+| `Intents.voice_states` | Voice state update events |
+| `Intents.presences` | Presence/status update events (PRIVILEGED) |
+| `Intents.message_content` | Access to message content (PRIVILEGED) |
+| `Intents.messages` | Message create/edit/delete events |
+| `Intents.guild_messages` | Same as messages but guild-only |
+| `Intents.dm_messages` | Same as messages but DM-only |
+| `Intents.reactions` | Reaction add/remove events |
+| `Intents.guild_reactions` | Guild-only reaction events |
+| `Intents.dm_reactions` | DM-only reaction events |
+| `Intents.typing` | Typing events |
+| `Intents.guild_typing` | Guild-only typing events |
+| `Intents.dm_typing` | DM-only typing events |
+| `Intents.guild_scheduled_events` | Scheduled event create/update/delete |
+| `Intents.auto_moderation_configuration` | AutoMod rule events |
+| `Intents.auto_moderation_execution` | AutoMod action execution events |
+
+### Intent Shortcuts
+
+- `Intents.default()` → All non-privileged intents.
+- `Intents.all()` → All intents including privileged.
+- `Intents.none()` → No intents enabled.
+
+---
+
+# 🔹 All Events
+
+#discordpy #events
+
+### Connection & Lifecycle
+
+- `on_ready()` → Bot is fully connected and cache is populated.
+- `on_connect()` → Bot established a connection to Discord.
+- `on_disconnect()` → Bot lost connection to Discord.
+- `on_resumed()` → Bot resumed a previously interrupted session.
+- `on_shard_ready(shard_id)` → A specific shard is ready.
+- `on_shard_connect(shard_id)` → A shard connected.
+- `on_shard_disconnect(shard_id)` → A shard disconnected.
+- `on_shard_resumed(shard_id)` → A shard resumed.
+- `on_socket_event_type(event_type)` → Raw gateway event received.
+- `on_socket_raw_receive(msg)` → Raw data received from the gateway.
+- `on_socket_raw_send(payload)` → Raw data sent to the gateway.
+
+### Message Events
+
+- `on_message(message)` → A message was sent.
+- `on_message_edit(before, after)` → A message was edited.
+- `on_message_delete(message)` → A message was deleted.
+- `on_bulk_message_delete(messages)` → Multiple messages were bulk-deleted.
+
+### Raw Message Events (Work Even if Message is Not Cached)
+
+- `on_raw_message_edit(payload)` → A message was edited (uncached-safe).
+- `on_raw_message_delete(payload)` → A message was deleted (uncached-safe).
+- `on_raw_bulk_message_delete(payload)` → Bulk delete (uncached-safe).
+
+### Reaction Events
+
+- `on_reaction_add(reaction, user)` → Reaction added to a message.
+- `on_reaction_remove(reaction, user)` → Reaction removed from a message.
+- `on_reaction_clear(message, reactions)` → All reactions cleared from a message.
+- `on_reaction_clear_emoji(reaction)` → All reactions of one emoji cleared.
+
+### Raw Reaction Events (Work Even if Message is Not Cached)
+
+- `on_raw_reaction_add(payload)` → Reaction added (uncached-safe).
+- `on_raw_reaction_remove(payload)` → Reaction removed (uncached-safe).
+- `on_raw_reaction_clear(payload)` → All reactions cleared (uncached-safe).
+- `on_raw_reaction_clear_emoji(payload)` → Emoji reactions cleared (uncached-safe).
+
+### Member Events
+
+- `on_member_join(member)` → A member joined the server.
+- `on_member_remove(member)` → A member left or was removed.
+- `on_member_update(before, after)` → A member's roles, nickname, etc. changed.
+- `on_user_update(before, after)` → A user's global profile changed (username, avatar, etc.).
+- `on_presence_update(before, after)` → A member's status/activity changed.
+- `on_member_ban(guild, user)` → A member was banned.
+- `on_member_unban(guild, user)` → A member was unbanned.
+- `on_raw_member_remove(payload)` → Member removed (uncached-safe).
+
+### Guild Events
+
+- `on_guild_join(guild)` → Bot joined a new server.
+- `on_guild_remove(guild)` → Bot removed from a server.
+- `on_guild_update(before, after)` → Server settings changed.
+- `on_guild_available(guild)` → Server became available after outage.
+- `on_guild_unavailable(guild)` → Server went offline/unavailable.
+- `on_guild_emojis_update(guild, before, after)` → Server emojis changed.
+- `on_guild_stickers_update(guild, before, after)` → Server stickers changed.
+
+### Role Events
+
+- `on_guild_role_create(role)` → A role was created.
+- `on_guild_role_delete(role)` → A role was deleted.
+- `on_guild_role_update(before, after)` → A role was updated.
+
+### Channel Events
+
+- `on_guild_channel_create(channel)` → A channel was created.
+- `on_guild_channel_delete(channel)` → A channel was deleted.
+- `on_guild_channel_update(before, after)` → A channel was updated.
+- `on_guild_channel_pins_update(channel, last_pin)` → Pins changed in a channel.
+- `on_private_channel_create(channel)` → A DM channel was created.
+- `on_private_channel_delete(channel)` → A DM channel was deleted.
+- `on_private_channel_update(before, after)` → A group DM was updated.
+
+### Thread Events
+
+- `on_thread_create(thread)` → A thread was created.
+- `on_thread_join(thread)` → Bot joined a thread.
+- `on_thread_update(before, after)` → A thread was updated.
+- `on_thread_delete(thread)` → A thread was deleted.
+- `on_thread_remove(thread)` → A thread was removed from cache.
+- `on_thread_member_join(member)` → A member joined a thread.
+- `on_thread_member_remove(member)` → A member left a thread.
+- `on_raw_thread_update(payload)` → Thread updated (uncached-safe).
+- `on_raw_thread_delete(payload)` → Thread deleted (uncached-safe).
+- `on_raw_thread_member_remove(payload)` → Thread member removed (uncached-safe).
+
+### Voice & Stage Events
+
+- `on_voice_state_update(member, before, after)` → Member joined/left/moved VC, or changed mute/deaf.
+- `on_stage_instance_create(stage_instance)` → A stage instance was created.
+- `on_stage_instance_update(before, after)` → A stage instance was updated.
+- `on_stage_instance_delete(stage_instance)` → A stage instance was deleted.
+
+### Interaction Events
+
+- `on_interaction(interaction)` → Any interaction occurred (slash, button, select, modal, context menu).
+- `on_app_command_completion(interaction, command)` → App command finished executing.
+
+### Integration & Webhook Events
+
+- `on_integration_update(integration)` → A server integration was updated.
+- `on_guild_integrations_update(guild)` → Guild integrations changed.
+- `on_webhooks_update(channel)` → Webhooks in a channel were created/edited/deleted.
+
+### Invite Events
+
+- `on_invite_create(invite)` → An invite was created.
+- `on_invite_delete(invite)` → An invite was deleted.
+
+### Scheduled Event Events
+
+- `on_scheduled_event_create(event)` → A scheduled event was created.
+- `on_scheduled_event_update(before, after)` → A scheduled event was updated.
+- `on_scheduled_event_delete(event)` → A scheduled event was deleted.
+- `on_scheduled_event_user_add(event, user)` → A user subscribed to an event.
+- `on_scheduled_event_user_remove(event, user)` → A user unsubscribed from an event.
+
+### AutoMod Events
+
+- `on_automod_rule_create(rule)` → An AutoMod rule was created.
+- `on_automod_rule_update(rule)` → An AutoMod rule was updated.
+- `on_automod_rule_delete(rule)` → An AutoMod rule was deleted.
+- `on_automod_action(execution)` → An AutoMod action was executed.
+
+### Typing Events
+
+- `on_typing(channel, user, when)` → A user started typing.
+- `on_raw_typing(payload)` → Typing started (uncached-safe).
+
+### Error Events
+
+- `on_error(event, *args, **kwargs)` → Uncaught exception in an event handler.
+- `on_command_error(ctx, error)` → Error in a prefix command.
+- `on_app_command_error(interaction, error)` → Error in a slash/app command.
+
+---
+
+# 🔹 Prefix Commands & Decorators
+
+#discordpy #commands #decorators
+
+### Defining Commands
+
+```python
+@bot.command()
+async def ping(ctx):
+    await ctx.send("Pong!")
+
+@bot.command(name="hi", aliases=["hello", "hey"])
+async def greet(ctx):
+    await ctx.send(f"Hello, {ctx.author.mention}!")
+
+@bot.command(hidden=True)           # Hidden from help
+@bot.command(brief="Short desc")    # Brief for help list
+@bot.command(help="Detailed desc")  # Full help text
+@bot.command(usage="<arg1> [arg2]") # Custom usage string
+@bot.command(description="Desc")    # Description text
+```
+
+### Command Groups
+
+```python
+@bot.group(invoke_without_command=True)
+async def settings(ctx):
+    await ctx.send("Use a subcommand!")
+
+@settings.command()
+async def prefix(ctx, new_prefix: str):
+    await ctx.send(f"Prefix set to {new_prefix}")
+```
+
+### Permission Checks
+
+- `@commands.has_permissions(**perms)` → User must have specified permissions.
+- `@commands.has_guild_permissions(**perms)` → User must have guild-level permissions.
+- `@commands.bot_has_permissions(**perms)` → Bot must have specified permissions.
+- `@commands.bot_has_guild_permissions(**perms)` → Bot must have guild-level permissions.
+- `@commands.has_role("RoleName")` → User must have a specific role (name or ID).
+- `@commands.has_any_role(*roles)` → User must have at least one of the roles.
+- `@commands.is_owner()` → Only the bot owner can use this command.
+- `@commands.is_nsfw()` → Command can only be used in NSFW channels.
+- `@commands.dm_only()` → Command can only be used in DMs.
+- `@commands.guild_only()` → Command can only be used in a guild.
+- `@commands.check(predicate)` → Custom check function.
+- `@commands.check_any(*checks)` → Pass if any check succeeds.
+- `@commands.max_concurrency(number, per, wait)` → Limit concurrent uses.
+
+### Cooldowns
+
+```python
+@commands.cooldown(rate=1, per=5, type=commands.BucketType.user)
+# BucketType: .default, .user, .guild, .channel, .member, .category, .role
+```
+
+### Converters (Type Hints for Arguments)
+
+```python
+@bot.command()
+async def info(ctx, member: discord.Member, channel: discord.TextChannel):
+    ...
+
+# Built-in converters:
+# discord.Member, discord.User, discord.Role, discord.TextChannel,
+# discord.VoiceChannel, discord.CategoryChannel, discord.Emoji,
+# discord.PartialEmoji, discord.Colour, discord.Invite,
+# discord.Game, discord.Message, discord.Thread
+```
+
+### Greedy & Optional Arguments
+
+```python
+from typing import Optional
+from discord.ext.commands import Greedy
+
+@bot.command()
+async def ban(ctx, members: Greedy[discord.Member], reason: Optional[str] = "No reason"):
+    ...
+```
+
+### Before/After Invoke Hooks
+
+```python
+@bot.before_invoke
+async def before_any_command(ctx):
+    print(f"{ctx.author} used {ctx.command}")
+
+@bot.after_invoke
+async def after_any_command(ctx):
+    print(f"{ctx.command} finished")
+```
+
+---
+
+# 🔹 Application (Slash) Commands
+
+#discordpy #slashcommands #appcommands
+
+### Basic Slash Command
+
+```python
+@bot.tree.command(name="ping", description="Check bot latency")
+async def ping(interaction: discord.Interaction):
+    await interaction.response.send_message(f"Pong! {round(bot.latency * 1000)}ms")
+```
+
+### Slash Command with Parameters
+
+```python
+@bot.tree.command(name="greet", description="Greet a user")
+@discord.app_commands.describe(user="The user to greet", message="Custom message")
+async def greet(interaction: discord.Interaction, user: discord.Member, message: str = "Hello!"):
+    await interaction.response.send_message(f"{message}, {user.mention}!")
+```
+
+### Choices
+
+```python
+@bot.tree.command(name="color")
+@discord.app_commands.choices(color=[
+    discord.app_commands.Choice(name="Red", value="red"),
+    discord.app_commands.Choice(name="Blue", value="blue"),
+    discord.app_commands.Choice(name="Green", value="green"),
+])
+async def color(interaction: discord.Interaction, color: discord.app_commands.Choice[str]):
+    await interaction.response.send_message(f"You picked {color.name}!")
+```
+
+### Autocomplete
+
+```python
+async def fruit_autocomplete(interaction: discord.Interaction, current: str):
+    fruits = ["Apple", "Banana", "Cherry", "Date", "Elderberry"]
+    return [
+        discord.app_commands.Choice(name=f, value=f)
+        for f in fruits if current.lower() in f.lower()
+    ]
+
+@bot.tree.command(name="fruit")
+@discord.app_commands.autocomplete(fruit=fruit_autocomplete)
+async def fruit(interaction: discord.Interaction, fruit: str):
+    await interaction.response.send_message(f"You chose {fruit}!")
+```
+
+### Context Menu Commands
+
+```python
+@bot.tree.context_menu(name="Get User Info")
+async def user_info(interaction: discord.Interaction, user: discord.Member):
+    await interaction.response.send_message(f"{user} joined at {user.joined_at}", ephemeral=True)
+
+@bot.tree.context_menu(name="Quote Message")
+async def quote_msg(interaction: discord.Interaction, message: discord.Message):
+    await interaction.response.send_message(f"> {message.content}\n— {message.author}")
+```
+
+### Slash Command Groups
+
+```python
+group = discord.app_commands.Group(name="settings", description="Server settings")
+
+@group.command(name="prefix", description="Set bot prefix")
+async def set_prefix(interaction: discord.Interaction, prefix: str):
+    await interaction.response.send_message(f"Prefix set to `{prefix}`")
+
+bot.tree.add_command(group)
+```
+
+### Syncing Commands
+
+```python
+# Sync globally (can take up to 1 hour to propagate)
+await bot.tree.sync()
+
+# Sync to a specific guild (instant)
+await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
+
+# Copy global commands to a guild for testing
+bot.tree.copy_global_to(guild=discord.Object(id=GUILD_ID))
+await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
+```
+
+### Slash Command Permissions / Checks
+
+```python
+@bot.tree.command()
+@discord.app_commands.checks.has_permissions(administrator=True)
+@discord.app_commands.checks.has_role("Admin")
+@discord.app_commands.checks.has_any_role("Admin", "Mod")
+@discord.app_commands.checks.cooldown(1, 10.0, key=lambda i: (i.guild_id, i.user.id))
+@discord.app_commands.checks.bot_has_permissions(manage_messages=True)
+@discord.app_commands.guild_only()
+async def admin_cmd(interaction: discord.Interaction):
+    ...
+```
+
+---
+
+# 🔹 Hybrid Commands
+
+#discordpy #hybrid
+
+```python
+@bot.hybrid_command(name="ping", description="Check latency")
+async def ping(ctx):
+    await ctx.send(f"Pong! {round(bot.latency * 1000)}ms")
+
+@bot.hybrid_group(name="tag", fallback="get")
+async def tag(ctx, name: str):
+    await ctx.send(f"Tag: {name}")
+
+@tag.command(name="create")
+async def tag_create(ctx, name: str, *, content: str):
+    await ctx.send(f"Tag `{name}` created!")
+```
+
+---
+
+# 🔹 Context (`ctx`) Reference
+
+#discordpy #context
+
+### Sending & Responding
+
+- `await ctx.send(content, *, embed, file, files, view, delete_after, reference, mention_author)` → Send a message.
+- `await ctx.reply(content, **kwargs)` → Reply to the invoking message.
+- `await ctx.defer()` → Acknowledge for longer processing (hybrid/slash).
+- `await ctx.trigger_typing()` → Show "bot is typing…" indicator.
+- `await ctx.send_help(command=None)` → Send help for a command.
+
+### Properties
+
+| Property | Description |
+|---|---|
+| `ctx.message` | The `Message` that triggered the command |
+| `ctx.author` | The `Member`/`User` who invoked the command |
+| `ctx.guild` | The `Guild` where the command was used |
+| `ctx.channel` | The `Channel` where the command was invoked |
+| `ctx.bot` | The bot instance |
+| `ctx.cog` | The `Cog` the command belongs to |
+| `ctx.command` | The `Command` object invoked |
+| `ctx.invoked_with` | The alias/name used to invoke |
+| `ctx.prefix` | The prefix used |
+| `ctx.args` | Positional arguments |
+| `ctx.kwargs` | Keyword arguments |
+| `ctx.me` | Bot's member object in the guild |
+| `ctx.voice_client` | The guild's voice client (if connected) |
+| `ctx.interaction` | Underlying `Interaction` (hybrid/slash only) |
+| `ctx.valid` | Whether a valid command was invoked |
+| `ctx.clean_prefix` | Prefix without mentions |
+| `ctx.invoked_subcommand` | The subcommand invoked (if any) |
+| `ctx.subcommand_passed` | The string that triggered the subcommand |
+| `ctx.command_failed` | Whether the command failed |
+
+### Command Control
+
+- `await ctx.invoke(command, *args, **kwargs)` → Programmatically invoke another command.
+- `await ctx.reinvoke(*, call_hooks=True, restart=True)` → Re-invoke the current command.
+- `ctx.typing()` → Async context manager for typing indicator.
+
+### Message Manipulation
+
+- `await ctx.message.add_reaction(emoji)` → Add a reaction.
+- `await ctx.message.clear_reactions()` → Clear all reactions.
+- `await ctx.message.delete()` → Delete the invoking message.
+
+---
+
+# 🔹 Interaction Reference
+
+#discordpy #interaction
+
+### Responding
+
+- `await interaction.response.send_message(content, *, embed, view, ephemeral, file)` → Send a response.
+- `await interaction.response.edit_message(content, *, embed, view)` → Edit the original message (components only).
+- `await interaction.response.defer(ephemeral=False, thinking=True)` → Defer the response.
+- `await interaction.response.send_modal(modal)` → Open a modal dialog.
+- `interaction.response.is_done()` → Whether a response has been sent.
+
+### Follow-Up
+
+- `await interaction.followup.send(content, *, embed, ephemeral, view, file)` → Send a follow-up message.
+- `await interaction.followup.edit_message(message_id, content, *, embed, view)` → Edit a follow-up.
+- `await interaction.followup.delete_message(message_id)` → Delete a follow-up.
+
+### Editing Original
+
+- `await interaction.edit_original_response(content, *, embed, view)` → Edit the original response.
+- `await interaction.delete_original_response()` → Delete the original response.
+- `await interaction.original_response()` → Fetch the original response message.
+
+### Properties
+
+| Property | Description |
+|---|---|
+| `interaction.user` | The user who triggered the interaction |
+| `interaction.guild` | The guild |
+| `interaction.channel` | The channel |
+| `interaction.guild_id` | Guild ID |
+| `interaction.channel_id` | Channel ID |
+| `interaction.message` | The message the component is on |
+| `interaction.data` | Raw interaction data dict |
+| `interaction.type` | Interaction type enum |
+| `interaction.locale` | User's locale |
+| `interaction.guild_locale` | Guild's locale |
+| `interaction.app_permissions` | Bot's permissions in the channel |
+| `interaction.namespace` | Namespace of resolved slash command args |
+| `interaction.command` | The app command object |
+| `interaction.extras` | Extra data dict |
+| `interaction.created_at` | When the interaction was created |
+
+---
+
+# 🔹 Embeds
+
+#discordpy #embeds
+
+### Creating an Embed
+
+```python
+embed = discord.Embed(
+    title="Title",
+    description="Description text",
+    color=discord.Color.blue(),       # or 0x3498db
+    url="https://example.com",
+    timestamp=discord.utils.utcnow()
+)
+embed.set_author(name="Author", url="https://...", icon_url="https://...")
+embed.set_thumbnail(url="https://...")
+embed.set_image(url="https://...")
+embed.set_footer(text="Footer text", icon_url="https://...")
+embed.add_field(name="Field 1", value="Value 1", inline=True)
+embed.add_field(name="Field 2", value="Value 2", inline=True)
+embed.add_field(name="Field 3", value="Value 3", inline=False)
+
+await ctx.send(embed=embed)
+```
+
+### Embed Methods
+
+- `embed.add_field(name, value, inline=True)` → Add a field.
+- `embed.insert_field_at(index, name, value, inline=True)` → Insert a field.
+- `embed.set_field_at(index, name, value, inline=True)` → Replace a field.
+- `embed.remove_field(index)` → Remove a field by index.
+- `embed.clear_fields()` → Remove all fields.
+- `embed.set_author(name, url, icon_url)` → Set the author.
+- `embed.remove_author()` → Remove the author.
+- `embed.set_thumbnail(url)` → Set thumbnail image.
+- `embed.set_image(url)` → Set main image.
+- `embed.set_footer(text, icon_url)` → Set footer.
+- `embed.remove_footer()` → Remove the footer.
+- `embed.copy()` → Copy the embed.
+- `embed.to_dict()` → Convert to dict.
+- `Embed.from_dict(data)` → Create embed from dict.
+- `len(embed)` → Total character count.
+
+### Embed Properties
+
+- `embed.title` / `embed.description` / `embed.url` / `embed.color`
+- `embed.timestamp` / `embed.fields` / `embed.footer` / `embed.author`
+- `embed.thumbnail` / `embed.image` / `embed.provider` / `embed.type`
+
+### All `discord.Color` / `discord.Colour` Presets
+
+- `.default()` `.teal()` `.dark_teal()` `.brand_green()` `.green()` `.dark_green()`
+- `.blue()` `.dark_blue()` `.purple()` `.dark_purple()` `.magenta()` `.dark_magenta()`
+- `.gold()` `.dark_gold()` `.orange()` `.dark_orange()` `.brand_red()` `.red()` `.dark_red()`
+- `.lighter_grey()` `.light_grey()` `.dark_grey()` `.darker_grey()` `.og_blurple()` `.blurple()`
+- `.greyple()` `.fuchsia()` `.yellow()` `.dark_theme()` `.pink()`
+- `.from_rgb(r, g, b)` `.from_hsv(h, s, v)` `.from_str("#hex")` `.random()`
+
+---
+
+# 🔹 Files & Attachments
+
+#discordpy #files
+
+```python
+# Send a file
+file = discord.File("path/to/image.png", filename="image.png")
+await ctx.send("Here's a file!", file=file)
+
+# Send multiple files
+files = [discord.File("a.png"), discord.File("b.png")]
+await ctx.send(files=files)
+
+# Send from bytes
+import io
+buffer = io.BytesIO(some_bytes)
+await ctx.send(file=discord.File(buffer, filename="data.txt"))
+
+# Use file in embed
+file = discord.File("image.png", filename="image.png")
+embed = discord.Embed()
+embed.set_image(url="attachment://image.png")
+await ctx.send(embed=embed, file=file)
+```
+
+### Attachment Properties
+
+- `attachment.id` → Attachment ID.
+- `attachment.filename` → File name.
+- `attachment.url` → CDN URL.
+- `attachment.proxy_url` → Proxy URL.
+- `attachment.size` → File size in bytes.
+- `attachment.height` / `attachment.width` → Dimensions (images/videos only).
+- `attachment.content_type` → MIME type (e.g., `image/png`).
+- `attachment.is_spoiler()` → Whether the attachment is a spoiler.
+- `await attachment.save(fp)` → Save to file.
+- `await attachment.read()` → Read as bytes.
+- `await attachment.to_file()` → Convert to `discord.File`.
+
+---
+
+# 🔹 UI Components (Views, Buttons, Selects, Modals)
+
+#discordpy #views #buttons #selects #modals #components
+
+### Views
+
+```python
+class MyView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=60)  # None = no timeout
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view=self)
+
+view = MyView()
+msg = await ctx.send("Click a button!", view=view)
+view.message = msg
+```
+
+### View Methods
+
+- `view.add_item(item)` → Add a button/select.
+- `view.remove_item(item)` → Remove an item.
+- `view.clear_items()` → Remove all items.
+- `view.stop()` → Stop listening for interactions.
+- `view.is_finished()` → Whether the view has stopped.
+- `await view.wait()` → Wait until the view stops.
+- `view.children` → List of all items.
+- `view.message` → The message the view is attached to (set manually).
+
+### Buttons
+
+```python
+class MyView(discord.ui.View):
+    @discord.ui.button(label="Click Me", style=discord.ButtonStyle.primary, emoji="👍", row=0)
+    async def button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("Clicked!", ephemeral=True)
+
+    @discord.ui.button(label="Danger", style=discord.ButtonStyle.danger, disabled=False)
+    async def danger_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        button.disabled = True
+        await interaction.response.edit_message(view=self)
+```
+
+### Button Styles
+
+| Style | Appearance | Value |
+|---|---|---|
+| `ButtonStyle.primary` | Blurple | 1 |
+| `ButtonStyle.secondary` | Grey | 2 |
+| `ButtonStyle.success` | Green | 3 |
+| `ButtonStyle.danger` | Red | 4 |
+| `ButtonStyle.link` | Grey + URL (no callback) | 5 |
+
+### Link Button (No Callback)
+
+```python
+view.add_item(discord.ui.Button(label="Visit", url="https://example.com", style=discord.ButtonStyle.link))
+```
+
+### Select Menus (Dropdowns)
+
+```python
+class MySelect(discord.ui.View):
+    @discord.ui.select(
+        placeholder="Choose an option...",
+        min_values=1,
+        max_values=1,
+        options=[
+            discord.SelectOption(label="Option 1", value="1", description="First", emoji="1️⃣", default=False),
+            discord.SelectOption(label="Option 2", value="2", description="Second", emoji="2️⃣"),
+            discord.SelectOption(label="Option 3", value="3", description="Third", emoji="3️⃣"),
+        ]
+    )
+    async def select_callback(self, interaction: discord.Interaction, select: discord.ui.Select):
+        await interaction.response.send_message(f"You chose: {select.values[0]}", ephemeral=True)
+```
+
+### Special Select Types
+
+```python
+# User select
+@discord.ui.select(cls=discord.ui.UserSelect, placeholder="Pick a user")
+async def user_select(self, interaction, select):
+    await interaction.response.send_message(f"Selected: {select.values[0]}")
+
+# Role select
+@discord.ui.select(cls=discord.ui.RoleSelect, placeholder="Pick a role")
+
+# Mentionable select (users + roles)
+@discord.ui.select(cls=discord.ui.MentionableSelect, placeholder="Pick user or role")
+
+# Channel select
+@discord.ui.select(cls=discord.ui.ChannelSelect, placeholder="Pick a channel",
+                    channel_types=[discord.ChannelType.text, discord.ChannelType.voice])
+```
+
+### Modals (Pop-up Forms)
+
+```python
+class MyModal(discord.ui.Modal, title="Feedback Form"):
+    name = discord.ui.TextInput(
+        label="Your Name",
+        placeholder="Enter your name...",
+        style=discord.TextStyle.short,    # .short or .paragraph
+        required=True,
+        max_length=100,
+        min_length=1,
+        default="Default text"
+    )
+    feedback = discord.ui.TextInput(
+        label="Feedback",
+        placeholder="Write your feedback here...",
+        style=discord.TextStyle.paragraph,
+        required=True,
+        max_length=2000
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.send_message(
+            f"Thanks {self.name.value}!\nFeedback: {self.feedback.value}", ephemeral=True
+        )
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception):
+        await interaction.response.send_message("Something went wrong!", ephemeral=True)
+
+# Trigger the modal from a button or command:
+await interaction.response.send_modal(MyModal())
+```
+
+### Persistent Views (Survive Bot Restarts)
+
+```python
+class PersistentView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)  # MUST be None
+
+    @discord.ui.button(label="Click", style=discord.ButtonStyle.green, custom_id="persistent_button_1")
+    async def callback(self, interaction, button):
+        await interaction.response.send_message("Clicked!", ephemeral=True)
+
+# Register before bot.run():
+bot.add_view(PersistentView())
+```
+
+---
+
+# 🔹 Guild (Server) Functions
+
+#discordpy #guild
+
+### Properties
+
+| Property | Type | Description |
+|---|---|---|
+| `guild.id` | `int` | Guild ID |
+| `guild.name` | `str` | Guild name |
+| `guild.description` | `str` | Guild description |
+| `guild.owner` | `Member` | Guild owner |
+| `guild.owner_id` | `int` | Owner's ID |
+| `guild.icon` | `Asset` | Guild icon |
+| `guild.banner` | `Asset` | Guild banner |
+| `guild.splash` | `Asset` | Invite splash image |
+| `guild.me` | `Member` | Bot's member object |
+| `guild.member_count` | `int` | Approximate member count |
+| `guild.max_members` | `int` | Max allowed members |
+| `guild.premium_tier` | `int` | Server boost level (0–3) |
+| `guild.premium_subscription_count` | `int` | Number of boosts |
+| `guild.preferred_locale` | `str` | Server locale |
+| `guild.afk_channel` | `VoiceChannel` | AFK channel |
+| `guild.afk_timeout` | `int` | AFK timeout in seconds |
+| `guild.system_channel` | `TextChannel` | System messages channel |
+| `guild.rules_channel` | `TextChannel` | Community rules channel |
+| `guild.verification_level` | `VerificationLevel` | Verification level |
+| `guild.explicit_content_filter` | `ContentFilter` | Content filter level |
+| `guild.default_notifications` | `NotificationLevel` | Default notification level |
+| `guild.mfa_level` | `MFALevel` | 2FA requirement for moderation |
+| `guild.vanity_url_code` | `str` | Vanity invite code |
+| `guild.created_at` | `datetime` | When the guild was created |
+| `guild.large` | `bool` | Whether the guild is "large" (250+ members) |
+| `guild.filesize_limit` | `int` | Max file upload size in bytes |
+
+### Collections
+
+- `guild.members` → List of all cached `Member` objects.
+- `guild.channels` → List of all channels.
+- `guild.text_channels` → List of `TextChannel`.
+- `guild.voice_channels` → List of `VoiceChannel`.
+- `guild.stage_channels` → List of `StageChannel`.
+- `guild.forum_channels` → List of `ForumChannel`.
+- `guild.categories` → List of `CategoryChannel`.
+- `guild.threads` → List of cached `Thread` objects.
+- `guild.roles` → List of `Role` objects.
+- `guild.emojis` → Tuple of `Emoji` objects.
+- `guild.stickers` → Tuple of `GuildSticker` objects.
+- `guild.scheduled_events` → List of `ScheduledEvent`.
+- `guild.premium_subscribers` → List of boosting members.
+
+### Methods
+
+- `await guild.edit(**kwargs)` → Edit guild settings.
+- `await guild.delete()` → Delete the guild.
+- `await guild.leave()` → Bot leaves the guild.
+- `await guild.create_text_channel(name, **kwargs)` → Create a text channel.
+- `await guild.create_voice_channel(name, **kwargs)` → Create a voice channel.
+- `await guild.create_stage_channel(name, **kwargs)` → Create a stage channel.
+- `await guild.create_forum(name, **kwargs)` → Create a forum channel.
+- `await guild.create_category(name, **kwargs)` → Create a category.
+- `await guild.create_role(name, **kwargs)` → Create a role.
+- `await guild.create_custom_emoji(name, image)` → Create an emoji.
+- `await guild.create_sticker(name, description, file, emoji)` → Create a sticker.
+- `await guild.create_scheduled_event(**kwargs)` → Create a scheduled event.
+- `await guild.ban(user, reason, delete_message_days)` → Ban a member.
+- `await guild.unban(user, reason)` → Unban a member.
+- `await guild.kick(user, reason)` → Kick a member.
+- `await guild.fetch_member(user_id)` → Fetch a member from API.
+- `await guild.fetch_members(limit=None)` → Fetch members from API (async iterator).
+- `await guild.chunk()` → Request all members from the gateway.
+- `await guild.fetch_channels()` → Fetch all channels.
+- `await guild.fetch_roles()` → Fetch all roles.
+- `await guild.fetch_emojis()` → Fetch all emojis.
+- `await guild.fetch_stickers()` → Fetch all stickers.
+- `guild.get_member(user_id)` → Get a cached member by ID.
+- `guild.get_channel(channel_id)` → Get a cached channel by ID.
+- `guild.get_role(role_id)` → Get a cached role by ID.
+- `guild.get_member_named(name)` → Search members by name/nick.
+- `await guild.bans(limit=None)` → List banned users (async iterator).
+- `await guild.fetch_ban(user)` → Get ban info for a specific user.
+- `await guild.invites()` → List all active invites.
+- `await guild.vanity_invite()` → Get the vanity invite.
+- `await guild.create_invite(**kwargs)` → Create an invite.
+- `await guild.audit_logs(limit=100, user, action, before, after)` → Fetch audit logs.
+- `await guild.widget()` → Fetch guild widget.
+- `await guild.edit_widget(**kwargs)` → Edit the guild widget.
+- `guild.system_channel_flags` → System channel configuration flags.
+
+---
+
+# 🔹 Member Functions
+
+#discordpy #member
+
+### Properties
+
+| Property | Type | Description |
+|---|---|---|
+| `member.id` | `int` | User ID |
+| `member.name` | `str` | Username |
+| `member.display_name` | `str` | Nickname if set, else global/username |
+| `member.global_name` | `str` | Global display name |
+| `member.nick` | `str` | Server nickname |
+| `member.discriminator` | `str` | The #0000 tag (legacy) |
+| `member.bot` | `bool` | Whether the user is a bot |
+| `member.system` | `bool` | Whether the user is a Discord system user |
+| `member.roles` | `list[Role]` | List of roles (includes @everyone) |
+| `member.top_role` | `Role` | Highest role |
+| `member.color` / `member.colour` | `Colour` | Display color from roles |
+| `member.guild` | `Guild` | The guild this member belongs to |
+| `member.joined_at` | `datetime` | When the member joined |
+| `member.created_at` | `datetime` | When the account was created |
+| `member.premium_since` | `datetime` | When they started boosting |
+| `member.guild_permissions` | `Permissions` | Guild-level permissions |
+| `member.voice` | `VoiceState` | Current voice state |
+| `member.avatar` | `Asset` | Guild-specific avatar |
+| `member.display_avatar` | `Asset` | The displayed avatar |
+| `member.mention` | `str` | Mention string |
+| `member.status` | `Status` | Online/idle/dnd/offline |
+| `member.activities` | `tuple` | Current activities |
+| `member.activity` | `Activity` | Primary activity |
+| `member.desktop_status` | `Status` | Desktop status |
+| `member.mobile_status` | `Status` | Mobile status |
+| `member.web_status` | `Status` | Web status |
+| `member.timed_out_until` | `datetime` | Timeout expiry |
+| `member.communication_disabled_until` | `datetime` | Same as timed_out_until |
+| `member.pending` | `bool` | Hasn't passed membership screening |
+
+### Methods
+
+- `await member.send(content, **kwargs)` → Send a DM.
+- `await member.add_roles(*roles, reason)` → Add roles.
+- `await member.remove_roles(*roles, reason)` → Remove roles.
+- `await member.edit(**kwargs)` → Edit nickname, roles, mute, deafen, voice channel, timeout.
+- `await member.kick(reason)` → Kick from server.
+- `await member.ban(reason, delete_message_days)` → Ban from server.
+- `await member.unban(reason)` → Unban (via guild).
+- `await member.timeout(duration, reason)` → Timeout the member.
+- `await member.timeout(None)` → Remove timeout.
+- `member.permissions_in(channel)` → Get permissions in a specific channel.
+- `member.mentioned_in(message)` → Whether member was mentioned in a message.
+- `member.is_timed_out()` → Whether the member is timed out.
+
+---
+
+# 🔹 Channel Functions
+
+#discordpy #channels
+
+### Text Channel Properties
+
+- `channel.id` / `channel.name` / `channel.guild` / `channel.category`
+- `channel.topic` / `channel.position` / `channel.slowmode_delay`
+- `channel.nsfw` / `channel.mention` / `channel.created_at`
+- `channel.last_message` / `channel.last_message_id` / `channel.jump_url`
+- `channel.default_auto_archive_duration` / `channel.default_thread_slowmode_delay`
+- `channel.type` → `ChannelType.text`, `.voice`, `.category`, `.news`, `.stage_voice`, `.forum`, `.private_thread`, `.public_thread`
+
+### Text Channel Methods
+
+- `await channel.send(content, *, embed, embeds, file, files, view, delete_after, reference)` → Send a message.
+- `await channel.edit(**kwargs)` → Edit channel settings (name, topic, nsfw, slowmode, position, etc.).
+- `await channel.delete(reason)` → Delete the channel.
+- `await channel.clone(**kwargs)` → Clone the channel.
+- `await channel.purge(limit, check, before, after, around, oldest_first, bulk)` → Bulk delete messages.
+- `await channel.set_permissions(target, **perms)` → Set permission overwrites for a role/member.
+- `channel.permissions_for(member)` → Get computed permissions for a member.
+- `channel.overwrites_for(target)` → Get permission overwrites for a target.
+- `await channel.create_invite(**kwargs)` → Create an invite.
+- `await channel.invites()` → List channel invites.
+- `await channel.webhooks()` → List channel webhooks.
+- `await channel.create_webhook(name, avatar, reason)` → Create a webhook.
+- `await channel.follow(destination)` → Follow an announcement channel.
+- `channel.history(limit, before, after, around, oldest_first)` → Async iterator of messages.
+- `await channel.fetch_message(message_id)` → Fetch a specific message.
+- `await channel.pins()` → List pinned messages.
+- `channel.typing()` → Async context manager for typing status.
+- `await channel.create_thread(name, message, type, auto_archive_duration, slowmode_delay)` → Create a thread.
+- `channel.threads` → List of cached threads.
+- `await channel.archived_threads(limit, before)` → Fetch archived threads.
+
+### Voice Channel Specific
+
+- `voice_channel.bitrate` / `voice_channel.user_limit` / `voice_channel.rtc_region`
+- `voice_channel.members` → Members currently in the VC.
+- `voice_channel.voice_states` → Dict of voice states.
+- `await voice_channel.connect(timeout, reconnect, cls)` → Connect bot to VC.
+- `await voice_channel.edit(**kwargs)` → Edit bitrate, user_limit, etc.
+
+### Category Specific
+
+- `category.channels` → All channels in the category.
+- `category.text_channels` / `category.voice_channels` / `category.stage_channels`
+- `await category.create_text_channel(name, **kwargs)` → Create a channel in this category.
+- `await category.create_voice_channel(name, **kwargs)`
+- `await category.create_stage_channel(name, **kwargs)`
+- `await category.create_forum(name, **kwargs)`
+
+---
+
+# 🔹 Role Functions
+
+#discordpy #roles
+
+### Properties
+
+| Property | Description |
+|---|---|
+| `role.id` | Role ID |
+| `role.name` | Role name |
+| `role.color` / `role.colour` | Role color |
+| `role.hoist` | Whether displayed separately |
+| `role.position` | Position in role hierarchy |
+| `role.managed` | Whether managed by an integration |
+| `role.mentionable` | Whether anyone can mention it |
+| `role.permissions` | `Permissions` object |
+| `role.guild` | The guild |
+| `role.mention` | Mention string |
+| `role.created_at` | When the role was created |
+| `role.icon` | Role icon (if set) |
+| `role.unicode_emoji` | Role emoji (if set) |
+| `role.is_default()` | Whether it's @everyone |
+| `role.is_bot_managed()` | Whether managed by a bot |
+| `role.is_premium_subscriber()` | Whether it's the Booster role |
+| `role.is_integration()` | Whether managed by an integration |
+| `role.is_assignable()` | Whether the bot can assign it |
+| `role.members` | List of members with this role |
+| `role.tags` | Role tags (bot_id, etc.) |
+
+### Methods
+
+- `await role.edit(**kwargs)` → Edit name, permissions, color, hoist, mentionable, position, icon.
+- `await role.delete(reason)` → Delete the role.
+
+---
+
+# 🔹 Message Functions
+
+#discordpy #messages
+
+### Properties
+
+- `message.id` / `message.content` / `message.clean_content`
+- `message.author` → The user who sent the message.
+- `message.channel` / `message.guild`
+- `message.created_at` / `message.edited_at`
+- `message.jump_url` → URL to jump to this message.
+- `message.attachments` → List of `Attachment` objects.
+- `message.embeds` → List of `Embed` objects.
+- `message.reactions` → List of `Reaction` objects.
+- `message.mentions` → Mentioned users.
+- `message.role_mentions` → Mentioned roles.
+- `message.channel_mentions` → Mentioned channels.
+- `message.mention_everyone` → Whether @everyone was mentioned.
+- `message.pinned` → Whether the message is pinned.
+- `message.tts` → Whether TTS was used.
+- `message.type` → Message type (default, reply, pin, etc.).
+- `message.reference` → Message reference (reply info).
+- `message.stickers` → List of stickers.
+- `message.components` → Message components (buttons, selects).
+- `message.flags` → Message flags.
+- `message.interaction` → Interaction data (if from a slash command).
+- `message.thread` → Thread started from this message.
+- `message.webhook_id` → Webhook ID (if sent via webhook).
+
+### Methods
+
+- `await message.edit(content, *, embed, embeds, view, delete_after, attachments)` → Edit the message.
+- `await message.delete(delay)` → Delete the message.
+- `await message.reply(content, **kwargs)` → Reply to the message.
+- `await message.pin(reason)` → Pin the message.
+- `await message.unpin(reason)` → Unpin the message.
+- `await message.add_reaction(emoji)` → Add a reaction.
+- `await message.remove_reaction(emoji, member)` → Remove a reaction.
+- `await message.clear_reactions()` → Clear all reactions.
+- `await message.clear_reaction(emoji)` → Clear a specific emoji reaction.
+- `await message.create_thread(name, auto_archive_duration)` → Create a thread from this message.
+- `await message.publish()` → Publish/crosspost a message in an announcement channel.
+- `await message.ack()` → Acknowledge reading the message.
+- `await message.fetch()` → Refetch the message from API.
+
+---
+
+# 🔹 Voice & Audio
+
+#discordpy #voice #audio
+
+### Connecting
+
+```python
+vc = await ctx.author.voice.channel.connect()
+# or
+vc = await voice_channel.connect()
+```
+
+### VoiceClient Methods
+
+- `vc.play(source, *, after=None)` → Play an audio source.
+- `vc.pause()` → Pause playback.
+- `vc.resume()` → Resume playback.
+- `vc.stop()` → Stop playback.
+- `vc.is_playing()` → Whether audio is playing.
+- `vc.is_paused()` → Whether audio is paused.
+- `vc.is_connected()` → Whether connected to VC.
+- `await vc.move_to(channel)` → Move to another VC.
+- `await vc.disconnect(force=False)` → Disconnect from VC.
+- `vc.source` → Current audio source.
+- `vc.guild` → Guild.
+- `vc.channel` → Current channel.
+- `vc.latency` → Voice connection latency.
+- `vc.average_latency` → Average latency.
+
+### Audio Sources
+
+```python
+# Play from a file
+source = discord.FFmpegPCMAudio("audio.mp3")
+vc.play(source)
+
+# Play from URL / stream
+source = discord.FFmpegPCMAudio("https://...", before_options="-reconnect 1")
+vc.play(source)
+
+# Volume control
+source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio("audio.mp3"), volume=0.5)
+vc.play(source)
+source.volume = 0.8  # Change volume (0.0 to 2.0)
+
+# Play with callback when finished
+vc.play(source, after=lambda e: print(f"Finished: {e}"))
+```
+
+### Opus
+
+- `discord.opus.is_loaded()` → Whether Opus library is loaded.
+- `discord.opus.load_opus("libopus")` → Load the Opus library manually.
+
+### Member Voice State (`member.voice`)
+
+- `member.voice.channel` → Voice channel the member is in.
+- `member.voice.mute` → Server muted.
+- `member.voice.deaf` → Server deafened.
+- `member.voice.self_mute` → Self-muted.
+- `member.voice.self_deaf` → Self-deafened.
+- `member.voice.self_stream` → Whether streaming.
+- `member.voice.self_video` → Whether camera is on.
+- `member.voice.suppress` → Whether suppressed (stage).
+- `member.voice.afk` → Whether in AFK channel.
+- `member.voice.requested_to_speak_at` → When they requested to speak (stage).
+- `member.voice.session_id` → Voice session ID.
+
+---
+
+# 🔹 Stage Channels
+
+#discordpy #stage
+
+### Stage Channel Methods
+
+- `await stage_channel.create_instance(topic, privacy_level, reason)` → Create a stage instance.
+- `await stage_channel.connect(cls)` → Connect bot to stage.
+- `stage_channel.members` → Members in the stage.
+- `stage_channel.listeners` → Audience members.
+- `stage_channel.speakers` → Current speakers.
+- `stage_channel.moderators` → Moderators.
+
+### Stage Instance
+
+- `stage_instance.topic` → Current topic.
+- `stage_instance.guild` / `stage_instance.channel`
+- `stage_instance.privacy_level` → Privacy level.
+- `await stage_instance.edit(topic, privacy_level, reason)` → Edit the stage instance.
+- `await stage_instance.delete(reason)` → Delete the stage instance.
+
+---
+
+# 🔹 Threads & Forums
+
+#discordpy #threads #forums
+
+### Creating Threads
+
+```python
+# From a message
+thread = await message.create_thread(name="Discussion", auto_archive_duration=60)
+
+# Standalone thread
+thread = await channel.create_thread(
+    name="Thread Name",
+    type=discord.ChannelType.public_thread,  # or .private_thread
+    auto_archive_duration=1440,              # 60, 1440, 4320, 10080
+    slowmode_delay=5,
+    reason="New thread"
+)
+```
+
+### Thread Properties
+
+- `thread.id` / `thread.name` / `thread.guild` / `thread.parent`
+- `thread.owner` / `thread.owner_id`
+- `thread.archived` / `thread.locked` / `thread.invitable`
+- `thread.auto_archive_duration` / `thread.archive_timestamp`
+- `thread.slowmode_delay` / `thread.member_count` / `thread.message_count`
+- `thread.created_at` / `thread.jump_url` / `thread.mention`
+- `thread.members` → List of `ThreadMember`.
+- `thread.me` → Bot's thread member (if joined).
+
+### Thread Methods
+
+- `await thread.edit(name, archived, locked, invitable, slowmode_delay, auto_archive_duration)` → Edit thread.
+- `await thread.delete()` → Delete thread.
+- `await thread.join()` → Bot joins the thread.
+- `await thread.leave()` → Bot leaves the thread.
+- `await thread.add_user(user)` → Add a user to the thread.
+- `await thread.remove_user(user)` → Remove a user from the thread.
+- `await thread.fetch_member(user_id)` → Fetch a thread member.
+- `await thread.fetch_members()` → Fetch all thread members.
+- `await thread.send(content, **kwargs)` → Send a message.
+- `thread.history(limit)` → Async iterator of messages.
+
+### Forum Channels
+
+```python
+forum = await guild.create_forum(
+    name="Forum Name",
+    topic="Forum description",
+    default_auto_archive_duration=1440,
+    default_thread_slowmode_delay=0,
+    default_sort_order=discord.SortOrder.latest_activity,
+    default_layout=discord.ForumLayoutType.list_view,
+    available_tags=[
+        discord.ForumTag(name="Bug", emoji="🐛"),
+        discord.ForumTag(name="Feature", emoji="✨"),
+    ]
+)
+
+# Create a forum post
+thread, message = await forum.create_thread(
+    name="Post Title",
+    content="Post body",
+    embed=embed,
+    applied_tags=[tag]
+)
+```
+
+### Forum Tag
+
+- `tag.id` / `tag.name` / `tag.emoji` / `tag.moderated`
+
+---
+
+# 🔹 Permissions
+
+#discordpy #permissions
+
+### Checking Permissions
+
+```python
+# Check member permissions in a channel
+perms = channel.permissions_for(member)
+if perms.manage_messages:
+    ...
+
+# Check guild-level permissions
+if member.guild_permissions.administrator:
+    ...
+
+# Check bot permissions
+if ctx.me.guild_permissions.ban_members:
+    ...
+```
+
+### All Permission Flags
+
+| Permission | Description |
+|---|---|
+| `administrator` | Bypasses all permission checks |
+| `manage_guild` | Manage server settings |
+| `manage_roles` | Create/edit/delete roles below bot's role |
+| `manage_channels` | Create/edit/delete channels |
+| `manage_messages` | Delete/pin messages |
+| `manage_webhooks` | Create/edit/delete webhooks |
+| `manage_emojis` | Manage emojis and stickers |
+| `manage_emojis_and_stickers` | Same as manage_emojis |
+| `manage_events` | Create/edit/delete scheduled events |
+| `manage_threads` | Manage threads |
+| `manage_nicknames` | Change other members' nicknames |
+| `change_nickname` | Change own nickname |
+| `kick_members` | Kick members |
+| `ban_members` | Ban members |
+| `moderate_members` | Timeout members |
+| `send_messages` | Send messages |
+| `send_messages_in_threads` | Send messages in threads |
+| `create_public_threads` | Create public threads |
+| `create_private_threads` | Create private threads |
+| `embed_links` | Send embeds |
+| `attach_files` | Upload files |
+| `add_reactions` | Add reactions |
+| `use_external_emojis` | Use emojis from other servers |
+| `use_external_stickers` | Use stickers from other servers |
+| `mention_everyone` | @everyone and @here |
+| `read_messages` / `view_channel` | View channels |
+| `read_message_history` | View message history |
+| `use_application_commands` | Use slash commands |
+| `connect` | Connect to VC |
+| `speak` | Speak in VC |
+| `stream` | Video/stream in VC |
+| `use_voice_activation` | Use voice activity (vs push-to-talk) |
+| `priority_speaker` | Priority speaker in VC |
+| `mute_members` | Server mute in VC |
+| `deafen_members` | Server deafen in VC |
+| `move_members` | Move members between VCs |
+| `request_to_speak` | Request to speak in stage |
+| `view_audit_log` | View audit logs |
+| `view_guild_insights` | View server insights |
+| `create_instant_invite` | Create invites |
+| `use_embedded_activities` | Use activities in VC |
+
+### Setting Permission Overwrites
+
+```python
+overwrites = {
+    guild.default_role: discord.PermissionOverwrite(read_messages=False),
+    guild.me: discord.PermissionOverwrite(read_messages=True),
+    some_role: discord.PermissionOverwrite(send_messages=True, read_messages=True),
+}
+await guild.create_text_channel("private", overwrites=overwrites)
+
+# Or edit existing
+await channel.set_permissions(role, send_messages=False, reason="Muted")
+await channel.set_permissions(member, read_messages=True)
+```
+
+---
+
+# 🔹 Webhooks
+
+#discordpy #webhooks
+
+```python
+# Create a webhook
+webhook = await channel.create_webhook(name="My Webhook", avatar=None, reason="Bot webhook")
+
+# Send as webhook
+await webhook.send(
+    content="Hello!",
+    username="Custom Name",
+    avatar_url="https://...",
+    embed=embed,
+    file=file,
+    tts=False,
+    wait=True         # Returns the sent Message
+)
+
+# Edit/Delete
+await webhook.edit(name="New Name", channel=other_channel)
+await webhook.delete(reason="Cleanup")
+
+# Fetch webhooks
+webhooks = await channel.webhooks()  # Channel webhooks
+webhooks = await guild.webhooks()    # All guild webhooks
+
+# Webhook from URL
+webhook = discord.Webhook.from_url("https://discord.com/api/webhooks/...", session=aiohttp_session)
+await webhook.send("Message via URL")
+
+# Partial webhook
+webhook = discord.Webhook.partial(id=123, token="abc", session=aiohttp_session)
+```
+
+### Webhook Properties
+
+- `webhook.id` / `webhook.token` / `webhook.url`
+- `webhook.name` / `webhook.avatar` / `webhook.channel`
+- `webhook.guild` / `webhook.type` / `webhook.user`
+
+---
+
+# 🔹 Audit Logs
+
+#discordpy #auditlogs
+
+```python
+async for entry in guild.audit_logs(limit=100, action=discord.AuditLogAction.ban):
+    print(f"{entry.user} banned {entry.target} - Reason: {entry.reason}")
+```
+
+### AuditLogEntry Properties
+
+- `entry.action` → The action type.
+- `entry.user` → Who performed the action.
+- `entry.target` → What was affected.
+- `entry.reason` → Reason if provided.
+- `entry.id` → Entry ID.
+- `entry.created_at` → When the action happened.
+- `entry.before` → State before the change.
+- `entry.after` → State after the change.
+- `entry.changes` → List of changes.
+- `entry.extra` → Extra data (overwrite info, etc.).
+- `entry.category` → Category (create, delete, update).
+
+### Common AuditLogAction Values
+
+- `.ban` / `.unban` / `.kick` / `.member_prune`
+- `.member_update` / `.member_role_update` / `.member_move` / `.member_disconnect`
+- `.channel_create` / `.channel_update` / `.channel_delete`
+- `.role_create` / `.role_update` / `.role_delete`
+- `.message_delete` / `.message_bulk_delete` / `.message_pin` / `.message_unpin`
+- `.invite_create` / `.invite_update` / `.invite_delete`
+- `.webhook_create` / `.webhook_update` / `.webhook_delete`
+- `.emoji_create` / `.emoji_update` / `.emoji_delete`
+- `.integration_create` / `.integration_update` / `.integration_delete`
+- `.stage_instance_create` / `.stage_instance_update` / `.stage_instance_delete`
+- `.thread_create` / `.thread_update` / `.thread_delete`
+- `.automod_rule_create` / `.automod_rule_update` / `.automod_rule_delete`
+- `.automod_block_message` / `.automod_flag_message` / `.automod_timeout_member`
+- `.overwrite_create` / `.overwrite_update` / `.overwrite_delete`
+- `.bot_add`
+
+---
+
+# 🔹 Scheduled Events
+
+#discordpy #scheduledevents
+
+```python
+event = await guild.create_scheduled_event(
+    name="Movie Night",
+    description="We watch movies",
+    start_time=datetime(2026, 3, 1, 20, 0),
+    end_time=datetime(2026, 3, 1, 23, 0),
+    entity_type=discord.EntityType.voice,
+    channel=voice_channel,
+    # For external events:
+    # entity_type=discord.EntityType.external,
+    # location="https://example.com"
+)
+```
+
+### ScheduledEvent Properties
+
+- `event.id` / `event.name` / `event.description`
+- `event.start_time` / `event.end_time`
+- `event.status` → `.scheduled`, `.active`, `.completed`, `.cancelled`
+- `event.entity_type` → `.stage_instance`, `.voice`, `.external`
+- `event.channel` / `event.guild` / `event.creator`
+- `event.user_count` → Number of interested users.
+- `event.location` → External event location.
+- `event.cover_image` → Event cover image.
+- `event.url` → Event URL.
+
+### Methods
+
+- `await event.edit(**kwargs)` → Edit event.
+- `await event.delete()` → Delete event.
+- `await event.start()` → Start the event.
+- `await event.end()` → End the event.
+- `await event.cancel()` → Cancel the event.
+- `event.users(limit, before, after)` → Async iterator of interested users.
+
+---
+
+# 🔹 AutoMod
+
+#discordpy #automod
+
+```python
+rule = await guild.create_automod_rule(
+    name="Block Bad Words",
+    event_type=discord.AutoModRuleEventType.message_send,
+    trigger=discord.AutoModTrigger(
+        type=discord.AutoModRuleTriggerType.keyword,
+        keyword_filter=["badword1", "badword2"],
+        regex_patterns=[r"\bbad\b"],
+        allow_list=["allowed_word"]
+    ),
+    actions=[
+        discord.AutoModRuleAction(type=discord.AutoModRuleActionType.block_message),
+        discord.AutoModRuleAction(
+            type=discord.AutoModRuleActionType.send_alert_message,
+            channel_id=log_channel_id
+        ),
+        discord.AutoModRuleAction(
+            type=discord.AutoModRuleActionType.timeout,
+            duration=datetime.timedelta(seconds=60)
+        ),
+    ],
+    enabled=True,
+    exempt_roles=[mod_role],
+    exempt_channels=[bot_channel]
+)
+```
+
+### AutoMod Rule Properties
+
+- `rule.id` / `rule.name` / `rule.guild`
+- `rule.creator` / `rule.enabled`
+- `rule.event_type` / `rule.trigger` / `rule.actions`
+- `rule.exempt_roles` / `rule.exempt_channels`
+
+### Methods
+
+- `await rule.edit(**kwargs)` → Edit the rule.
+- `await rule.delete(reason)` → Delete the rule.
+- `await guild.fetch_automod_rules()` → Fetch all rules.
+- `await guild.fetch_automod_rule(rule_id)` → Fetch a specific rule.
+
+---
+
+# 🔹 Cogs & Extensions
+
+#discordpy #cogs #extensions
+
+### Defining a Cog
+
+```python
+# cogs/moderation.py
+import discord
+from discord.ext import commands
+
+class Moderation(commands.Cog):
+    """Moderation commands."""
+
+    def __init__(self, bot):
+        self.bot = bot
+
+    # Cog event listener
+    @commands.Cog.listener()
+    async def on_member_join(self, member):
+        channel = member.guild.system_channel
+        if channel:
+            await channel.send(f"Welcome {member.mention}!")
+
+    # Prefix command in a cog
+    @commands.command()
+    @commands.has_permissions(kick_members=True)
+    async def kick(self, ctx, member: discord.Member, *, reason="No reason"):
+        await member.kick(reason=reason)
+        await ctx.send(f"Kicked {member}.")
+
+    # Slash command in a cog
+    @discord.app_commands.command(name="ban", description="Ban a member")
+    @discord.app_commands.checks.has_permissions(ban_members=True)
+    async def ban(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason"):
+        await member.ban(reason=reason)
+        await interaction.response.send_message(f"Banned {member}.")
+
+    # Cog-level check (applies to all commands in this cog)
+    async def cog_check(self, ctx):
+        return ctx.guild is not None
+
+    # Before invoke hook
+    async def cog_before_invoke(self, ctx):
+        print(f"Running {ctx.command} in Moderation cog")
+
+    # After invoke hook
+    async def cog_after_invoke(self, ctx):
+        pass
+
+    # Cog unload hook
+    async def cog_unload(self):
+        print("Moderation cog unloaded")
+
+async def setup(bot):
+    await bot.add_cog(Moderation(bot))
+```
+
+### Loading / Unloading Cogs
+
+```python
+# Load
+await bot.load_extension("cogs.moderation")
+
+# Unload
+await bot.unload_extension("cogs.moderation")
+
+# Reload
+await bot.reload_extension("cogs.moderation")
+
+# Load all cogs from a folder
+import os
+for filename in os.listdir("./cogs"):
+    if filename.endswith(".py"):
+        await bot.load_extension(f"cogs.{filename[:-3]}")
+```
+
+### Cog Properties & Methods
+
+- `cog.qualified_name` → Cog name.
+- `cog.description` → Cog docstring.
+- `cog.bot` → Bot instance.
+- `cog.get_commands()` → List of prefix commands.
+- `cog.get_app_commands()` → List of app commands.
+- `cog.get_listeners()` → List of event listeners.
+- `cog.walk_commands()` → Recursively iterate all commands.
+- `cog.walk_app_commands()` → Recursively iterate all app commands.
+
+---
+
+# 🔹 Tasks (Background Loops)
+
+#discordpy #tasks #loops
+
+```python
+from discord.ext import tasks
+
+class MyCog(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.my_loop.start()
+
+    def cog_unload(self):
+        self.my_loop.cancel()
+
+    @tasks.loop(seconds=30)              # Also: minutes, hours, count, time
+    async def my_loop(self):
+        channel = self.bot.get_channel(CHANNEL_ID)
+        await channel.send("Periodic message!")
+
+    @my_loop.before_loop
+    async def before_my_loop(self):
+        await self.bot.wait_until_ready()  # Wait until bot is ready
+
+    @my_loop.after_loop
+    async def after_my_loop(self):
+        print("Loop ended")
+
+    @my_loop.error
+    async def my_loop_error(self, error):
+        print(f"Loop error: {error}")
+```
+
+### Loop Properties & Methods
+
+- `loop.start(*args, **kwargs)` → Start the loop.
+- `loop.stop()` → Gracefully stop after current iteration.
+- `loop.cancel()` → Cancel immediately.
+- `loop.restart(*args, **kwargs)` → Restart the loop.
+- `loop.is_running()` → Whether the loop is running.
+- `loop.is_being_cancelled()` → Whether cancellation is in progress.
+- `loop.failed()` → Whether the loop raised an unhandled error.
+- `loop.current_loop` → Current iteration count.
+- `loop.next_iteration` → When the next iteration will run.
+- `loop.change_interval(seconds, minutes, hours, time)` → Change interval.
+
+### Loop with Specific Times
+
+```python
+import datetime
+
+@tasks.loop(time=[datetime.time(hour=8, minute=0), datetime.time(hour=20, minute=0)])
+async def daily_task(self):
+    ...  # Runs at 8:00 AM and 8:00 PM UTC
+```
+
+---
+
+# 🔹 Utilities & Helpers
+
+#discordpy #utils #helpers
+
+### Search & Lookup
+
+- `discord.utils.get(iterable, **attrs)` → Get first object matching attributes.
+- `discord.utils.find(predicate, iterable)` → Find first object matching a predicate.
+
+```python
+role = discord.utils.get(guild.roles, name="Admin")
+member = discord.utils.find(lambda m: m.name == "User123", guild.members)
+channel = discord.utils.get(guild.text_channels, name="general")
+```
+
+### Text Escaping
+
+- `discord.utils.escape_markdown(text)` → Escape all Markdown.
+- `discord.utils.escape_mentions(text)` → Escape all mentions.
+- `discord.utils.remove_markdown(text)` → Strip all Markdown formatting.
+
+### Time & Snowflake
+
+- `discord.utils.utcnow()` → Current UTC datetime (timezone-aware).
+- `discord.utils.snowflake_time(id)` → Convert a Discord snowflake ID to datetime.
+- `discord.utils.time_snowflake(datetime)` → Convert datetime to a snowflake ID.
+- `discord.utils.sleep_until(when)` → Sleep until a specific datetime.
+- `discord.utils.format_dt(dt, style)` → Format datetime for Discord timestamps.
+
+### Discord Timestamp Styles
+
+```python
+dt = discord.utils.utcnow()
+discord.utils.format_dt(dt, "t")   # Short time:       16:20
+discord.utils.format_dt(dt, "T")   # Long time:        16:20:30
+discord.utils.format_dt(dt, "d")   # Short date:       20/04/2021
+discord.utils.format_dt(dt, "D")   # Long date:        20 April 2021
+discord.utils.format_dt(dt, "f")   # Short datetime:   20 April 2021 16:20
+discord.utils.format_dt(dt, "F")   # Long datetime:    Tuesday, 20 April 2021 16:20
+discord.utils.format_dt(dt, "R")   # Relative:         2 months ago
+```
+
+### Bot Lookup Methods
+
+- `bot.get_user(user_id)` → Get cached user.
+- `await bot.fetch_user(user_id)` → Fetch user from API.
+- `bot.get_guild(guild_id)` → Get cached guild.
+- `await bot.fetch_guild(guild_id)` → Fetch guild from API.
+- `bot.get_channel(channel_id)` → Get cached channel.
+- `await bot.fetch_channel(channel_id)` → Fetch channel from API.
+- `bot.get_emoji(emoji_id)` → Get cached emoji.
+- `bot.get_cog("CogName")` → Get a loaded cog.
+- `bot.cogs` → Dict of loaded cogs.
+- `bot.extensions` → Dict of loaded extensions.
+- `bot.commands` → Set of all prefix commands.
+- `bot.all_commands` → Dict of all prefix commands (including aliases).
+- `bot.tree` → The `CommandTree` for slash commands.
+- `bot.guilds` → List of guilds the bot is in.
+- `bot.users` → List of cached users.
+- `bot.emojis` → List of cached emojis.
+- `bot.stickers` → List of cached stickers.
+- `bot.voice_clients` → List of active voice clients.
+- `bot.latency` → WebSocket latency in seconds.
+- `bot.is_ready()` → Whether the bot is fully connected.
+- `bot.is_closed()` → Whether the bot is closed.
+- `await bot.wait_until_ready()` → Block until bot is ready.
+- `await bot.close()` → Close the bot connection.
+- `await bot.change_presence(activity, status)` → Change bot's presence.
+
+### Presence & Activity
+
+```python
+# Status
+await bot.change_presence(status=discord.Status.online)     # online, idle, dnd, invisible
+
+# Activities
+await bot.change_presence(activity=discord.Game("Minecraft"))
+await bot.change_presence(activity=discord.Streaming(name="Live!", url="https://twitch.tv/..."))
+await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="Music"))
+await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="YouTube"))
+await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.competing, name="Tournament"))
+await bot.change_presence(activity=discord.CustomActivity(name="Custom Status", emoji="🎮"))
+```
+
+---
+
+# 🔹 Error Handling
+
+#discordpy #errors
+
+### Global Command Error Handler
+
+```python
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        return
+    elif isinstance(error, commands.MissingPermissions):
+        await ctx.send(f"You need: {', '.join(error.missing_permissions)}")
+    elif isinstance(error, commands.BotMissingPermissions):
+        await ctx.send(f"I need: {', '.join(error.missing_permissions)}")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send(f"Missing argument: `{error.param.name}`")
+    elif isinstance(error, commands.BadArgument):
+        await ctx.send(f"Bad argument: {error}")
+    elif isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"Cooldown! Try again in {error.retry_after:.1f}s")
+    elif isinstance(error, commands.NotOwner):
+        await ctx.send("Owner only.")
+    elif isinstance(error, commands.NoPrivateMessage):
+        await ctx.send("This command can't be used in DMs.")
+    elif isinstance(error, commands.CheckFailure):
+        await ctx.send("You can't use this command.")
+    elif isinstance(error, commands.MaxConcurrencyReached):
+        await ctx.send(f"Command is busy. Max: {error.number}")
+    elif isinstance(error, commands.DisabledCommand):
+        await ctx.send("This command is disabled.")
+    elif isinstance(error, commands.MemberNotFound):
+        await ctx.send("Member not found.")
+    elif isinstance(error, commands.UserNotFound):
+        await ctx.send("User not found.")
+    elif isinstance(error, commands.ChannelNotFound):
+        await ctx.send("Channel not found.")
+    elif isinstance(error, commands.RoleNotFound):
+        await ctx.send("Role not found.")
+    elif isinstance(error, commands.EmojiNotFound):
+        await ctx.send("Emoji not found.")
+    else:
+        raise error
+```
+
+### Slash Command Error Handler
+
+```python
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error):
+    if isinstance(error, discord.app_commands.MissingPermissions):
+        await interaction.response.send_message("Missing permissions.", ephemeral=True)
+    elif isinstance(error, discord.app_commands.CommandOnCooldown):
+        await interaction.response.send_message(f"Cooldown: {error.retry_after:.1f}s", ephemeral=True)
+    elif isinstance(error, discord.app_commands.CheckFailure):
+        await interaction.response.send_message("You can't do that.", ephemeral=True)
+    else:
+        await interaction.response.send_message("An error occurred.", ephemeral=True)
+        raise error
+```
+
+### Per-Command Error Handler
+
+```python
+@bot.command()
+async def mycommand(ctx):
+    ...
+
+@mycommand.error
+async def mycommand_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("No permission!")
+```
+
+### All Error Types
+
+| Error | Trigger |
+|---|---|
+| `CommandNotFound` | Unknown command |
+| `MissingRequiredArgument` | Missing arguments |
+| `TooManyArguments` | Extra arguments |
+| `BadArgument` | Failed type conversion |
+| `BadUnionArgument` | Failed Union conversion |
+| `BadLiteralArgument` | Failed Literal match |
+| `MissingPermissions` | User lacks permissions |
+| `BotMissingPermissions` | Bot lacks permissions |
+| `MissingRole` | User lacks a role |
+| `MissingAnyRole` | User lacks all specified roles |
+| `BotMissingRole` | Bot lacks a role |
+| `BotMissingAnyRole` | Bot lacks all specified roles |
+| `NotOwner` | Not the bot owner |
+| `NoPrivateMessage` | Used in DM when guild-only |
+| `PrivateMessageOnly` | Used in guild when DM-only |
+| `NSFWChannelRequired` | Used outside NSFW channel |
+| `CommandOnCooldown` | Command is on cooldown |
+| `MaxConcurrencyReached` | Too many concurrent uses |
+| `DisabledCommand` | Command is disabled |
+| `CheckFailure` | A check failed |
+| `CheckAnyFailure` | All checks failed (check_any) |
+| `CommandInvokeError` | Error during command execution |
+| `UserInputError` | Generic input error |
+| `ConversionError` | Converter raised an error |
+| `MemberNotFound` | Member not found |
+| `UserNotFound` | User not found |
+| `ChannelNotFound` | Channel not found |
+| `RoleNotFound` | Role not found |
+| `EmojiNotFound` | Emoji not found |
+| `ThreadNotFound` | Thread not found |
+| `GuildNotFound` | Guild not found |
+| `MessageNotFound` | Message not found |
+| `GuildStickerNotFound` | Sticker not found |
+| `CommandRegistrationError` | Duplicate command name |
+| `ExtensionError` | Base extension error |
+| `ExtensionNotFound` | Extension file not found |
+| `ExtensionAlreadyLoaded` | Already loaded |
+| `ExtensionNotLoaded` | Not loaded |
+| `ExtensionFailed` | Extension setup() failed |
+| `NoEntryPointError` | Missing setup() function |
+| `HybridCommandError` | Error in hybrid command |
+
+---
+
+# 🔹 Common Patterns & Snippets
+
+#discordpy #patterns #snippets
+
+### Wait for a Response
+
+```python
+@bot.command()
+async def ask(ctx):
+    await ctx.send("What's your name?")
+
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel
+
+    try:
+        msg = await bot.wait_for("message", check=check, timeout=30.0)
+        await ctx.send(f"Hello, {msg.content}!")
+    except asyncio.TimeoutError:
+        await ctx.send("You took too long!")
+```
+
+### Wait for a Reaction
+
+```python
+msg = await ctx.send("React with ✅ to confirm")
+await msg.add_reaction("✅")
+
+def check(reaction, user):
+    return user == ctx.author and str(reaction.emoji) == "✅" and reaction.message.id == msg.id
+
+try:
+    reaction, user = await bot.wait_for("reaction_add", check=check, timeout=30.0)
+    await ctx.send("Confirmed!")
+except asyncio.TimeoutError:
+    await ctx.send("Timed out.")
+```
+
+### Paginated Embeds with Buttons
+
+```python
+class Paginator(discord.ui.View):
+    def __init__(self, pages: list[discord.Embed]):
+        super().__init__(timeout=120)
+        self.pages = pages
+        self.current = 0
+
+    @discord.ui.button(emoji="◀️", style=discord.ButtonStyle.secondary)
+    async def prev(self, interaction: discord.Interaction, button):
+        self.current = max(0, self.current - 1)
+        await interaction.response.edit_message(embed=self.pages[self.current])
+
+    @discord.ui.button(emoji="▶️", style=discord.ButtonStyle.secondary)
+    async def next(self, interaction: discord.Interaction, button):
+        self.current = min(len(self.pages) - 1, self.current + 1)
+        await interaction.response.edit_message(embed=self.pages[self.current])
+```
+
+### Confirmation Prompt
+
+```python
+class Confirm(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=30)
+        self.value = None
+
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.success)
+    async def confirm(self, interaction, button):
+        self.value = True
+        self.stop()
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.danger)
+    async def cancel(self, interaction, button):
+        self.value = False
+        self.stop()
+
+# Usage:
+view = Confirm()
+await ctx.send("Are you sure?", view=view)
+await view.wait()
+if view.value:
+    await ctx.send("Confirmed!")
+else:
+    await ctx.send("Cancelled.")
+```
+
+### Role-Based Reaction Roles
+
+```python
+@bot.event
+async def on_raw_reaction_add(payload):
+    if payload.message_id != REACTION_ROLE_MSG_ID:
+        return
+    guild = bot.get_guild(payload.guild_id)
+    role_map = {"🔴": RED_ROLE_ID, "🔵": BLUE_ROLE_ID, "🟢": GREEN_ROLE_ID}
+    role_id = role_map.get(str(payload.emoji))
+    if role_id:
+        role = guild.get_role(role_id)
+        member = guild.get_member(payload.user_id)
+        if role and member:
+            await member.add_roles(role)
+
+@bot.event
+async def on_raw_reaction_remove(payload):
+    if payload.message_id != REACTION_ROLE_MSG_ID:
+        return
+    guild = bot.get_guild(payload.guild_id)
+    role_map = {"🔴": RED_ROLE_ID, "🔵": BLUE_ROLE_ID, "🟢": GREEN_ROLE_ID}
+    role_id = role_map.get(str(payload.emoji))
+    if role_id:
+        role = guild.get_role(role_id)
+        member = guild.get_member(payload.user_id)
+        if role and member:
+            await member.remove_roles(role)
+```
+
+### Logging Deleted Messages
+
+```python
+@bot.event
+async def on_message_delete(message):
+    if message.author.bot:
+        return
+    log_channel = bot.get_channel(LOG_CHANNEL_ID)
+    embed = discord.Embed(title="Message Deleted", color=discord.Color.red())
+    embed.add_field(name="Author", value=message.author.mention)
+    embed.add_field(name="Channel", value=message.channel.mention)
+    embed.add_field(name="Content", value=message.content or "No text", inline=False)
+    embed.timestamp = discord.utils.utcnow()
+    await log_channel.send(embed=embed)
+```
+
+### Custom Help Command
+
+```python
+class MyHelp(commands.HelpCommand):
+    async def send_bot_help(self, mapping):
+        embed = discord.Embed(title="Help", color=discord.Color.blurple())
+        for cog, cmds in mapping.items():
+            filtered = await self.filter_commands(cmds, sort=True)
+            if filtered:
+                name = cog.qualified_name if cog else "No Category"
+                value = ", ".join(f"`{c.name}`" for c in filtered)
+                embed.add_field(name=name, value=value, inline=False)
+        await self.get_destination().send(embed=embed)
+
+    async def send_command_help(self, command):
+        embed = discord.Embed(title=f"Help: {command.qualified_name}", color=discord.Color.blurple())
+        embed.add_field(name="Usage", value=f"`{self.context.prefix}{command.qualified_name} {command.signature}`")
+        if command.help:
+            embed.add_field(name="Description", value=command.help, inline=False)
+        if command.aliases:
+            embed.add_field(name="Aliases", value=", ".join(f"`{a}`" for a in command.aliases))
+        await self.get_destination().send(embed=embed)
+
+bot.help_command = MyHelp()
+```
+
+### Dynamic Presence Rotation
+
+```python
+import itertools
+
+@tasks.loop(minutes=5)
+async def rotate_status():
+    statuses = itertools.cycle([
+        discord.Game("with Python"),
+        discord.Activity(type=discord.ActivityType.watching, name=f"{len(bot.guilds)} servers"),
+        discord.Activity(type=discord.ActivityType.listening, name="!help"),
+    ])
+    await bot.change_presence(activity=next(statuses))
+```
+
+---
+
+# 📌 Quick Reference
+
+### Limits
+
+| Item | Limit |
+|---|---|
+| Embed title | 256 chars |
+| Embed description | 4096 chars |
+| Embed field name | 256 chars |
+| Embed field value | 1024 chars |
+| Embed footer text | 2048 chars |
+| Embed author name | 256 chars |
+| Embed fields | 25 max |
+| Total embed chars | 6000 max |
+| Embeds per message | 10 max |
+| Message content | 2000 chars |
+| Bulk delete | 100 messages, < 14 days old |
+| Buttons per row | 5 max |
+| Rows per message | 5 max |
+| Select options | 25 max |
+| Modal text inputs | 5 max |
+| Slash command name | 32 chars (lowercase, no spaces) |
+| Slash command description | 100 chars |
+| Slash command options | 25 max |
+| Choice name | 100 chars |
+| Choices per option | 25 max |
+| Global commands | 100 max |
+| Guild commands | 100 max |
+| Nickname | 32 chars |
+| Channel name | 1-100 chars |
+| Role name | 1-100 chars |
+| Guild name | 2-100 chars |
+| Webhook name | 1-80 chars |
+| Reactions per message | 20 unique emojis |
+| Pins per channel | 50 max |
+| File upload (no boost) | 25 MB |
+| File upload (level 2) | 50 MB |
+| File upload (level 3) | 100 MB |
+
+---
+
+> **Last updated:** February 2026 | **discord.py v2.x** | Made with 💜

@@ -83,6 +83,30 @@ canvas {
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
+// ── roundRect polyfill for older iOS Safari (<15.4) ──
+if (typeof CanvasRenderingContext2D.prototype.roundRect !== 'function') {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, radii) {
+    const r = typeof radii === 'number' ? radii : (Array.isArray(radii) ? radii[0] : 0);
+    if (r <= 0) { this.rect(x, y, w, h); return this; }
+    const mr = Math.min(r, w / 2, h / 2);
+    this.moveTo(x + mr, y);
+    this.arcTo(x + w, y, x + w, y + h, mr);
+    this.arcTo(x + w, y + h, x, y + h, mr);
+    this.arcTo(x, y + h, x, y, mr);
+    this.arcTo(x, y, x + w, y, mr);
+    this.closePath();
+    return this;
+  };
+}
+
+// ── Safe localStorage wrappers (private browsing / quota errors) ──
+function safeGetItem(key) {
+  try { return localStorage.getItem(key); } catch(e) { return null; }
+}
+function safeSetItem(key, val) {
+  try { localStorage.setItem(key, val); } catch(e) {}
+}
+
 // ── Load Images ──
 const playerImg = new Image();
 playerImg.src = 'player_new.png';
@@ -226,6 +250,7 @@ function initDeathAnim() {
   deathAnimTimer = 0;
   deathAnimVideoPlaying = false;
   _deathVid.currentTime = 0;
+  startDeathVidPoll();
 }
 // Hawking Undertale-style refusal cutscene
 let hawkingRefusalTimer = 0;
@@ -274,7 +299,7 @@ let settings = {
 };
 
 // ── iPad/Touch Performance Mode Prompt ──
-let _perfPromptShown = localStorage.getItem('perfPromptDismissed') === 'true';
+let _perfPromptShown = safeGetItem('perfPromptDismissed') === 'true';
 let _showPerfPrompt = false;
 // Detect iPad/mobile and offer performance mode on first visit
 (function checkPerfPrompt() {
@@ -291,12 +316,12 @@ function _acceptPerfMode() {
   settings.screenShake = false;
   _showPerfPrompt = false;
   _perfPromptShown = true;
-  localStorage.setItem('perfPromptDismissed', 'true');
+  safeSetItem('perfPromptDismissed', 'true');
 }
 function _declinePerfMode() {
   _showPerfPrompt = false;
   _perfPromptShown = true;
-  localStorage.setItem('perfPromptDismissed', 'true');
+  safeSetItem('perfPromptDismissed', 'true');
 }
 
 // ── TOUCH CONTROL LAYOUT SYSTEM ──
@@ -312,28 +337,28 @@ let touchPresetName = 'default';
 // Load from localStorage
 (function loadTouchLayout() {
   try {
-    const saved = localStorage.getItem('touchLayout');
+    const saved = safeGetItem('touchLayout');
     if (saved) {
       const parsed = JSON.parse(saved);
       touchLayout = Object.assign({}, TOUCH_PRESETS.default, parsed);
     }
-    const savedPreset = localStorage.getItem('touchPreset');
+    const savedPreset = safeGetItem('touchPreset');
     if (savedPreset) touchPresetName = savedPreset;
   } catch(e) {}
 })();
 function saveTouchLayout() {
-  localStorage.setItem('touchLayout', JSON.stringify(touchLayout));
-  localStorage.setItem('touchPreset', touchPresetName);
+  safeSetItem('touchLayout', JSON.stringify(touchLayout));
+  safeSetItem('touchPreset', touchPresetName);
 }
 // Touch controls editor state
 let tcDragging = null; // 'move' | 'aim' | null
 let tcResizing = null; // 'move' | 'aim' | null
 let tcDragOffX = 0, tcDragOffY = 0;
 let tutorialPage = 0;
-let tutorialDone = localStorage.getItem('tutorialDone') === 'true'; // check local first
+let tutorialDone = safeGetItem('tutorialDone') === 'true'; // check local first
 function completeTutorial() {
   tutorialDone = true;
-  localStorage.setItem('tutorialDone', 'true');
+  safeSetItem('tutorialDone', 'true');
   if (currentUser) {
     db.ref('users/' + currentUser.uid + '/tutorialDone').set(true);
   }
@@ -487,10 +512,11 @@ function handlePlayerDeath() {
 }
 
 // Safari/iPad: Show and play death animation video when state is 'deathAnim'
+let _deathVidInterval = null;
 function updateDeathAnimVideo() {
   if (state === 'deathAnim') {
     _deathVid.style.display = 'block';
-    _deathVid.play();
+    _deathVid.play().catch(function() {});
   } else {
     _deathVid.style.display = 'none';
     _deathVid.pause();
@@ -498,8 +524,13 @@ function updateDeathAnimVideo() {
   }
 }
 
-// Call updateDeathAnimVideo in main game loop or state handler
-setInterval(updateDeathAnimVideo, 100);
+// Start/stop the death-video poll to avoid running forever
+function startDeathVidPoll() {
+  if (!_deathVidInterval) _deathVidInterval = setInterval(updateDeathAnimVideo, 100);
+}
+function stopDeathVidPoll() {
+  if (_deathVidInterval) { clearInterval(_deathVidInterval); _deathVidInterval = null; }
+}
 
 // ── Text Input System ──  
 let activeTextInput = null;   // which input is active: 'username'|'password'|'confirm'|'chat'|'roomcode'|'friendadd'|null
@@ -713,7 +744,7 @@ auth.onAuthStateChanged(user => {
     db.ref('users/' + user.uid + '/tutorialDone').once('value', snap => {
       if (snap.val() === true) {
         tutorialDone = true;
-        localStorage.setItem('tutorialDone', 'true');
+        safeSetItem('tutorialDone', 'true');
       }
     });
     loadFriendsList();
@@ -740,22 +771,28 @@ async function createRoom() {
   
   const uid = myUid();
   roomRef = db.ref('rooms/' + code);
-  await roomRef.set({
-    host: uid,
-    hostName: playerUsername,
-    state: 'lobby', // lobby | playing | ended
-    created: firebase.database.ServerValue.TIMESTAMP,
-    players: {
-      [uid]: {
-        username: playerUsername,
-        ready: false,
-        alive: true,
-        x: 80, y: 560, hp: 15, maxHp: 15, facing: 1,
-      }
-    },
-    chat: {},
-    enemies: {},
-  });
+  try {
+    await roomRef.set({
+      host: uid,
+      hostName: playerUsername,
+      state: 'lobby', // lobby | playing | ended
+      created: firebase.database.ServerValue.TIMESTAMP,
+      players: {
+        [uid]: {
+          username: playerUsername,
+          ready: false,
+          alive: true,
+          x: 80, y: 560, hp: 15, maxHp: 15, facing: 1,
+        }
+      },
+      chat: {},
+      enemies: {},
+    });
+  } catch(e) {
+    currentRoom = null; isHost = false; mpEnabled = false; roomRef = null;
+    authError = 'Failed to create room. Check your connection.';
+    return;
+  }
   
   // Listen for player changes
   setupRoomListeners(code, uid);
@@ -3544,6 +3581,7 @@ function update() {
     // Transition to dead when video ends or after timeout (~5 sec at any FPS)
     if ((deathAnimVideoPlaying && _deathVid.ended) || deathAnimTimer > 300) {
       _deathVid.pause();
+      stopDeathVidPoll();
       state = 'dead';
       restartCooldown = 20;
     }
